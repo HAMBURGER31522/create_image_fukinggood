@@ -1,0 +1,71 @@
+"""约束优化决策空间：成本等值线 + 可行域填充 + 约束前沿 + 放大窗。
+
+论点合同示例：
+- 结论：最低成本点位于前沿右下端 9.18 元；数值极小点邻域平坦，已被放大图排除歧义。
+- 证据链：等值线给成本梯度 → 可行域填充给约束 → 前沿点列 → 放大窗消除"平坦区"质疑。
+对照：A 题「成本等值线与可行域」（已接近，此模板补注释层与统一工艺）。
+"""
+from _common import GALLERY
+import numpy as np
+
+from core import (apply_style, new_figure, save_figure, run_qa,
+                  stat_box, callout, inset_zoom, panel_label, semantic)
+
+
+def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
+                          xlabel="x", ylabel="y", cost_unit="元",
+                          width="onehalf"):
+    fig, ax = new_figure(width, ratio=0.78)
+    cs = ax.contour(X, Y, cost, levels=10, colors="#5B8DB8", linewidths=0.8)
+    ax.clabel(cs, inline=True, fontsize=6.5, fmt=f"%.0f {cost_unit}")
+
+    fx, fy = frontier_xy
+    # 可行域 = 前沿上方
+    ax.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
+                    zorder=0)
+    ax.plot(fx, fy, "-o", color=semantic("fit"), markersize=3.5,
+            linewidth=1.5, label="约束前沿", zorder=4)
+    ax.plot(*best, "*", color="k", markersize=13, markeredgecolor="white",
+            markeredgewidth=0.6, zorder=5, label="最低成本点")
+    ax.set_xlim(np.min(X), np.max(X))
+    ax.set_ylim(np.min(Y), np.max(Y))
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend(loc="upper left", bbox_to_anchor=(0.0, 0.88))
+
+    axins = inset_zoom(ax, (0.56, 0.52, 0.42, 0.4), zoom_xlim, zoom_ylim)
+    csz = axins.contour(X, Y, cost, levels=20, colors="#5B8DB8",
+                        linewidths=0.6)
+    axins.clabel(csz, inline=True, fontsize=5.5, fmt="%.1f")
+    axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
+                       zorder=0)
+    axins.plot(fx, fy, "-o", color=semantic("fit"), markersize=3,
+               linewidth=1.2)
+    axins.plot(*best, "*", color="k", markersize=11,
+               markeredgecolor="white", markeredgewidth=0.5)
+    return fig, ax, axins
+
+
+if __name__ == "__main__":
+    apply_style()
+    x = np.linspace(0, 1.0, 200)
+    y = np.linspace(0, 40, 200)
+    X, Y = np.meshgrid(x, y)
+    cost = 10.4 * X + 0.42 * Y
+    fx = np.linspace(0.0, 0.92, 12)
+    fy = 36.3 * (1 - (fx / 0.92) ** 0.55)
+    cost_f = 10.4 * fx + 0.42 * fy
+    i = int(np.argmin(cost_f))
+    fig, ax, axins = feasible_contour_zoom(
+        X, Y, cost, (fx, fy), (fx[i], fy[i]),
+        zoom_xlim=(0.55, 0.95), zoom_ylim=(0, 11),
+        xlabel="介质A 体积分数（%）", ylabel="介质B 体积分数（%）")
+    stat_box(ax, [f"最低成本 = {cost_f[i]:.2f} 元",
+                  f"位于 ({fx[i]:.2f}, {fy[i]:.1f})",
+                  "切点邻域平坦（见放大）"], loc="lower left",
+             fontsize=6.5)
+    ax.set_title("等值线—前沿切点给出最低成本解，放大窗排除平坦歧义",
+                 fontsize=9, pad=8)
+    save_figure(fig, str(GALLERY / "feasible_zoom"))
+    run_qa(fig, expect_width=("onehalf",))
+    print("feasible_zoom: OK")

@@ -1,0 +1,172 @@
+"""类别对比与排名：分组柱的期刊级替代。
+
+包含 4 个 archetype：
+- sorted_lollipop : 有序棒棒糖/点距（多类别单指标排名，替代竖柱）
+- dumbbell        : 哑铃图（两条件对比，替代分组柱）
+- butterfly       : 蝴蝶图（两类异质计数，零轴对开）
+- facet_metrics   : 不可通约指标小倍数拆轴（硬规则：禁止共用 y）
+
+论点合同示例（sorted_lollipop）：
+- 结论：方案 C 的综合得分领先第二名 18%。
+- 证据链：按值排序 → 条端直标 → 领先差距引线。
+"""
+from _common import GALLERY
+import numpy as np
+import matplotlib.pyplot as plt
+
+from core import (apply_style, new_figure, save_figure, run_qa,
+                  stat_box, callout, panel_label, PALETTE, semantic)
+
+
+def sorted_lollipop(labels, values, unit="", highlight=0, title=""):
+    """有序棒棒糖：按值降序、水平、条端直标；highlight 为强调项索引（排序后）。"""
+    order = np.argsort(values)          # 水平图从下往上增大
+    labels = [labels[i] for i in order]
+    values = [values[i] for i in order]
+    hi = len(values) - 1 - highlight    # 默认强调最大者
+
+    fig, ax = new_figure("single", ratio=0.7)
+    y = np.arange(len(values))
+    for i, (yi, v) in enumerate(zip(y, values)):
+        c = semantic("highlight") if i == hi else PALETTE[0]
+        ax.hlines(yi, 0, v, color=c, linewidth=1.6 if i == hi else 1.1,
+                  alpha=1.0 if i == hi else 0.75)
+        ax.plot([v], [yi], "o", color=c, markersize=5.5,
+                markeredgecolor="white", markeredgewidth=0.8)
+        ax.annotate(f"{v:g}{unit}", xy=(v, yi), xytext=(5, 0),
+                    textcoords="offset points", va="center", fontsize=7.5,
+                    fontweight="bold" if i == hi else "normal", color=c)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.grid(axis="y", visible=False)
+    ax.margins(x=0.15)
+    ax.set_title(title, fontsize=9.5)
+    return fig, ax
+
+
+def dumbbell(labels, before, after, cond_names=("前", "后"), unit=""):
+    """哑铃图：每类别两点一线，直标 Δ。"""
+    fig, ax = new_figure("single", ratio=0.7)
+    y = np.arange(len(labels))
+    c0, c1 = PALETTE[0], semantic("fit")
+    for yi, b, a in zip(y, before, after):
+        ax.plot([b, a], [yi, yi], color="0.78", linewidth=1.3, zorder=2)
+        ax.plot([b], [yi], "o", color=c0, markersize=5.5, zorder=3,
+                markeredgecolor="white", markeredgewidth=0.8)
+        ax.plot([a], [yi], "o", color=c1, markersize=5.5, zorder=3,
+                markeredgecolor="white", markeredgewidth=0.8)
+        d = a - b
+        ax.annotate(f"{'+' if d >= 0 else ''}{d:g}{unit}",
+                    xy=(max(a, b), yi), xytext=(6, 0),
+                    textcoords="offset points", va="center",
+                    fontsize=7, color=semantic("good") if d >= 0 else semantic("bad"))
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.grid(axis="y", visible=False)
+    ax.margins(x=0.18)
+    # 线端语义代替图例
+    ax.plot([], [], "o", color=c0, label=cond_names[0])
+    ax.plot([], [], "o", color=c1, label=cond_names[1])
+    ax.legend(loc="lower right", ncols=2)
+    return fig, ax
+
+
+def butterfly(labels, left, right, left_name, right_name, unit=""):
+    """蝴蝶图：零轴对开的发散水平条，条端直标绝对值。"""
+    fig, ax = new_figure("onehalf", ratio=0.62)
+    y = np.arange(len(labels))
+    cl, cr = "#4C9A82", "#7B6B9E"
+    ax.barh(y, [-v for v in left], color=cl, height=0.6, alpha=0.85)
+    ax.barh(y, right, color=cr, height=0.6, alpha=0.85)
+    for yi, lv, rv in zip(y, left, right):
+        ax.annotate(f"{lv:g}", xy=(-lv, yi), xytext=(-4, 0),
+                    textcoords="offset points", ha="right", va="center",
+                    fontsize=7, color=cl)
+        ax.annotate(f"{rv:g}", xy=(rv, yi), xytext=(4, 0),
+                    textcoords="offset points", ha="left", va="center",
+                    fontsize=7, color=cr)
+    ax.axvline(0, color="0.2", linewidth=0.8)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels)
+    ax.grid(axis="y", visible=False)
+    m = max(max(left), max(right)) * 1.25
+    ax.set_xlim(-m, m)
+    ax.set_xticklabels([f"{abs(t):g}" for t in ax.get_xticks()])
+    ax.plot([], [], "s", color=cl, label=left_name)
+    ax.plot([], [], "s", color=cr, label=right_name)
+    ax.legend(loc="upper right", ncols=1)
+    if unit:
+        ax.set_xlabel(unit)
+    return fig, ax
+
+
+def facet_metrics(cat_labels, metrics, width="double"):
+    """不可通约指标 → 小倍数拆轴。metrics: [(标题, 值列表, 'log'|'linear'), ...]
+
+    每个指标一个面板，独立轴与单位；替代把 % / 元 / 无量纲塞进同一 y 轴。
+    """
+    n = len(metrics)
+    from core import MM, COLUMN_WIDTHS
+    w = COLUMN_WIDTHS[width] * MM
+    fig, axes = plt.subplots(1, n, figsize=(w, w * 0.36))
+    fig.subplots_adjust(wspace=0.35, top=0.85, bottom=0.15)
+    y = np.arange(len(cat_labels))[::-1]
+    for k, (ax, (title, vals, scale)) in enumerate(zip(axes, metrics)):
+        if scale == "log":
+            ax.set_xscale("log")
+        ax.plot(vals, y, color="0.78", linewidth=1.3, zorder=2)
+        for v, yi, c in zip(vals, y, PALETTE):
+            ax.plot([v], [yi], "o", color=c, markersize=6.5, zorder=3,
+                    markeredgecolor="white", markeredgewidth=1.0)
+            ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, 8),
+                        textcoords="offset points", ha="center",
+                        fontsize=7.5, fontweight="bold", color=c)
+        ax.set_yticks(y)
+        ax.set_yticklabels(cat_labels if k == 0 else [""] * len(cat_labels))
+        ax.set_title(title, fontsize=8.5)
+        ax.grid(axis="y", visible=False)
+        ax.margins(x=0.22, y=0.3)
+        panel_label(ax, "abcdef"[k], dx=-0.04 if k else -0.3)
+    return fig, axes
+
+
+if __name__ == "__main__":
+    apply_style()
+    rng = np.random.default_rng(0)
+
+    fig, ax = sorted_lollipop(
+        ["方案A", "方案B", "方案C", "方案D", "方案E"],
+        [72.1, 65.8, 88.4, 59.2, 74.9], unit=" 分",
+        title="方案 C 综合得分领先第二名 15%")
+    callout(ax, xy=(88.4, 4), text="领先 13.5 分", xytext=(0.6, 0.55),
+            textcoords="axes fraction", color=semantic("highlight"))
+    save_figure(fig, str(GALLERY / "comparison_lollipop"))
+    run_qa(fig, expect_width=("single",))
+
+    fig, ax = dumbbell(
+        ["城市A", "城市B", "城市C", "城市D"],
+        [3.2, 5.1, 4.4, 6.0], [2.1, 4.9, 2.8, 6.3],
+        cond_names=("优化前", "优化后"), unit=" h")
+    ax.set_title("优化后 3/4 城市平均耗时下降", fontsize=9.5)
+    save_figure(fig, str(GALLERY / "comparison_dumbbell"))
+    run_qa(fig, expect_width=("single",))
+
+    fig, ax = butterfly(
+        [f"D0 = {d:.2f} m" for d in np.arange(0, 0.57, 0.08)],
+        left=[270, 95, 0, 0, 0, 0, 0, 0],
+        right=[1770, 1580, 1430, 1250, 1135, 968, 625, 810],
+        left_name="行程越界节点数", right_name="间距越界主索数")
+    ax.set_title("无约束投影解的两类越界统计", fontsize=9.5)
+    save_figure(fig, str(GALLERY / "comparison_butterfly"))
+    run_qa(fig, expect_width=("onehalf",))
+
+    fig, axes = facet_metrics(
+        ["介质A（直圆柱）", "介质B（正球体）"],
+        [("渗流阈值（%）", [0.80, 36.3], "log"),
+         ("单价（0.1 元/µm³）", [10.4, 0.40], "log"),
+         ("达到 90% 导通总成本（元）", [9.62, 18.1], "linear")])
+    fig.suptitle("不可通约指标拆轴对比：A 低阈值优势压过高单价劣势",
+                 fontsize=10, fontweight="bold")
+    save_figure(fig, str(GALLERY / "comparison_facet_metrics"))
+    run_qa(fig, expect_width=("double",))
+    print("comparison_rank: 4 figures OK")
