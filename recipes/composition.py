@@ -10,6 +10,7 @@ archetype 4: parallel_coords  —— 平行坐标（3+ 指标轮廓，替代雷�
 from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 
 from core import (apply_style, new_figure, save_figure, run_qa,
                   stat_box, PALETTE, OKABE_ITO, semantic)
@@ -39,12 +40,12 @@ def share_bars(labels, counts, unit="", width="single", highlight=None):
 
 
 def waffle(labels, counts, width="single", n=10):
-    """华夫图：n×n 格，每格 = 总量/n²。仅 ≤4 类。"""
+    """华夫图：n×n 格，每格 = 总量/n²。仅 ≤4 类。低饱和色 + 主类大数字。"""
     total = sum(counts)
     cells = np.round(np.asarray(counts) / total * n * n).astype(int)
     cells[-1] = n * n - cells[:-1].sum()
     grid = np.repeat(np.arange(len(counts)), cells)[: n * n].reshape(n, n)
-    colors = [OKABE_ITO[k] for k in ["blue", "orange", "green", "purple"]]
+    colors = PALETTE[: len(counts)]
     fig, ax = new_figure(width, ratio=0.8)
     for i in range(n):
         for j in range(n):
@@ -55,6 +56,13 @@ def waffle(labels, counts, width="single", n=10):
     ax.set_ylim(-0.2, n + 0.1)
     ax.set_aspect("equal")
     ax.axis("off")
+    # 主类区域中心放大数字占比，读者一眼取数
+    k_major = int(np.argmax(counts))
+    ii, jj = np.where(grid == k_major)
+    ax.text(jj.mean() + 0.45, n - 1 - ii.mean() + 0.45,
+            f"{counts[k_major]/total:.0%}", ha="center", va="center",
+            fontsize=12.5, fontweight="bold", color="white",
+            path_effects=[pe.withStroke(linewidth=2.2, foreground="0.4")])
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=colors[k])
                for k in range(len(labels))]
     ax.legend(handles,
@@ -64,16 +72,24 @@ def waffle(labels, counts, width="single", n=10):
     return fig, ax
 
 
-def stacked_share(group_labels, cat_labels, matrix, width="onehalf"):
-    """堆叠水平条：多组构成对比。matrix[g][c] = 计数。"""
+def stacked_share(group_labels, cat_labels, matrix, width="onehalf",
+                  emphasize=None):
+    """堆叠水平条：多组构成对比。matrix[g][c] = 计数。
+
+    emphasize: 论点所在的类别名——该段加深描边、其余段降透明度。
+    """
     matrix = np.asarray(matrix, dtype=float)
     shares = matrix / matrix.sum(axis=1, keepdims=True)
     fig, ax = new_figure(width, ratio=0.5)
     y = np.arange(len(group_labels))
     left = np.zeros(len(group_labels))
     for c in range(len(cat_labels)):
+        is_emph = emphasize is not None and cat_labels[c] == emphasize
         ax.barh(y, shares[:, c], left=left, height=0.55,
-                color=PALETTE[c % len(PALETTE)], label=cat_labels[c])
+                color=PALETTE[c % len(PALETTE)], label=cat_labels[c],
+                alpha=1.0 if (is_emph or emphasize is None) else 0.6,
+                edgecolor="0.25" if is_emph else "none",
+                linewidth=0.9 if is_emph else 0)
         for yi, s, l in zip(y, shares[:, c], left):
             if s > 0.07:
                 ax.text(l + s / 2, yi, f"{s:.0%}", ha="center", va="center",
@@ -90,54 +106,87 @@ def stacked_share(group_labels, cat_labels, matrix, width="onehalf"):
     return fig, ax
 
 
-def parallel_coords(names, data, dims, highlight_idx=(), width="onehalf"):
-    """平行坐标：data[i][d] 原值；每维独立归一。highlight_idx 强调方案。"""
+def parallel_coords(names, data, dims, highlight_idx=(), better=None,
+                    width="onehalf"):
+    """平行坐标：data[i][d] 原值；每维独立归一。highlight_idx 强调方案。
+
+    better: 每维"哪端更优"的箭头列表（'↑' 或 '↓'），显示在轴名下，
+            否则读者无法从图上验证 Pareto 论断。
+    """
     data = np.asarray(data, dtype=float)
     norm = (data - data.min(axis=0)) / (np.ptp(data, axis=0) + 1e-12)
     fig, ax = new_figure(width, ratio=0.55)
     x = np.arange(len(dims))
+    n_bg = 0
     for i in range(len(data)):
         if i in highlight_idx:
             continue
         ax.plot(x, norm[i], color="#CCCCCC", linewidth=0.8, alpha=0.6,
                 zorder=2)
+        n_bg += 1
     for j, i in enumerate(highlight_idx):
         ax.plot(x, norm[i], color=PALETTE[j % len(PALETTE)], linewidth=1.8,
                 zorder=3, label=names[i])
+    ax.plot([], [], color="#CCCCCC", linewidth=0.8,
+            label=f"其余候选方案（n = {n_bg}）")
+    fmt = lambda v: np.format_float_positional(
+        v, precision=3, unique=False, fractional=False, trim="-")
     for xi, d in zip(x, dims):
         ax.axvline(xi, color="0.55", linewidth=0.6)
-        ax.text(xi, 1.04, f"{data[:, xi].max():.3g}", ha="center",
+        ax.text(xi, 1.04, fmt(data[:, xi].max()), ha="center",
                 fontsize=6, color="0.4")
-        ax.text(xi, -0.08, f"{data[:, xi].min():.3g}", ha="center",
+        ax.text(xi, -0.08, fmt(data[:, xi].min()), ha="center",
                 fontsize=6, color="0.4")
     ax.set_xticks(x)
-    ax.set_xticklabels(dims, fontsize=7.5)
+    if better is not None:
+        labels = [f"{d}\n（{b}优）" for d, b in zip(dims, better)]
+    else:
+        labels = dims
+    ax.set_xticklabels(labels, fontsize=7.5, linespacing=1.3)
     ax.set_yticks([])
     ax.grid(False)
-    ax.legend(loc="upper right", fontsize=7)
+    # 图例放图外底部，避免遮住轴顶数值与折线
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.24),
+              ncols=2, fontsize=7, frameon=False)
+    fig.subplots_adjust(bottom=0.3)
     ax.set_ylim(-0.14, 1.14)
     return fig, ax
 
 
 if __name__ == "__main__":
     apply_style()
-    fig, ax = share_bars(
-        ["短段贴边界面", "内部完整段", "跨界截断段", "孤立段"],
-        [1240, 3105, 462, 89], unit=" 根", highlight="短段贴边界面")
-    ax.set_title("内部完整段占 63%；贴边界面短段占 25% 为截断证据",
+    seg_labels = ["短段贴边界面", "内部完整段", "跨界截断段", "孤立段"]
+    seg_counts = [1240, 3105, 462, 89]
+    tot = sum(seg_counts)
+    fig, ax = share_bars(seg_labels, seg_counts, unit=" 根",
+                         highlight="短段贴边界面")
+    ax.set_title(f"内部完整段占 {seg_counts[1]/tot:.0%}；"
+                 f"贴边界面短段占 {seg_counts[0]/tot:.0%} 为截断证据",
                  fontsize=9)
+    stat_box(ax, [f"总计 n = {tot} 根（单次 MC 实现）"],
+             loc="lower right", fontsize=6.5)
     save_figure(fig, str(GALLERY / "composition_share_bars"))
     run_qa(fig, expect_width=("single",))
 
-    fig, ax = waffle(["介质A", "介质B", "基体"], [12, 27, 61])
-    ax.set_title("成本构成：基体占六成，介质B 为主要增量", fontsize=9)
+    wf_counts = [12, 27, 61]
+    fig, ax = waffle(["介质A", "介质B", "基体"], wf_counts)
+    ax.set_title(f"成本构成：基体占 {wf_counts[2]/sum(wf_counts):.0%}，"
+                 "介质B 为主要增量", fontsize=9)
+    stat_box(ax, ["每格 = 总成本 1%",
+                  f"介质合计 {wf_counts[0]+wf_counts[1]}%（可压缩项）"],
+             loc="lower left", fontsize=6.5)
     save_figure(fig, str(GALLERY / "composition_waffle"))
     run_qa(fig, expect_width=("single",))
 
+    mat = np.array([[62, 30, 8], [33, 37, 30], [55, 33, 12]], dtype=float)
+    big = mat[:, 2] / mat.sum(axis=1)
+    ratio = big[1] / big[[0, 2]].mean()
     fig, ax = stacked_share(
         ["组1", "组2", "组3"], ["孤立", "小簇（2–10）", "大簇（>10）"],
-        [[62, 30, 8], [33, 37, 30], [55, 33, 12]])
-    ax.set_title("组2 大簇占比三倍于其余组", fontsize=9)
+        mat, emphasize="大簇（>10）")
+    ax.set_title(f"组2 大簇占比约 {ratio:.0f} 倍于其余组均值", fontsize=9)
+    stat_box(ax, [f"组2 大簇 {big[1]:.0%} vs 其余均值 {big[[0, 2]].mean():.0%}"],
+             loc="upper right", fontsize=6.5)
     save_figure(fig, str(GALLERY / "composition_stacked"))
     run_qa(fig, expect_width=("onehalf",))
 
@@ -146,8 +195,12 @@ if __name__ == "__main__":
     data[5] = [2.1, 4.6, 88, 12, 0.93]
     fig, ax = parallel_coords(
         [f"方案{i}" for i in range(24)], data,
-        ["成本", "时间", "覆盖率", "风险", "稳健性"], highlight_idx=(5,))
+        ["成本", "时间", "覆盖率", "风险", "稳健性"], highlight_idx=(5,),
+        better=["↓", "↓", "↑", "↓", "↑"])
     ax.set_title("方案5 以低成本高覆盖进入 Pareto 集", fontsize=9)
+    stat_box(ax, [f"候选方案 n = {len(data)}，5 维独立归一",
+                  "方案5 在成本/覆盖率两维同时占优"],
+             loc="lower right", fontsize=6.5)
     save_figure(fig, str(GALLERY / "parallel_coords"))
     run_qa(fig, expect_width=("onehalf",))
     print("composition: 4 figures OK")

@@ -14,16 +14,23 @@ from core import (apply_style, new_figure, save_figure, run_qa,
 
 
 def raincloud(groups, labels, ylabel="值", width="onehalf"):
-    """groups: 样本数组列表。横向排布：上半小提琴 + 中箱 + 下抖动点。"""
+    """groups: 样本数组列表。横向排布：上半小提琴 + 中箱 + 下抖动点。
+
+    组数超过色板长度时颜色循环；样本过少或方差为零的组退化为只画点+箱。
+    """
     fig, ax = new_figure(width, ratio=0.62)
     rng = np.random.default_rng(0)
-    for i, (g, c) in enumerate(zip(groups, PALETTE)):
-        kde = stats.gaussian_kde(g)
-        xs = np.linspace(np.min(g), np.max(g), 200)
-        dens = kde(xs)
-        dens = dens / dens.max() * 0.32
-        ax.fill_between(xs, i + 0.08, i + 0.08 + dens, color=c, alpha=0.55,
-                        lw=0, zorder=3)
+    for i, g in enumerate(groups):
+        c = PALETTE[i % len(PALETTE)]
+        g = np.asarray(g, dtype=float)
+        g = g[np.isfinite(g)]
+        if len(g) >= 3 and np.std(g) > 0:
+            kde = stats.gaussian_kde(g)
+            xs = np.linspace(np.min(g), np.max(g), 200)
+            dens = kde(xs)
+            dens = dens / dens.max() * 0.32
+            ax.fill_between(xs, i + 0.08, i + 0.08 + dens, color=c,
+                            alpha=0.55, lw=0, zorder=3)
         bp = ax.boxplot(g, positions=[i], vert=False, widths=0.12,
                         showfliers=False, patch_artist=True, zorder=4,
                         boxprops=dict(facecolor="white", edgecolor=c,
@@ -66,6 +73,8 @@ def ridgeline(groups, labels, xlabel="值", width="single", cmap_colors=None):
     ax.set_yticklabels(labels[::-1])
     ax.set_xlabel(xlabel)
     ax.grid(axis="y", visible=False)
+    fig.text(0.99, 0.005, "黑色短竖线 = 各组中位数", ha="right",
+             fontsize=6.5, color="0.35")
     return fig, ax
 
 
@@ -81,14 +90,16 @@ if __name__ == "__main__":
     run_qa(fig, expect_width=("onehalf",))
 
     groups = [rng.normal(3 + 0.25 * k, 0.4 + 0.03 * k, 200) for k in range(8)]
-    import matplotlib.pyplot as plt
-    cs = plt.get_cmap("crest") if False else None
     from core import cmap_for
     cm = cmap_for("sequential2")
     colors = [cm(v) for v in np.linspace(0.15, 0.85, 8)]
     fig, ax = ridgeline(groups, [f"t = {k}" for k in range(8)],
                         xlabel="残差（cm）", cmap_colors=colors)
     ax.set_title("分布随迭代整体右移且方差增大", fontsize=9.5)
+    meds = [np.median(g) for g in groups]
+    stat_box(ax, [f"每组 n = {len(groups[0])}",
+                  f"中位数漂移 {meds[-1]-meds[0]:+.1f} cm（t0 → t7）"],
+             loc="lower right", fontsize=6.5)
     save_figure(fig, str(GALLERY / "ridgeline"))
     run_qa(fig, expect_width=("single",))
     print("raincloud: 2 figures OK")

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="212.397627pt" height="214.169316pt" viewBox="0 0 212.397627 214.169316" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-08-12T17:46:23.755535</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.10.8, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 214.169316 
+L 212.397627 214.169316 
+L 212.397627 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 29.588438 188.995722 
+L 204.420878 188.995722 
+L 204.420878 14.163281 
+L 29.588438 14.163281 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g clip-path="url(#p1dae6c15e6)">
+    <image xlink:href="data:image/png;base64,
+iVBORw0KGgoAAAANSUhEUgAAAtkAAALZCAYAAABiTT2eAAAOo0lEQVR4nO3YMUoDURhG0YxMYaP7tArY26awkJANpHIzWY7TqCCTTVx443DOAh4/r7p80/V2Xg/Av/f7N40+AQiczot/hB14GH0AAADsjcgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgAAkQ0AANtmyQYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAIDYvPxM9ZvAAO+f3/4dduD48jT6BCBgyQYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAACRDQAA22bJBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgAAkQ0AANtmyQYAgJjIBgCA2Pxx+arfBAZ4e33277ADj/M6+gQgYMkGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAACRDQAA22bJBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgJjIBgCAmMgGAICYyAYAgEPrDsJuFcKvFPL9AAAAAElFTkSuQmCC" id="image021b1a06dd" transform="scale(1 -1) translate(0 -174.96)" x="29.588438" y="-14.035722" width="174.96" height="174.96"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1"/>
+     <g id="text_1">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="58.727178" y="198.368222" transform="rotate(-0 58.727178 198.368222)">类1</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_2"/>
+     <g id="text_2">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="117.004658" y="198.368222" transform="rotate(-0 117.004658 198.368222)">类2</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_3"/>
+     <g id="text_3">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="175.282138" y="198.368222" transform="rotate(-0 175.282138 198.368222)">类3</text>
+     </g>
+    </g>
+    <g id="text_4">
+     <text style="font-size: 9px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="117.004658" y="210.80416" transform="rotate(-0 117.004658 210.80416)">预测类别</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_4"/>
+     <g id="text_5">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: end" x="26.088438" y="46.238271" transform="rotate(-0 26.088438 46.238271)">类1</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_5"/>
+     <g id="text_6">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: end" x="26.088438" y="104.515752" transform="rotate(-0 26.088438 104.515752)">类2</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_6"/>
+     <g id="text_7">
+      <text style="font-size: 8px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: end" x="26.088438" y="162.793232" transform="rotate(-0 26.088438 162.793232)">类3</text>
+     </g>
+    </g>
+    <g id="text_8">
+     <text style="font-size: 9px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="8.163281" y="101.579502" transform="rotate(-90 8.163281 101.579502)">真实类别</text>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 29.588438 14.163281 
+L 87.865918 14.163281 
+L 87.865918 72.440762 
+L 29.588438 72.440762 
+L 29.588438 14.163281 
+z
+" clip-path="url(#p1dae6c15e6)" style="fill: none; stroke: #333333; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 87.865918 72.440762 
+L 146.143398 72.440762 
+L 146.143398 130.718242 
+L 87.865918 130.718242 
+L 87.865918 72.440762 
+z
+" clip-path="url(#p1dae6c15e6)" style="fill: none; stroke: #333333; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 146.143398 130.718242 
+L 204.420878 130.718242 
+L 204.420878 188.995722 
+L 146.143398 188.995722 
+L 146.143398 130.718242 
+z
+" clip-path="url(#p1dae6c15e6)" style="fill: none; stroke: #333333; stroke-width: 1.2; stroke-linejoin: miter"/>
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(53.308428 40.704443)">112</text>
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(51.227178 49.261709)">93%</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(115.129658 40.656162)">6</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(112.006025 49.551396)">5%</text>
+   </g>
+   <g id="text_11">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(173.407138 40.656162)">2</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(170.283505 49.551396)">2%</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(56.852178 98.933642)">9</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(53.728545 107.828877)">8%</text>
+   </g>
+   <g id="text_13">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(113.254658 98.981924)">87</text>
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(109.504658 107.539189)">81%</text>
+   </g>
+   <g id="text_14">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(171.532138 98.933642)">12</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(168.54913 107.828877)">11%</text>
+   </g>
+   <g id="text_15">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(56.852178 157.211123)">3</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(53.728545 166.106357)">3%</text>
+   </g>
+   <g id="text_16">
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(115.129658 157.211123)">5</text>
+    <text style="font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #404040" transform="translate(112.006025 166.106357)">5%</text>
+   </g>
+   <g id="text_17">
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(171.532138 157.259404)">96</text>
+    <text style="font-weight: 700; font-size: 7.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; fill: #ffffff" transform="translate(167.782138 165.81667)">92%</text>
+   </g>
+   <g id="text_18">
+    <text style="font-size: 9px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'; text-anchor: middle" x="117.004658" y="8.163281" transform="rotate(-0 117.004658 8.163281)">总体准确率 89%，主要混淆为类2→类3（11%）</text>
+   </g>
+   <g id="text_19">
+    <g id="patch_6">
+     <path d="M 33.085086 188.424073 
+L 79.124383 188.424073 
+Q 82.049383 188.424073 82.049383 185.499073 
+L 82.049383 170.52673 
+Q 82.049383 167.60173 79.124383 167.60173 
+L 33.085086 167.60173 
+Q 30.160086 167.60173 30.160086 170.52673 
+L 30.160086 185.499073 
+Q 30.160086 188.424073 33.085086 188.424073 
+z
+" style="fill: #ffffff; opacity: 0.85; stroke: #b2b2b2; stroke-width: 0.6; stroke-linejoin: miter"/>
+    </g>
+    <text style="font-size: 6.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'" transform="translate(33.085086 175.357042)">n = 332 样本</text>
+    <text style="font-size: 6.5px; font-family: 'Times New Roman', 'STIXGeneral', 'DejaVu Serif', 'Source Han Serif SC', 'SimSun', 'STSong', 'SimHei', 'Microsoft YaHei'" transform="translate(33.085086 184.108683)">宏平均召回 89%</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p1dae6c15e6">
+   <rect x="29.588438" y="14.163281" width="174.832441" height="174.832441"/>
+  </clipPath>
+ </defs>
+</svg>

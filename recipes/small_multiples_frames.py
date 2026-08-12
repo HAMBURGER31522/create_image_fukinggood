@@ -55,16 +55,21 @@ if __name__ == "__main__":
     th = rng.uniform(0, 2 * np.pi, n)
     xy = np.c_[r * np.cos(th), r * np.sin(th)]
     base = 0.2 * np.sin(r / 30)
-    frames, stats = [], []
+    frame_ids = [0, 2, 7, 12]            # 抽样的迭代帧号
+    stage = ["QP 初始解", "SLP-2", "逐点纠偏", "最终答案"]
+    frames, rms_list, stats = [], [], []
     for k, damp in enumerate([1.0, 0.55, 0.25, 0.1]):
         f = base * damp + rng.normal(0, 0.008, n)
         frames.append(f)
-        stats.append(f"RMS = {np.sqrt(np.mean(f**2))*100:.2f} cm")
-    titles = ["第 0 帧 · QP 初始解", "第 2 帧 · SLP-2",
-              "第 7 帧 · 逐点纠偏", "第 12 帧 · 最终答案"]
+        rms_list.append(np.sqrt(np.mean(f ** 2)) * 100)
+        stats.append(f"RMS = {rms_list[-1]:.2f} cm")
+    titles = [f"第 {i} 帧 · {s}" for i, s in zip(frame_ids, stage)]
     fig, _ = frame_snapshots(frames, titles, stats, xy=xy, R=150,
                              zlabel="径向偏差（m）")
-    fig.suptitle("迭代 12 帧收敛：RMS 8.9 → 5.07 cm，环带残差逐帧消退",
+    # 硬规则：图题中的数字必须来自计算变量，禁止手写
+    fig.suptitle(f"迭代 {frame_ids[-1]} 帧收敛："
+                 f"RMS {rms_list[0]:.1f} → {rms_list[-1]:.2f} cm，"
+                 "环带残差逐帧消退",
                  fontsize=9.5, fontweight="bold", x=0.45)
     save_figure(fig, str(GALLERY / "small_multiples_frames"))
     run_qa(fig, expect_width=("onehalf",))

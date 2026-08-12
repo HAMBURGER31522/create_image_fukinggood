@@ -15,9 +15,29 @@ from core import (apply_style, new_figure, save_figure, run_qa,
 def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
                           xlabel="x", ylabel="y", cost_unit="元",
                           width="onehalf"):
+    inset_rect = (0.56, 0.52, 0.42, 0.4)
     fig, ax = new_figure(width, ratio=0.78)
     cs = ax.contour(X, Y, cost, levels=10, colors="#5B8DB8", linewidths=0.8)
-    ax.clabel(cs, inline=True, fontsize=6.5, fmt=f"%.0f {cost_unit}")
+    # 主图等值线标签手动放置：避开放大窗 footprint 与轴边缘，防止裁切
+    xa, xb = np.min(X), np.max(X)
+    ya, yb = np.min(Y), np.max(Y)
+    fx_frac = (X - xa) / (xb - xa)
+    fy_frac = (Y - ya) / (yb - ya)
+    ix0, iy0, iw, ih = inset_rect
+    ok = ((fx_frac > 0.06) & (fx_frac < 0.94) &
+          (fy_frac > 0.06) & (fy_frac < 0.94) &
+          ~((fx_frac > ix0 - 0.03) & (fx_frac < ix0 + iw + 0.03) &
+            (fy_frac > iy0 - 0.05) & (fy_frac < iy0 + ih + 0.05)))
+    step_m = np.median(np.diff(cs.levels)) if len(cs.levels) > 1 else 1.0
+    manual_m = []
+    for lv in cs.levels:
+        d = np.where(ok, np.abs(cost - lv), np.inf)
+        idx = np.unravel_index(np.argmin(d), d.shape)
+        if d[idx] < 0.25 * step_m:
+            manual_m.append((X[idx], Y[idx]))
+    if manual_m:
+        ax.clabel(cs, inline=True, fontsize=6.5, fmt=f"%.0f {cost_unit}",
+                  manual=manual_m)
 
     fx, fy = frontier_xy
     # 可行域 = 前沿上方
@@ -33,10 +53,24 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
     ax.set_ylabel(ylabel)
     ax.legend(loc="upper left", bbox_to_anchor=(0.0, 0.88))
 
-    axins = inset_zoom(ax, (0.56, 0.52, 0.42, 0.4), zoom_xlim, zoom_ylim)
+    axins = inset_zoom(ax, inset_rect, zoom_xlim, zoom_ylim)
     csz = axins.contour(X, Y, cost, levels=20, colors="#5B8DB8",
                         linewidths=0.6)
-    axins.clabel(csz, inline=True, fontsize=5.5, fmt="%.1f")
+    # 手动选标签位置：只放在窗内 70% 中带，避免被窗框裁切；单位与主图统一
+    x0, x1 = zoom_xlim
+    y0, y1 = zoom_ylim
+    inner = ((X > x0 + 0.15 * (x1 - x0)) & (X < x1 - 0.15 * (x1 - x0)) &
+             (Y > y0 + 0.15 * (y1 - y0)) & (Y < y1 - 0.15 * (y1 - y0)))
+    step = np.median(np.diff(csz.levels)) if len(csz.levels) > 1 else 1.0
+    manual = []
+    for lv in csz.levels:
+        d = np.where(inner, np.abs(cost - lv), np.inf)
+        idx = np.unravel_index(np.argmin(d), d.shape)
+        if d[idx] < 0.25 * step:
+            manual.append((X[idx], Y[idx]))
+    if manual:
+        axins.clabel(csz, inline=True, fontsize=5.5,
+                     fmt=f"%.1f {cost_unit}", manual=manual)
     axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
                        zorder=0)
     axins.plot(fx, fy, "-o", color=semantic("fit"), markersize=3,

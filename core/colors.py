@@ -38,15 +38,20 @@ _CMAPS = {
     "heatmap": "vlag",       # 响应面（低-高，seaborn 低饱和发散）
 }
 
-BANNED_CMAPS = {"jet", "rainbow", "hsv", "gist_rainbow", "nipy_spectral"}
+BANNED_CMAPS = {"jet", "rainbow", "hsv", "gist_rainbow", "nipy_spectral",
+                "turbo", "gist_ncar"}
 
 
 def semantic(key: str) -> str:
+    if key not in _SEMANTIC:
+        raise ValueError(f"未知语义色 '{key}'，可选：{sorted(_SEMANTIC)}")
     return _SEMANTIC[key]
 
 
 def cmap_for(scene: str):
     """scene in {diverging, sequential, sequential2, surface, heatmap}"""
+    if scene not in _CMAPS:
+        raise ValueError(f"未知色图场景 '{scene}'，可选：{sorted(_CMAPS)}")
     name = _CMAPS[scene]
     if name in ("crest", "vlag"):
         try:
@@ -55,3 +60,11 @@ def cmap_for(scene: str):
         except ImportError:
             name = {"crest": "GnBu", "vlag": "RdBu_r"}[name]
     return plt.get_cmap(name)
+
+
+def truncate_cmap(cmap, lo: float = 0.12, hi: float = 0.88, n: int = 256):
+    """截断色图两端的高饱和段，用于大面积铺色时保持"淡"的期刊气质。"""
+    import numpy as np
+    from matplotlib.colors import ListedColormap
+    return ListedColormap(cmap(np.linspace(lo, hi, n)),
+                          name=f"{getattr(cmap, 'name', 'cmap')}_trunc")

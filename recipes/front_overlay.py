@@ -11,7 +11,7 @@ from _common import GALLERY
 import numpy as np
 
 from core import (apply_style, new_figure, save_figure, run_qa,
-                  stat_box, callout, cmap_for, semantic)
+                  stat_box, callout, cmap_for, semantic, truncate_cmap)
 
 
 def response_overlay(X, Y, P, fronts, best=None, levels=(0.5, 0.9),
@@ -19,10 +19,12 @@ def response_overlay(X, Y, P, fronts, best=None, levels=(0.5, 0.9),
                      width="onehalf"):
     """fronts: [(名称, x, y, 样式dict), ...] 叠加在响应面上的方法对照线。"""
     fig, ax = new_figure(width, ratio=0.75)
-    pm = ax.pcolormesh(X, Y, P, cmap=cmap_for("heatmap"), shading="auto",
-                       rasterized=True, alpha=0.92)
+    # 截断色图两端高饱和段 + alpha，避免大面积深色压过前沿主线
+    pm = ax.pcolormesh(X, Y, P, cmap=truncate_cmap(cmap_for("heatmap")),
+                       shading="auto", rasterized=True, alpha=0.85)
     cb = fig.colorbar(pm, ax=ax, pad=0.02, shrink=0.9)
     cb.set_label(zlabel, fontsize=8)
+    cb.set_ticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     cb.ax.tick_params(labelsize=7)
     cs = ax.contour(X, Y, P, levels=list(levels), colors="0.25",
                     linewidths=0.9, linestyles=["--", ":"])
@@ -31,8 +33,8 @@ def response_overlay(X, Y, P, fronts, best=None, levels=(0.5, 0.9),
         ax.plot(fx, fy, label=name, zorder=4, **st)
     if best is not None:
         ax.plot(*best, "*", color="#FFD24C", markeredgecolor="k",
-                markersize=13, markeredgewidth=0.8, zorder=5,
-                label="最低成本点")
+                markersize=13, markeredgewidth=0.8, zorder=6,
+                clip_on=False, label="最低成本点")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.legend(loc="upper right", fontsize=6.5)
@@ -82,7 +84,8 @@ def pareto_front(f1, f2, labels=("目标1", "目标2"), knee=None,
     ax.legend(loc="upper right")
     stat_box(ax, [f"候选 {len(f1)}，非支配 {len(nd)}"], loc="lower left",
              fontsize=6.5)
-    return fig, ax
+    info = dict(fx=fx, fy=fy, knee=knee)
+    return fig, ax, info
 
 
 if __name__ == "__main__":
@@ -105,14 +108,22 @@ if __name__ == "__main__":
         xlabel="介质A 体积分数（%）", ylabel="介质B 体积分数（%）")
     ax.set_title("两方法前沿在 A 富端重合，最低成本点贴 P = 0.9 等值线",
                  fontsize=9, pad=8)
+    stat_box(ax, [f"响应面网格 {P.shape[0]}×{P.shape[1]}",
+                  f"P > 0.9 区域占 {np.mean(P > 0.9):.0%}"],
+             loc="lower left", fontsize=6.5)
     save_figure(fig, str(GALLERY / "front_overlay"))
     run_qa(fig, expect_width=("onehalf",))
 
     rng = np.random.default_rng(4)
     cost = rng.uniform(8, 30, 60)
     err = 40 / (cost - 6) + rng.uniform(0, 2.2, 60)
-    fig, ax = pareto_front(cost, err, labels=("总成本（元）", "RMS 误差（cm）"))
-    ax.set_title("膝点以 +4% 成本换 -31% 误差", fontsize=9.5)
+    fig, ax, info = pareto_front(cost, err,
+                                 labels=("总成本（元）", "RMS 误差（cm）"))
+    # 硬规则：图题数字来自计算变量（膝点 vs 前沿最低成本端）
+    k = info["knee"]
+    dc = (info["fx"][k] - info["fx"][0]) / info["fx"][0]
+    de = (info["fy"][k] - info["fy"][0]) / info["fy"][0]
+    ax.set_title(f"膝点以 +{dc:.0%} 成本换 {de:.0%} 误差", fontsize=9.5)
     save_figure(fig, str(GALLERY / "pareto_front"))
     run_qa(fig, expect_width=("single",))
     print("front_overlay: 2 figures OK")

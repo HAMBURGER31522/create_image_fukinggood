@@ -23,6 +23,8 @@ def stat_box(ax, lines, loc: str = "upper left", fontsize: float = 7.0,
         "lower right": (0.98, 0.02, "right", "bottom"),
         "upper center": (0.5, 0.98, "center", "top"),
         "lower center": (0.5, 0.02, "center", "bottom"),
+        "center left": (0.02, 0.5, "left", "center"),
+        "center right": (0.98, 0.5, "right", "center"),
     }[loc]
     x, y, ha, va = _pos
     return ax.text(
@@ -35,11 +37,16 @@ def stat_box(ax, lines, loc: str = "upper left", fontsize: float = 7.0,
 
 
 def callout(ax, xy, text, xytext, color: str = "#3D7A6B", fontsize: float = 7.0,
-            rad: float = 0.25, textcoords: str = "data"):
+            rad: float = 0.25, textcoords: str = "data", mark: bool = False):
     """引线标注：弧形箭头指向关键点（极值、拐点、最优解）。
 
     xy: 数据坐标目标点；xytext: 文字位置（默认数据坐标，可用 'axes fraction'）。
+    mark=True 在目标点画同色小标记，读者可确认箭头指向
+    （目标点本身没有星标/散点时务必开启）。
     """
+    if mark:
+        ax.plot([xy[0]], [xy[1]], "o", color=color, markersize=4.5,
+                markeredgecolor="white", markeredgewidth=0.8, zorder=11)
     return ax.annotate(
         text, xy=xy, xytext=xytext, textcoords=textcoords,
         fontsize=fontsize, color=color, ha="center", va="center",
@@ -51,11 +58,14 @@ def callout(ax, xy, text, xytext, color: str = "#3D7A6B", fontsize: float = 7.0,
     )
 
 
-def end_label(ax, x, y, text, color, dx: float = 0.008, fontsize: float = 7.5,
+def end_label(ax, x, y, text, color, dx_pt: float = 4.0, fontsize: float = 7.5,
               fontweight: str = "bold"):
-    """线端直接标注（替代图例）：在曲线末端右侧写名字/数值。"""
+    """线端直接标注（替代图例）：在曲线末端右侧写名字/数值。
+
+    dx_pt: 相对线端的水平偏移，单位 points。
+    """
     return ax.annotate(
-        text, xy=(x, y), xytext=(dx * 72, 0), textcoords="offset points",
+        text, xy=(x, y), xytext=(dx_pt, 0), textcoords="offset points",
         color=color, fontsize=fontsize, fontweight=fontweight,
         ha="left", va="center", zorder=10, annotation_clip=False,
     )
@@ -65,16 +75,20 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
              color: str = "0.45", fontsize: float = 7.0,
              label_loc: str = "right"):
     """参考线 + 端点小标签（如 90% 阈值线）。label_loc: left/right。"""
+    # 标签垫白底，避免文字与虚线相压
+    _bbox = dict(facecolor="white", edgecolor="none", alpha=0.8,
+                 boxstyle="square,pad=0.12")
     if orientation == "h":
         ax.axhline(value, color=color, linewidth=0.8, linestyle=(0, (4, 3)), zorder=2)
         if label:
             tf = blended_transform_factory(ax.transAxes, ax.transData)
             xa, ha = (0.995, "right") if label_loc == "right" else (0.01, "left")
             ax.text(xa, value, label, transform=tf, ha=ha, va="bottom",
-                    fontsize=fontsize, color=color)
+                    fontsize=fontsize, color=color, bbox=_bbox, zorder=3)
     else:
         ax.axvline(value, color=color, linewidth=0.8, linestyle=(0, (4, 3)), zorder=2)
         if label:
             tf = blended_transform_factory(ax.transData, ax.transAxes)
             ax.text(value, 0.99, label, transform=tf, ha="left", va="top",
-                    rotation=90, fontsize=fontsize, color=color)
+                    rotation=90, fontsize=fontsize, color=color, bbox=_bbox,
+                    zorder=3)

@@ -20,6 +20,15 @@ Task Progress:
 - [ ] 7. 不合格改到合格，交付 PNG + SVG
 ```
 
+**复制 recipe 时注意**：recipes 顶部的 `from _common import GALLERY` 是 demo 专用的
+输出路径工具，复制到自己的脚本时删掉这一行，改用第 4 节骨架里的
+`sys.path.insert + save_figure("自己的输出路径")`。
+
+**批量出图（赛时 15–20 张）**：逐张 Read 目测太慢时，先
+`python tools/contact_sheet.py <图目录>` 把整批拼成联络表，一次 Read 扫完，
+只对可疑图单独放大复检。赶工期可用 `apply_style(draft=True)` 草稿档
+（降 dpi、只出 PNG），**交付前必须换回默认档重出**。
+
 ### 1. 论点合同（写代码前必填）
 
 ```
@@ -31,6 +40,20 @@ archetype（查 reference/taxonomy.md 选图决策树）：…
 ```
 
 合同不完整不出图。图题写结论（"A 成本仅为 B 的 53%"），不写描述（"A 与 B 的对比"）。
+
+**统计框三段式**：参考期刊图的注释框同时含三类信息——**设置**（网格数/步长/
+样本量/自由度）、**结果**（RMS/极值/占比）、**判定**（是否在容差内/是否可行）。
+只写结果的框读者无法检验可信度，至少给"设置 + 结果"两层。
+
+**图题数字硬规则：图题/统计框/标注中出现的一切数字必须用 f-string 引用计算变量，
+禁止手写常数。** 手写数字会在数据或随机种子变化后与图内统计矛盾——这是事实错误级
+缺陷，比任何视觉问题都严重。正确写法：
+
+```python
+rms0, rms1 = rms_list[0], rms_list[-1]        # 与帧内统计同源
+fig.suptitle(f"迭代收敛：RMS {rms0:.1f} → {rms1:.2f} cm")   # ✓
+fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写，禁止
+```
 
 ### 2. 硬拒绝清单（命中即换）
 
@@ -44,7 +67,12 @@ archetype（查 reference/taxonomy.md 选图决策树）：…
 | 均值柱+误差棒当分布 | 雨云图（raincloud.py） |
 | 雷达图做排名/灵敏度 | 平行坐标 / tornado（composition.py / tornado.py） |
 | 散点墨团（N>500） | hexbin+边缘分布（joint_marginal.py） |
+| seaborn 默认全阵热力图 | 下三角/行归一+双标注（annotated_heatmap.py） |
+| 预测只画一条线无区间 | 置信扇+回测点（timeseries_forecast.py) |
+| Visio/PPT 风格流程图 | 泳道管线图（pipeline_diagram.py） |
 | 3D 柱 / 3D 饼 | 禁止，无例外 |
+
+饼图（Wedge）与双 Y 轴（twinx）由 run_qa 自动拦截；其余清单项靠此表执行。
 
 ### 3. 中文与数学混排硬规则
 
@@ -74,6 +102,7 @@ run_qa(fig, expect_width=("onehalf",))   # 不过直接抛错
 ### 5. QA 目测清单（Read PNG 后逐项过）
 
 - [ ] 一句话能说出论点，图内证据支撑它（图题=结论）
+- [ ] 图题中的每个数字与图内统计框/标注一致（同一变量生成）
 - [ ] 至少一个统计注释框；关键点有引线直接标注
 - [ ] 文字无重叠、无裁切、无豆腐块；图例不遮数据
 - [ ] 配色低饱和、语义一致（同一对象全文同色）
@@ -84,12 +113,17 @@ run_qa(fig, expect_width=("onehalf",))   # 不过直接抛错
 
 | 论证场景 | recipe | archetype |
 |---|---|---|
-| 类别对比/排名 | comparison_rank.py | 棒棒糖、哑铃、蝴蝶、小倍数拆轴 |
+| 模型框架（Figure 1） | pipeline_diagram.py | 泳道管线+数据流/反馈线型区分 |
+| 类别对比/排名 | comparison_rank.py | 棒棒糖、哑铃、斜率图、蝴蝶、小倍数拆轴 |
 | 占比/组成 | composition.py | 有序条+直标、华夫、堆叠条、平行坐标 |
 | 分布对比 | raincloud.py | 雨云、ridgeline |
 | 联合分布 | joint_marginal.py | hexbin+边缘直方图+分位圆 |
 | 拟合诊断 | fit_residual.py | 拟合+残差双联 |
+| 模型验证 | parity.py | 预测-实测 45° 对照+误差带 |
+| 时序预测 | timeseries_forecast.py | 历史+置信扇+回测点 |
+| 分类评估/相关性 | annotated_heatmap.py | 混淆矩阵、下三角相关阵 |
 | MC 收敛 | convergence_ci.py | CI 带 + log-log 双联 |
+| 算法收敛 | algo_convergence.py | best-so-far+收敛代标注 |
 | 参数扫描 | scan_curve.py | log y、星标、引线框、axvspan |
 | 二维场 | contour_field.py | 圆形掩膜发散场、极坐标场 |
 | 约束优化 | feasible_zoom.py | 等值线+可行域+放大窗 |
@@ -101,6 +135,7 @@ run_qa(fig, expect_width=("onehalf",))   # 不过直接抛错
 | 空间网络 | network_percolation.py | 簇高亮小倍数、统一轴限 |
 
 选图决策树与"平庸 vs 期刊级"完整对照：见 [reference/taxonomy.md](reference/taxonomy.md)。
+全部函数签名速查：见 [reference/api.md](reference/api.md)。
 设计规范与验收标准：见 [SPEC.md](SPEC.md)。
 
 ## 质量标准

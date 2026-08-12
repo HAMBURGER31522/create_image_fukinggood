@@ -64,13 +64,17 @@ for k, (ax, (title, vals, scale, fmt, ratio)) in enumerate(zip(axes, panels)):
             ha="center", fontsize=8, color="0.25", style="italic")
     panel_label(ax, "abc"[k], dx=-0.02 if k else -0.30)
 
-# 最终论点：成本面板引线强调
-callout(axes[2], xy=(cost[0], 1), text="同一目标下\nA 省 8.5 元",
+# 最终论点：成本面板引线强调（硬规则：数字全部来自计算变量）
+saving = cost[1] - cost[0]
+callout(axes[2], xy=(cost[0], 1), text=f"同一目标下\nA 省 {saving:.1f} 元",
         xytext=(0.62, 0.42), textcoords="axes fraction",
         color=semantic("highlight"), rad=-0.25)
+stat_box(axes[0], ["设置：MC 10⁵ 次/点", "阈值差与成本均为求解输出"],
+         loc="lower right", fontsize=6)
 
-fig.suptitle("同一 90% 导通目标：介质 A 总成本仅为 B 的 53%"
-             "——低阈值优势(45×)压过高单价劣势(26×)",
+fig.suptitle(f"同一 90% 导通目标：介质 A 总成本仅为 B 的 {cost[0]/cost[1]:.0%}"
+             f"——低阈值优势({threshold[1]/threshold[0]:.0f}×)"
+             f"压过高单价劣势({price[0]/price[1]:.0f}×)",
              fontsize=10, fontweight="bold", y=0.99)
 
 out_dir = Path(__file__).resolve().parents[1] / "gallery"

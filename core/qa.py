@@ -42,12 +42,48 @@ def run_qa(fig, expect_width=None, strict: bool = True) -> list[str]:
             f"{len(small)} 处文字字号 < {MIN_FONT_PT}pt，印刷不可读："
             f"{[t.get_text()[:12] for t in small[:3]]}")
 
-    # 2. 色图黑名单
+    # 2. 色图黑名单（归一化 _r 反转与大小写，防止 jet_r 绕过）
     for ax in fig.get_axes():
         for coll in list(ax.collections) + list(ax.images):
             cm = getattr(coll, "get_cmap", lambda: None)()
-            if cm is not None and cm.name in BANNED_CMAPS:
+            if cm is None:
+                continue
+            base = cm.name.lower().removesuffix("_r")
+            if base in BANNED_CMAPS:
                 problems.append(f"使用了被禁色图 {cm.name}（jet/rainbow 族）")
+
+    # 2b. 硬拒绝构图检测：双 Y 轴（twinx）与饼图
+    from matplotlib.patches import Wedge
+    axes = fig.get_axes()
+    for i, a in enumerate(axes):
+        for b in axes[i + 1:]:
+            same_pos = a.get_position().bounds == b.get_position().bounds
+            if same_pos and a.get_shared_x_axes().joined(a, b):
+                problems.append(
+                    "检测到双 Y 轴（twinx）——硬拒绝：不可通约的量拆面板"
+                    "（见 phase_transition.py 的做法）")
+    for ax in axes:
+        if any(isinstance(p, Wedge) for p in ax.patches):
+            problems.append(
+                "检测到饼图扇形——硬拒绝：改用有序水平条+直标或华夫图"
+                "（composition.py）")
+
+    # 2c. 注释层一等公民：全图至少一个统计注释框或带箭头的引线标注
+    def _has_annotation_layer():
+        for ax in axes:
+            for t in ax.texts:
+                if t.get_bbox_patch() is not None:
+                    return True
+                if getattr(t, "arrow_patch", None) is not None:
+                    return True
+        for t in fig.texts:
+            if t.get_bbox_patch() is not None:
+                return True
+        return False
+    if not _has_annotation_layer():
+        problems.append(
+            "无注释层：至少加一个 stat_box（n/RMS/CI 等统计框）"
+            "或 callout 引线标注关键点")
 
     # 3. 画布宽度
     if expect_width:
@@ -83,33 +119,42 @@ def run_qa(fig, expect_width=None, strict: bool = True) -> list[str]:
     if n_glyph:
         problems.append(f"{n_glyph} 处字形缺失（豆腐块），检查字体回退与混排")
 
-    # 5. 图例遮挡数据（查曲线顶点落入图例 bbox 的数量，避免包围盒误报）
+    # 5. 图例遮挡数据（查数据点落入图例 bbox 的数量，覆盖折线与散点）
     try:
         for ax in fig.get_axes():
             leg = ax.get_legend()
             if leg is None:
                 continue
             lb = leg.get_window_extent()
-            for line in ax.lines:
-                xy = line.get_xydata()
-                if len(xy) < 2:
-                    continue
-                pts = ax.transData.transform(xy)
-                inside = np.sum((pts[:, 0] > lb.x0) & (pts[:, 0] < lb.x1) &
-                                (pts[:, 1] > lb.y0) & (pts[:, 1] < lb.y1))
-                if inside >= max(6, 0.1 * len(pts)):
-                    problems.append(
-                        f"图例覆盖曲线 {inside} 个数据点，移动图例或改线端直标")
-                    break
-    except Exception:
-        pass
 
-    # Windows 控制台默认 GBK，避免中文输出乱码
-    import sys
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
+            def _count_inside(xy):
+                if len(xy) < 2:
+                    return 0, 0
+                pts = ax.transData.transform(np.asarray(xy))
+                n_in = int(np.sum(
+                    (pts[:, 0] > lb.x0) & (pts[:, 0] < lb.x1) &
+                    (pts[:, 1] > lb.y0) & (pts[:, 1] < lb.y1)))
+                return n_in, len(pts)
+
+            hit = False
+            for line in ax.lines:
+                n_in, n = _count_inside(line.get_xydata())
+                if n and n_in >= max(6, 0.1 * n):
+                    problems.append(
+                        f"图例覆盖曲线 {n_in} 个数据点，移动图例或改线端直标")
+                    hit = True
+                    break
+            if not hit:
+                for coll in ax.collections:
+                    offs = getattr(coll, "get_offsets", lambda: [])()
+                    n_in, n = _count_inside(offs)
+                    if n and n_in >= max(6, 0.1 * n):
+                        problems.append(
+                            f"图例覆盖散点 {n_in} 个数据点，移动图例")
+                        break
+    except Exception as e:  # 检查器自身故障不应伪装成通过
+        print(f"[QA note] 图例遮挡检查未执行：{e}")
+
     if problems and strict:
         raise AssertionError("QA FAILED:\n- " + "\n- ".join(problems))
     if problems:

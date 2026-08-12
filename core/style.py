@@ -34,8 +34,17 @@ def _resolve_fonts() -> list[str]:
     return fonts or ["DejaVu Sans"]
 
 
-def apply_style(base_size: float = 9.0) -> None:
-    """印刷档字号（pt）：正文 9，刻度 8，注释 7。dpi 只影响预览。"""
+_DRAFT_MODE = False
+
+
+def apply_style(base_size: float = 9.0, draft: bool = False) -> None:
+    """印刷档字号（pt）：正文 9，刻度 8，注释 7。dpi 只影响预览。
+
+    draft=True 为 72h 赛时草稿档：降 dpi、save_figure 只出 PNG，
+    交付前必须用默认档重出一遍。
+    """
+    global _DRAFT_MODE
+    _DRAFT_MODE = draft
     fonts = _resolve_fonts()
     mpl.rcParams.update({
         # 直接给列表才能触发逐字符回退（拉丁用衬线、中文用 CJK 字体）
@@ -58,7 +67,8 @@ def apply_style(base_size: float = 9.0) -> None:
         "lines.linewidth": 1.2, "lines.markersize": 4,
         "legend.frameon": True, "legend.framealpha": 0.9,
         "legend.edgecolor": "0.8", "legend.fancybox": False,
-        "figure.dpi": 150, "savefig.dpi": 300,
+        "figure.dpi": 100 if draft else 150,
+        "savefig.dpi": 120 if draft else 300,
         "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
         "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none",
         "axes.axisbelow": True,
@@ -69,16 +79,32 @@ def apply_style(base_size: float = 9.0) -> None:
 def new_figure(width: str | float = "onehalf", ratio: float = 0.62,
                **kwargs):
     """按栏宽建图。width 取 COLUMN_WIDTHS 键名或 mm 数值；ratio=高/宽。"""
-    w_mm = COLUMN_WIDTHS.get(width, width) if isinstance(width, str) else width
+    if isinstance(width, str):
+        if width not in COLUMN_WIDTHS:
+            raise ValueError(
+                f"未知栏宽 '{width}'，可选：{sorted(COLUMN_WIDTHS)} 或 mm 数值")
+        w_mm = COLUMN_WIDTHS[width]
+    else:
+        w_mm = width
     figsize = (w_mm * MM, w_mm * MM * ratio)
     return plt.subplots(figsize=figsize, **kwargs)
 
 
-def save_figure(fig, path_no_ext: str, formats=("png", "svg")) -> list[str]:
-    """导出 png(300dpi)+svg(文字可编辑)。返回输出文件列表。"""
+def save_figure(fig, path_no_ext: str, formats=("png", "svg"),
+                tight: bool = True) -> list[str]:
+    """导出 png(300dpi)+svg(文字可编辑)。返回输出文件列表。
+
+    tight=False 用于 3D 图：mplot3d 的轴标签不计入 tight bbox，
+    会被裁掉，此时改走 subplots_adjust 手动边距。
+    草稿档（apply_style(draft=True)）只出 PNG。
+    """
+    from pathlib import Path
+    Path(path_no_ext).parent.mkdir(parents=True, exist_ok=True)
+    if _DRAFT_MODE:
+        formats = ("png",)
     out = []
     for ext in formats:
         p = f"{path_no_ext}.{ext}"
-        fig.savefig(p)
+        fig.savefig(p, bbox_inches=None if tight else fig.bbox_inches)
         out.append(p)
     return out

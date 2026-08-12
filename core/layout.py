@@ -46,6 +46,8 @@ def marginal_grid(width="onehalf", ratio: float = 0.85, right: bool = True,
 def small_multiples(n: int, ncols: int = 4, width="double", ratio: float = 1.0,
                     **kwargs):
     """小倍数网格（迭代快照、多组对比）。返回 (fig, axes 一维列表)。"""
+    if n < 1 or ncols < 1:
+        raise ValueError(f"n 与 ncols 必须 ≥ 1（n={n}, ncols={ncols}）")
     nrows = (n + ncols - 1) // ncols
     w = _width_mm(width) * MM
     cell = w / ncols
@@ -72,8 +74,13 @@ def inset_zoom(ax, bounds, xlim, ylim, edgecolor: str = "#C44E52"):
     """
     axins = ax.inset_axes(bounds, xlim=xlim, ylim=ylim)
     axins.set_facecolor("white")
-    rect, connectors = ax.indicate_inset_zoom(
+    res = ax.indicate_inset_zoom(
         axins, edgecolor=edgecolor, linewidth=0.9, alpha=0.9)
+    # matplotlib <3.10 返回 (rect, connectors)，3.10+ 返回 InsetIndicator
+    if isinstance(res, tuple):
+        _, connectors = res
+    else:
+        connectors = res.connectors
     for c in connectors:
         c.set(alpha=0.35, linewidth=0.5, linestyle=":")
     axins.grid(True, linestyle="--", alpha=0.3, linewidth=0.4)

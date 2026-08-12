@@ -40,7 +40,7 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 置信带折线（ribbon） | P0 | `convergence_ci.py` |
 | 拟合+残差双联 | P0 | `fit_residual.py` |
 | Ridgeline（>6 组分布漂移） | P1 | `raincloud.py` 内含 |
-| 森林图/分位点图 | P2 | 指导见 §2 |
+| 森林图/分位点图 | P2 | 指导见 §2.5 |
 
 ### 1.2 趋势、扫描与收敛
 | 图种 | 优先级 | recipe |
@@ -48,8 +48,10 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 1D 扫描曲线（log y、星标、引线框、axvspan） | P0 | `scan_curve.py` |
 | 迭代小倍数（共享色标、锁轴） | P0 | `small_multiples_frames.py` |
 | MC 收敛双联（估计+CI 带 / 误差 log-log） | P0 | `convergence_ci.py` |
+| 时序预测扇形（历史+置信扇+回测点） | P0 | `timeseries_forecast.py` |
+| 优化算法收敛（best-so-far+收敛代） | P1 | `algo_convergence.py` |
 | 斜率图 / 插图放大 inset | P1 | `comparison_rank.py` / `feasible_zoom.py` |
-| 面积图 / bump chart | P2 | 指导 |
+| 面积图 / bump chart | P2 | 指导见 §2.5 |
 
 ### 1.3 二维参数空间 / 场与响应面
 | 图种 | 优先级 | recipe |
@@ -59,7 +61,7 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 等值线 + 可行域 + 放大窗 | P0 | `feasible_zoom.py` |
 | 3D 响应面 + 底面等高投影 | P0 | `surface3d_project.py` |
 | 极坐标场 / quiver / 离散注释热力 | P1 | `contour_field.py` 内含极坐标 |
-| 相关矩阵 | P2 | 指导 |
+| 相关矩阵（下三角+强相关强调） | P1 | `annotated_heatmap.py` |
 
 ### 1.4 优化、权衡与前沿
 | 图种 | 优先级 | recipe |
@@ -76,7 +78,9 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 笛卡尔蜘蛛灵敏度（非雷达） | P1 | `tornado.py` 内含 |
 | 2D 灵敏度热力+临界分区 | P1 | `front_overlay.py` 可复用 |
 | 多种子稳定性点距 | P1 | `comparison_rank.py` 可复用 |
-| 瀑布图 | P2 | 指导 |
+| Parity plot（预测 vs 实测 45°） | P0 | `parity.py` |
+| 混淆矩阵（行归一+双标注） | P1 | `annotated_heatmap.py` |
+| 瀑布图 | P2 | 指导见 §2.5 |
 
 ### 1.6 组成与占比（饼图降级）
 | 图种 | 优先级 | recipe |
@@ -84,13 +88,13 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 有序水平条+直标 %（饼图默认替代） | P0 | `composition.py` |
 | 华夫图（≤4 类） | P1 | `composition.py` |
 | 堆叠水平条（跨组构成） | P1 | `composition.py` |
-| treemap/Upset/Venn/马赛克 | P2 | 指导 |
+| treemap/Upset/Venn/马赛克 | P2 | 指导见 §2.5 |
 
 ### 1.7 类别对比与排名（柱状图主战场）
 | 图种 | 优先级 | recipe |
 |---|---|---|
 | Cleveland 点距 / 棒棒糖 | P0 | `comparison_rank.py` |
-| 哑铃 / 斜率图（两条件） | P0 | `comparison_rank.py` |
+| 哑铃 / 斜率图（两条件） | P0 | `comparison_rank.py`（dumbbell + slopegraph） |
 | 蝴蝶图（发散条） | P0 | `comparison_rank.py` |
 | 不可通约指标 → 小倍数拆轴（硬规则） | P0 | `comparison_rank.py` |
 | 分组柱 | P2 | 仅同单位、≤4 组；否则拒绝 |
@@ -102,7 +106,7 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 空间网络小倍数（真实坐标、簇着色、统一轴限） | P0 | `network_percolation.py` |
 | 相变图：列归一密度场+序参量+临界线 | P0 | `phase_transition.py` |
 | 度分布小倍数 / 邻接矩阵 | P1 | `network_percolation.py` 可扩展 |
-| 桑基/冲积（仅流量/转移论点） | P2 | 指导 |
+| 桑基/冲积（仅流量/转移论点） | P2 | 指导见 §2.5 |
 
 ### 1.9 三维场景与几何机制
 | 图种 | 优先级 | recipe |
@@ -113,8 +117,14 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 2D 三视图替代 3D | P1 | 指导 |
 | 3D 柱 / 3D 饼 | 禁止 | — |
 
-### 1.10 方法示意 / Hero 图
-定量面板走 matplotlib 模板；机制流程走矢量示意（TikZ 等），禁止流程图生成器冒充 Figure 1。P1–P2，给指导。
+### 1.10 方法示意 / 技术路线图（论文 Figure 1）
+| 图种 | 优先级 | recipe |
+|---|---|---|
+| 技术路线图（泳道分层+数据流/反馈线型区分） | P0 | `pipeline_diagram.py` |
+| 机制矢量示意（几何/光路等） | P2 | TikZ 或手绘矢量，指导见 §2.5 |
+
+技术路线图是每篇数模论文评委看到的第一张图，禁止 Visio/PPT 自由拼贴：
+字体与正文图统一、模块框内嵌关键公式/参数、实线=数据流、虚线=反馈回路。
 
 ## 2. 平庸形态 vs 期刊级形态（速查）
 
@@ -127,6 +137,18 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 饼图 | 扇区/爆炸/3D | 有序水平条+直标（默认）、华夫（≤4 类）、堆叠条（跨组） |
 | 箱线图 | 箱+须藏样本 | 雨云图（半小提琴+箱+抖动点）、ridgeline（>6 组） |
 | 误差棒 | 柱顶对称棒 | CI ribbon / 雨云 / 点+CI，注明 SD/SEM/CI 与 N |
+
+## 2.5 P2 图种构图指导（无模板，按此手写）
+
+- **森林图/分位点图**：横向点+CI 横线，按效应量排序，`axvline` 标零效应；用 `sorted_lollipop` 骨架改造。
+- **瀑布图**：`barh`/`bar` 逐项累积，正负分 semantic("good"/"bad") 色，末柱为合计并加框强调；连接虚线用 `ax.plot` 灰细线。
+- **面积图/bump chart**：面积图仅当"总量+构成同时是论点"；bump chart（排名随期变化）用 `slopegraph` 扩展到多期，只强调变位者。
+- **treemap/马赛克**：层级占比才用；matplotlib 无原生支持，用 `squarify` 或改用嵌套有序条。Upset/Venn 集合交集用 `upsetplot`。
+- **桑基/冲积**：流量转移论点才用；matplotlib `Sankey` 类可用但工艺差，量大时改堆叠条+连接带（`fill_betweenx`）。
+- **甘特/排产**：`barh` + 日期轴，任务按开始时间排序，关键路径加深色 + 里程碑竖线；每条任务右端直标工期。
+- **路径/路线（TSP/VRP）**：真实坐标 `LineCollection`，途经顺序用小号数字标注，多车分 PALETTE 色，仓库/起点用星标；参考 `network_percolation.py` 的边绘制。
+- **地理分布**：能不用地图就不用（散点+边界线即可）；必须用时 `geopandas` 读边界，色阶走 `cmap_for("sequential")`，禁止默认 viridis 满涂。
+- **机制矢量示意**：TikZ / Inkscape 手绘，字体嵌入与正文一致；matplotlib 只负责其中的定量面板。
 
 ## 3. 实现要点备忘（P0 关键技术）
 

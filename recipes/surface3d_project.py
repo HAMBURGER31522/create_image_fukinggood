@@ -20,7 +20,7 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
     w = COLUMN_WIDTHS[width] * MM
     fig = plt.figure(figsize=(w, w * 0.85))
     ax = fig.add_subplot(projection="3d")
-    fig.subplots_adjust(left=0.0, right=0.95, bottom=0.06, top=0.92)
+    fig.subplots_adjust(left=0.0, right=0.86, bottom=0.06, top=0.92)
     ax.plot_surface(X, Y, Z, cmap=cmap_for("surface"), linewidth=0,
                     antialiased=True, alpha=0.9, rstride=2, cstride=2)
     zmin = np.min(Z) - 0.35 * (np.max(Z) - np.min(Z))
@@ -36,7 +36,7 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
     ax.set_zlim(zmin, np.max(Z))
     ax.set_xlabel(xlabel, fontsize=8, labelpad=2)
     ax.set_ylabel(ylabel, fontsize=8, labelpad=2)
-    ax.set_zlabel(zlabel, fontsize=8, labelpad=2)
+    ax.set_zlabel(zlabel, fontsize=8, labelpad=8, rotation=90)
     ax.tick_params(labelsize=6.5, pad=1)
     ax.view_init(elev=elev, azim=azim)
     ax.xaxis.pane.set_alpha(0.05)
@@ -56,16 +56,19 @@ if __name__ == "__main__":
     eps = np.linspace(4, 10, 60)
     X, Y = np.meshgrid(d0, eps)
     Z = 4.67 + 900 * (X - 0.40) ** 2 + 0.012 * (Y - 7) ** 2
+    # 硬规则：统计框数字来自计算变量
+    imin = np.unravel_index(np.argmin(Z), Z.shape)
+    d0_best, eps_best, z_best = X[imin], Y[imin], Z[imin]
     fig, ax = surface_with_projection(
-        X, Y, Z, best=(0.40, 7),
+        X, Y, Z, best=(d0_best, eps_best),
         xlabel="顶点径向偏移 D₀（m）",
         ylabel="间距容差 ε（×10⁻⁴）",
-        zlabel="RMS（cm）",
-        stat_lines=["网格 60×60，每点内层 QP+SLP",
-                    "最优 D₀ = 0.40，ε = 7×10⁻⁴",
-                    "RMS = 4.671 cm，谷底沿 ε 平坦"])
+        zlabel="节点拟合 RMS（cm）",
+        stat_lines=[f"网格 {Z.shape[0]}×{Z.shape[1]}，每点内层 QP+SLP",
+                    f"最优 D₀ = {d0_best:.2f}，ε = {eps_best:.0f}×10⁻⁴",
+                    f"RMS = {z_best:.3f} cm，谷底沿 ε 平坦"])
     ax.set_title("双参数响应曲面单谷：精度对 D₀ 敏感、对 ε 平坦",
                  fontsize=9, pad=-2)
-    save_figure(fig, str(GALLERY / "surface3d_project"))
+    save_figure(fig, str(GALLERY / "surface3d_project"), tight=False)
     run_qa(fig, expect_width=("onehalf",))
     print("surface3d_project: OK")

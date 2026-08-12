@@ -22,6 +22,7 @@
 ## 2. 核心设计原则
 
 1. **论点合同（Figure Contract）优先**：写代码前必须先填合同——结论一句话、证据链、图种（archetype）、注释层清单。合同不完整不出图。
+   - **图题数字联动硬规则**：图题/统计框/标注中的一切数字必须用 f-string 引用计算变量，禁止手写常数。手写数字会在数据变化后与图内统计矛盾，属事实错误级缺陷。
 2. **硬拒绝清单**：以下构图直接拦截并给出替代：
    - 不可通约的量共用同一 y 轴（如 % 与 元 与 元/µm³）
    - 默认饼图（>3 类或需精确比较时）→ 有序水平条形 + 直接标注 / 华夫图
@@ -29,7 +30,8 @@
    - 双 Y 轴（除非单位同族且明示）
    - rainbow / jet 色图
    - 只有均值柱没有分布信息 → 雨云图 / 带抖动散点的箱线
-3. **注释层是一等公民**：每张图至少一个统计注释框（含 n、关键统计量）；关键点用引线标注（annotate + 弧形箭头），不靠读者查图例。
+3. **注释层是一等公民**：每张图至少一个统计注释框（含 n、关键统计量）；关键点用引线标注（annotate + 弧形箭头），不靠读者查图例。qa.py 自动检查"图内存在带 bbox 的注释文本或引线标注"，缺失即报错。
+   - **统计框三段式**：设置（网格/步长/样本量）→ 结果（RMS/极值/占比）→ 判定（是否在容差内）。只写结果的框可信度不可检验。
 4. **中文数模适配**：CJK 字体自动解析（Source Han Serif SC > SimHei > Microsoft YaHei）、负号修复、字号按论文单栏/双栏印刷档（7–10.5 pt）。
    - **混排硬规则**：同一字符串禁止同时含中文与 `$mathtext$`（matplotlib 会把整串交给 mathtext 渲染，中文必然豆腐块）。混排时一律用 Unicode 数学字符（下标 ₀₁₂、上标 ⁻¹²³、希腊 φ ε η ξ σ μ Δ、符号 ± × ≤ ≥ √）；纯拉丁字符串才允许 mathtext。qa.py 自动拦截违规。
 5. **出图后视觉自检闭环**：脚本出图 → agent 用 Read 打开 PNG 看 → 对照 QA 清单 → 不合格重画。
@@ -50,17 +52,19 @@ figure-forge/
 ├── requirements.txt
 ├── core/                    # 可导入的工具层（低自由度，脚本化）
 │   ├── __init__.py
-│   ├── style.py             # apply_style(width=...)：字体/字号/脊线/网格/导出参数
-│   ├── colors.py            # 调色板：Okabe-Ito、PuOr/YlOrRd/crest 场景映射、语义色
+│   ├── style.py             # apply_style(base_size, draft)：字体/字号/脊线/网格/导出参数
+│   ├── colors.py            # 调色板：Okabe-Ito、PuOr/YlOrRd/crest 场景映射、语义色、truncate_cmap
 │   ├── annotate.py          # stat_box()、callout()（引线标注）、end_label()（线端直标）
 │   ├── layout.py            # marginal_grid()（边缘分布）、small_multiples()、panel_label()、inset_zoom()
-│   └── qa.py                # 出图后自检：字号下限、图例遮挡、色图黑名单、画布尺寸
+│   └── qa.py                # 出图后自检：字号下限、图例遮挡、色图黑名单、画布尺寸、硬拒绝构图、注释层存在性
 ├── recipes/                 # 按图种分类的可运行模板（每个自带合成数据 demo）
 │   ├── <按 taxonomy.md 的 P0/P1 图种一个文件>
-│   └── ...
+│   └── run_all.py           # 全量回归：跑通所有 demo
 ├── reference/
 │   ├── taxonomy.md          # 图种分类体系（agent1 调研产物，含平庸形态 vs 期刊级形态）
-│   └── style-tokens.md      # 配色/字号/线宽速查
+│   └── api.md               # 全部函数签名/返回值速查
+├── tools/
+│   └── contact_sheet.py     # 联络表：批量 PNG 拼网格，一次 Read 批量目测
 ├── gallery/                 # recipes 跑出来的示例图（入库，作视觉记忆）
 └── demo/
     └── beat_baseline.py     # 门槛证明：重画 A 题平庸分组柱 → 期刊论证图
@@ -79,9 +83,11 @@ figure-forge/
 
 自动项：
 - [ ] 最小字号 ≥ 目标印刷档（预览 dpi 下换算）
-- [ ] 未使用 jet/rainbow/hsv 色图
-- [ ] 画布宽度属于 {89, 136, 183} mm 或声明的自定义档
-- [ ] 中文无豆腐块（字体解析成功）、负号正常
+- [ ] 未使用 jet/rainbow/hsv/turbo 色图（含 `_r` 反转变体）
+- [ ] 未使用饼图（Wedge）、双 Y 轴（twinx）等硬拒绝构图
+- [ ] 图内存在注释层（统计框或引线标注），缺失即报错
+- [ ] 画布宽度属于 {89, 136, 183, 150} mm 或声明的自定义档
+- [ ] 中文无豆腐块（字体解析成功）、负号正常；中文与 $mathtext$ 未混排
 - [ ] 导出含 PNG(≥300dpi)；SVG/PDF 文字非轮廓化
 
 目测项（agent Read PNG 后逐项确认）：

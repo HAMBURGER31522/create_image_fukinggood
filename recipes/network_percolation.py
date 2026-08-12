@@ -48,11 +48,13 @@ def spatial_networks(nets, titles, xlim, ylim, ncols=3, width="double",
         ax.set_title(t, fontsize=8)
         n_span = int(span_mask.sum())
         ax.text(0.03, 0.03,
-                f"边 {len(edges)} 条\n贯穿簇边 {n_span} 条"
+                f"边数：{len(edges)}\n贯穿簇边：{n_span}"
                 f"（{n_span/max(len(edges),1):.0%}）",
                 transform=ax.transAxes, fontsize=6, va="bottom",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                           edgecolor="0.75", alpha=0.85, linewidth=0.5))
+    fig.text(0.5, 0.015, "注：两侧米黄色竖带为电极接触带；红色边属于贯穿簇",
+             ha="center", fontsize=7, color="0.35")
     return fig, axes
 
 
@@ -81,7 +83,7 @@ if __name__ == "__main__":
         xlim=(0, 100), ylim=(0, 100))
     fig.suptitle("仅组2 形成贯穿簇（红）：三组同轴限下密度差异直接可比",
                  fontsize=10, fontweight="bold")
-    fig.subplots_adjust(top=0.82)
+    fig.subplots_adjust(top=0.82, bottom=0.1)
     save_figure(fig, str(GALLERY / "network_percolation"))
     run_qa(fig, expect_width=("double",))
     print("network_percolation: OK")

@@ -28,14 +28,16 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
                    mincnt=1, linewidths=0.1)
     cax = fig.add_axes([0.13, 0.13, 0.016, 0.22])
     cb = fig.colorbar(hb, cax=cax)
-    cb.set_label("计数", fontsize=6.5)
+    cb.set_label("计数", fontsize=6.5, labelpad=3)
     cb.ax.tick_params(labelsize=6)
 
     r = np.hypot(x, y)
     styles = ["--", ":"]
     lines = []
+    stats = {}
     for q, ls in zip(quantiles, styles):
         rq = np.quantile(r, q)
+        stats[q] = rq
         ax.add_patch(Circle((0, 0), rq, fill=False, color="0.25",
                             linestyle=ls, linewidth=0.9))
         lines.append(f"{q:.0%} 落点半径 = {rq:.2f}（{ls_name(ls)}圆）")
@@ -43,6 +45,7 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
         ax.add_patch(Circle((0, 0), effective_r, fill=False,
                             color=semantic("good"), linewidth=1.2))
         n_in = int(np.sum(r <= effective_r))
+        stats["eff_frac"] = n_in / len(r)
         lines += [f"有效接收区 r ≤ {effective_r:g}",
                   f"落入 {n_in} / {len(r)} 条（{n_in/len(r):.1%}）"]
     lines.append(f"最远落点 {r.max():.1f}")
@@ -56,7 +59,7 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
                 linewidth=0.2)
     ax_right.hist(y, bins=bins, color="#8FBFA8", edgecolor="white",
                   linewidth=0.2, orientation="horizontal")
-    return fig, ax, ax_top
+    return fig, ax, stats
 
 
 if __name__ == "__main__":
@@ -71,12 +74,14 @@ if __name__ == "__main__":
         arms.append(np.c_[t * np.cos(ang) - w * np.sin(ang),
                           t * np.sin(ang) + w * np.cos(ang)])
     pts = np.vstack([core_pts] + arms)
-    fig, ax, _ = joint_hexbin(
+    fig, ax, jstats = joint_hexbin(
         pts[:, 0], pts[:, 1],
         xlabel="接收面横坐标 η₁（m）",
         ylabel="接收面纵坐标 η₂（m）",
         effective_r=0.5)
-    fig.suptitle("落点向中心强汇聚：50% 落点半径 1.6 m，有效接收 6.9%",
+    # 硬规则：图题中的数字必须来自计算变量
+    fig.suptitle(f"落点向中心强汇聚：50% 落点半径 {jstats[0.5]:.1f} m，"
+                 f"有效接收 {jstats['eff_frac']:.1%}",
                  fontsize=10, fontweight="bold", y=0.99)
     save_figure(fig, str(GALLERY / "joint_marginal"))
     run_qa(fig, expect_width=("onehalf",))

@@ -54,7 +54,9 @@ if __name__ == "__main__":
     est = p + rng.normal(0, 1, len(n)) * np.sqrt(p * (1 - p) / n)
     half = 1.96 * np.sqrt(p * (1 - p) / n)
     fig, _ = convergence_pair(n, est, half, true=p, ylabel="导通概率估计")
-    fig.suptitle("N = 2000 时导通概率估计收敛（半宽 < 0.01，误差按 1/√N 收缩）",
+    # 硬规则：图题数字来自计算变量
+    fig.suptitle(f"导通概率估计收敛：N = {n[-1]} 时 CI 半宽 {half[-1]:.3f}，"
+                 "误差按 1/√N 收缩",
                  fontsize=10, fontweight="bold", y=0.97)
     save_figure(fig, str(GALLERY / "convergence_ci"))
     run_qa(fig, expect_width=("double",))
