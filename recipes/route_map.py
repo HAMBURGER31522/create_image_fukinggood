@@ -50,9 +50,12 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
                                 linewidth=1.8, foreground="white")])
     ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=13,
             markeredgecolor="white", markeredgewidth=0.7, zorder=5)
-    ax.annotate("仓库", nodes[depot], xytext=(6, -10),
-                textcoords="offset points", fontsize=7,
-                color=semantic("highlight"), fontweight="bold")
+    import matplotlib.patheffects as pe
+    ax.annotate("仓库", nodes[depot], xytext=(8, -14),
+                textcoords="offset points", fontsize=7, zorder=7,
+                color=semantic("highlight"), fontweight="bold",
+                path_effects=[pe.withStroke(linewidth=2.0,
+                                            foreground="white")])
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     # 空间图内寸土寸金：图例横排放到轴下方，不压任何路线

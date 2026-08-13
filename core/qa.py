@@ -43,8 +43,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     taxonomy 允许的场景（同单位、≤4 组）。
     """
     problems: list[str] = []
-    if isinstance(expect_width, str):
-        expect_width = (expect_width,)   # 裸字符串是最常见的抄写笔误
+    if isinstance(expect_width, (str, int, float)):
+        expect_width = (expect_width,)   # 裸标量是最常见的抄写笔误
 
     # 0. 图题数字溯源（有 _ff_stats/sourced 才查；只警告不阻断——
     #    差值/比率等合法派生数字无法穷举，误杀比漏报更伤）
@@ -153,7 +153,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             if offset_group:
                 problems.append(
                     "检测到分组竖柱——差异论证改用哑铃/斜率图/拆轴小倍数"
-                    "（comparison_rank.py）；确属同单位对比可传 "
+                    "（comparison_rank.py）；多组分布对比改用 raincloud/"
+                    "ridgeline（raincloud.py）；确属同单位对比可传 "
                     "allow=('grouped_bars',) 豁免")
 
     # 2d. 样式与图题：apply_style 必须先行；图题必须存在（结论句）
@@ -207,22 +208,35 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                    for ch in s)
 
     def _is_mathtext_mix(s):
-        """含 CJK 且 $..$ 对内有字母/命令才算混排；纯货币数字放行。"""
-        if not (_has_cjk(s) and s.count("$") >= 2):
+        """含 CJK 且有成对未转义 $ 即混排。
+
+        matplotlib 是否走 mathtext 只取决于 $ 是否成对，与 $ 之间
+        的内容无关——"成本 $1200 与 $3400" 同样整串进 mathtext，
+        中文全变豆腐块。货币金额必须写 \\$（转义）或全角 ＄。
+        """
+        if not _has_cjk(s):
             return False
         import re
-        return any(re.search(r"[A-Za-z\\^_{}]", seg)
-                   for seg in re.findall(r"\$([^$]*)\$", s))
+        return len(re.findall(r"(?<!\\)\$", s)) >= 2
     mixed = [t.get_text()[:20] for t in _all_texts(fig)
              if _is_mathtext_mix(t.get_text())]
     if mixed:
         problems.append(
             f"{len(mixed)} 处中文与 $mathtext$ 混排（会豆腐块），"
-            f"改用 Unicode 数学字符（₀ ⁻¹ φ ε √ 等）：{mixed[:2]}")
+            f"改用 Unicode 数学字符（₀ ⁻¹ φ ε √ 等）；"
+            f"货币金额写 \\$1200（反斜杠转义）或全角 ＄：{mixed[:2]}")
 
-    # 4b. 豆腐块：渲染一次，同时捕获 warnings 与 matplotlib logging 两条通道
+    # 4b. 豆腐块：渲染一次，同时捕获 warnings 与 matplotlib logging 两条通道。
+    #     mathtext 解析结果带 lru_cache，前面的 delivered_width_in 已 draw 过
+    #     一次，不清缓存则 mathtext 路径的字形警告永远抓不到
     import logging
     import warnings
+    try:
+        from matplotlib.mathtext import MathTextParser
+        if hasattr(MathTextParser, "_parse_cached"):
+            MathTextParser._parse_cached.cache_clear()
+    except Exception:
+        pass
     stream = io.StringIO()
     handler = logging.StreamHandler(stream)
     logging.getLogger("matplotlib").addHandler(handler)
@@ -304,26 +318,32 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 else:
                     offs = getattr(c, "get_offsets", lambda: [])()
                     datasets.append((np.asarray(offs), "points"))
-            # 柱体也算数据：图例压在 bar 上同样是遮挡。直接算图例框
-            # 与柱面片的像素交叠面积，累计超图例面积 25% 判遮挡
+            # 柱体也算数据：图例压在 bar 上同样是遮挡。柱顶是读数位置，
+            # 盖住即失效——比面积比例更贴近实际危害，故两条判据并用
             if is_leg:
-                covered = 0.0
+                covered, top_hit = 0.0, 0
                 for c in ax.containers:
                     for p in getattr(c, "patches", []):
                         pb = p.get_window_extent(rd)
                         ib = Bbox.intersection(bb, pb)
                         if ib is not None:
                             covered += ib.width * ib.height
-                if bb.width * bb.height > 0 and \
-                        covered >= 0.25 * bb.width * bb.height:
+                        if bb.x0 < (pb.x0 + pb.x1) / 2 < bb.x1 and \
+                                bb.y0 < pb.y1 < bb.y1:
+                            top_hit += 1
+                area = bb.width * bb.height
+                if top_hit:
                     problems.append(
-                        f"{name} 压在柱体上（交叠 "
-                        f"{covered / (bb.width * bb.height):.0%} 图例面积），"
-                        "移出数据区")
+                        f"{name} 压住 {top_hit} 根柱的柱顶（读数位置），"
+                        "移出数据区或改线端直标")
+                elif area > 0 and covered >= 0.10 * area:
+                    problems.append(
+                        f"{name} 压在柱体上（交叠 {covered / area:.0%} "
+                        "图例面积），移出数据区")
             for xy, kind in datasets:
                 n_in, n = _count_inside(ax, bb, xy)
-                thresh = max(12, 0.02 * n) if kind == "path" \
-                    else max(6, 0.1 * n)
+                # 绝对计数：阈值不能随 n 放大，否则点越密越难触发
+                thresh = 12 if kind == "path" else 8
                 if n and n_in >= thresh:
                     msg = f"{name} 覆盖数据（{n_in} 个采样点），移动位置"
                     if is_leg:

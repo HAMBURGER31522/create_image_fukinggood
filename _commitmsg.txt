@@ -1,0 +1,21 @@
+Fix P0 regression: currency-$ exemption had punched through CJK tofu guard
+
+The previous "allow currency $ in CJK strings" rule was wrong on the
+physics: matplotlib enters mathtext whenever $ is paired, regardless of
+what sits between them, so "成本 $1200 与 $3400" rendered every CJK
+glyph as tofu yet passed QA. The fallback glyph-missing detector could
+not catch it either, because mathtext parses are lru_cached and
+delivered_width_in had already drawn the figure once.
+
+- qa.py: paired unescaped $ next to CJK is a violation again; escaped
+  \$ and full-width ＄ are the documented escape hatch; clear the
+  mathtext parse cache before the glyph-missing draw
+- qa.py: legend-over-data threshold no longer scales with n (dense
+  scatter used to be un-flaggable); legend over bar tops is now its own
+  check; grouped-bar message points distribution comparisons at
+  raincloud/ridgeline
+- qa.py: expect_width accepts a bare mm number, not just a bare string
+- run_all.py: surface QA warnings instead of hiding them behind ALL PASS
+- route_map: depot label offset + white stroke
+- api.md: correct frame_snapshots parameter order and defaults, add the
+  omitted width= placeholders that made positional calls bind wrongly
