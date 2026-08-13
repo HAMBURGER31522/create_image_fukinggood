@@ -16,12 +16,21 @@ from core import (apply_style, save_figure, run_qa, marginal_grid,
 
 
 def ls_name(ls):
-    return {"--": "虚线", ":": "点线", "-": "实线"}.get(ls, ls)
+    return {"--": "虚线", ":": "点线", "-": "实线", "-.": "点划线"}.get(ls, ls)
 
 
 def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
-                 quantiles=(0.5, 0.9), gridsize=42, width="onehalf"):
-    """中央 hexbin + 上/右边缘直方图（共享轴）+ 分位圆 + 计数框。"""
+                 quantiles=(0.5, 0.9), gridsize=42, width="onehalf",
+                 center=(0.0, 0.0), unit=""):
+    """中央 hexbin + 上/右边缘直方图（共享轴）+ 分位圆 + 计数框。
+
+    center: 分位圆与有效区的圆心。默认 (0,0) 只适用于"相对目标
+    中心的偏差坐标"；真实坐标数据必须显式传圆心（或传
+    center=None 用数据中位数）。unit: 半径统计行的单位。
+    """
+    if center is None:
+        center = (float(np.median(x)), float(np.median(y)))
+    cx0, cy0 = center
     fig, ax, ax_top, ax_right = marginal_grid(width, ratio=0.95, right=True)
 
     # 共享轴不允许 aspect=equal（会挤散边缘直方图），改为强制 x/y
@@ -39,24 +48,27 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
     ax.set_xlim(xc - half, xc + half)
     ax.set_ylim(yc - half, yc + half)
 
-    r = np.hypot(x, y)
-    styles = ["--", ":"]
+    r = np.hypot(np.asarray(x) - cx0, np.asarray(y) - cy0)
+    styles = ["--", ":", "-."]
+    if len(quantiles) > len(styles):
+        raise ValueError(f"quantiles 最多 {len(styles)} 个"
+                         "（更多分位圆会读不清）")
     lines = []
     stats = {}
     for q, ls in zip(quantiles, styles):
         rq = np.quantile(r, q)
         stats[q] = rq
-        ax.add_patch(Circle((0, 0), rq, fill=False, color="0.25",
+        ax.add_patch(Circle(center, rq, fill=False, color="0.25",
                             linestyle=ls, linewidth=0.9))
-        lines.append(f"{q:.0%} 落点半径 = {rq:.2f}（{ls_name(ls)}圆）")
+        lines.append(f"{q:.0%} 落点半径 = {rq:.2f}{unit}（{ls_name(ls)}圆）")
     if effective_r is not None:
-        ax.add_patch(Circle((0, 0), effective_r, fill=False,
+        ax.add_patch(Circle(center, effective_r, fill=False,
                             color=semantic("good"), linewidth=1.2))
         n_in = int(np.sum(r <= effective_r))
         stats["eff_frac"] = n_in / len(r)
-        lines += [f"有效接收区 r ≤ {effective_r:g}",
+        lines += [f"有效接收区 r ≤ {effective_r:g}{unit}",
                   f"落入 {n_in} / {len(r)} 条（{n_in/len(r):.1%}）"]
-    lines.append(f"最远落点 {r.max():.1f}")
+    lines.append(f"最远落点 {r.max():.1f}{unit}")
     stat_box(ax, lines, loc="lower right", fontsize=6.5)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -87,7 +99,7 @@ if __name__ == "__main__":
         pts[:, 0], pts[:, 1],
         xlabel="接收面横坐标 η₁（m）",
         ylabel="接收面纵坐标 η₂（m）",
-        effective_r=0.5)
+        effective_r=0.5, unit=" m")
     # 硬规则：图题中的数字必须来自计算变量
     fig.suptitle(f"落点向中心强汇聚：50% 落点半径 {jstats[0.5]:.1f} m，"
                  f"有效接收 {jstats['eff_frac']:.1%}",

@@ -21,6 +21,8 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     info["dists"] 各路线里程、info["total"] 总里程。
     """
     nodes = np.asarray(nodes, dtype=float)
+    if not routes:
+        raise ValueError("routes 为空——没有可画的路线")
     fig, ax = new_figure(width, ratio=0.8)
     ax.set_aspect("equal")
     dists = []
@@ -38,10 +40,14 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
         ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=3.5,
                 markeredgecolor="white", markeredgewidth=0.5, zorder=3)
         if show_order:
-            for i, idx in enumerate(r[1:-1] if r[0] == r[-1] else r[1:], 1):
+            import matplotlib.patheffects as pe
+            # 按"是否仓库"过滤：位置切片会漏掉不以仓库开头的路线首客户
+            for i, idx in enumerate((k for k in r if k != depot), 1):
                 ax.annotate(str(i), nodes[idx], xytext=(3, 3),
                             textcoords="offset points", fontsize=6.5,
-                            color=c, zorder=4)
+                            color=c, zorder=6,
+                            path_effects=[pe.withStroke(
+                                linewidth=1.8, foreground="white")])
     ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=13,
             markeredgecolor="white", markeredgewidth=0.7, zorder=5)
     ax.annotate("仓库", nodes[depot], xytext=(6, -10),
@@ -52,8 +58,10 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     # 空间图内寸土寸金：图例横排放到轴下方，不压任何路线
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
               ncol=min(len(routes), 3), fontsize=6.5, frameon=False)
+    d_max = max(dists)
     info = dict(dists=dists, total=float(sum(dists)),
-                imbalance=float((max(dists) - min(dists)) / max(dists)))
+                imbalance=float((d_max - min(dists)) / d_max)
+                if d_max > 0 else 0.0)
     stat_box(ax, [f"{len(routes)} 条路线，总里程 {info['total']:.0f} km",
                   f"负载不均衡度 {info['imbalance']:.0%}"
                   "＝(最长−最短)/最长"],
@@ -66,20 +74,15 @@ if __name__ == "__main__":
     apply_style()
     rng = np.random.default_rng(5)
     pts = np.vstack([[50, 50], rng.uniform(5, 95, (18, 2))])
-    # 简单角度分区 + 最近邻串联，构造 3 条示例回路
+    # 角度分区 + 扇区内按极角排序串联：回路天然不自交，
+    # 与本图"路线不交叉（分区合理）"的证据链一致
     ang = np.arctan2(pts[1:, 1] - 50, pts[1:, 0] - 50)
     routes = []
-    for k, (lo, hi) in enumerate([(-np.pi, -np.pi / 3),
-                                  (-np.pi / 3, np.pi / 3),
-                                  (np.pi / 3, np.pi)]):
-        idx = np.where((ang >= lo) & (ang < hi))[0] + 1
-        seq, rest = [0], list(idx)
-        while rest:
-            last = pts[seq[-1]]
-            j = min(rest, key=lambda i: np.hypot(*(pts[i] - last)))
-            seq.append(j)
-            rest.remove(j)
-        routes.append(seq + [0])
+    for lo, hi in [(-np.pi, -np.pi / 3), (-np.pi / 3, np.pi / 3),
+                   (np.pi / 3, np.pi)]:
+        sector = np.where((ang >= lo) & (ang < hi))[0]
+        order = sector[np.argsort(ang[sector])] + 1
+        routes.append([0] + list(order) + [0])
     fig, ax, info = route_map(pts, routes, depot=0)
     ax.set_title(f"3 车分区配送总里程 {info['total']:.0f} km，"
                  f"负载不均衡 {info['imbalance']:.0%}", fontsize=9.5)

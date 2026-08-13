@@ -157,7 +157,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
     """
     n = len(metrics)
     from core import MM, COLUMN_WIDTHS
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM
     fig, axes = plt.subplots(1, n, figsize=(w, w * 0.36))
     axes = np.atleast_1d(axes)
     fig.subplots_adjust(wspace=0.35, top=0.85, bottom=0.15)

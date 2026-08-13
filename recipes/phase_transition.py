@@ -18,7 +18,7 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
                              y1label="最大簇占比分布", y2label="导通概率",
                              width="onehalf"):
     """samples: shape (len(phi), n_rep) 每个 φ 的最大簇占比样本。"""
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM
     fig, (ax1, ax2) = plt.subplots(
         2, 1, figsize=(w, w * 0.85), sharex=True,
         gridspec_kw=dict(height_ratios=[1.6, 1], hspace=0.12))

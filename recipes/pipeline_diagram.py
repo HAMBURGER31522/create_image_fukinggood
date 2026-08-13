@@ -18,11 +18,11 @@ _LANE_BG = ["#F4F6F8", "#FFFFFF"]
 
 
 def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
-             lane_colors=None, box_h=0.16):
+             lane_colors=None):
     """lanes: [(泳道名, [模块文本, ...]), ...]，每条泳道一行。
 
     flows: [((i0,j0),(i1,j1)), ...] 实线箭头；feedbacks 同构，虚线回路。
-    box_h: 模块框视觉高度（轴分数），箭头锚在框缘而非中心。
+    跨泳道箭头锚在模块框实测边缘（draw 后量 bbox），随行数/字号自适应。
     返回 (fig, ax, centers)，centers[i][j] 为模块中心坐标（继续加注释用）。
     """
     w = COLUMN_WIDTHS.get(width, width) * MM   # 与 new_figure 一致，接受 mm
@@ -43,22 +43,37 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
         for j, text in enumerate(boxes):
             xc = 0.08 + (j + 0.5) * 0.92 / n_box
             c = lane_colors[i % len(lane_colors)]
-            ax.text(xc, yc, text, ha="center", va="center", fontsize=7.5,
-                    linespacing=1.5, zorder=3,
-                    bbox=dict(boxstyle="round,pad=0.55", facecolor="white",
-                              edgecolor=c, linewidth=1.1))
-            row.append((xc, yc))
+            t = ax.text(xc, yc, text, ha="center", va="center", fontsize=7.5,
+                        linespacing=1.5, zorder=3,
+                        bbox=dict(boxstyle="round,pad=0.55",
+                                  facecolor="white",
+                                  edgecolor=c, linewidth=1.1))
+            row.append((xc, yc, t))
         centers.append(row)
 
-    def _arrow(p0, p1, dashed=False, color="0.35"):
-        # 锚点取模块框上下缘而非中心：泳道间距小，固定 shrink 点数
-        # 会把箭头杆吃光只剩悬空箭头帽
-        (x0, y0), (x1, y1) = p0, p1
+    # 量测每个模块框的真实高度（轴分数）：行数/字号一变，
+    # 固定 box_h 的锚点就会戳进框内或悬空
+    fig.canvas.draw()
+    rd = fig.canvas.get_renderer()
+    inv = ax.transAxes.inverted()
+    half_h = []
+    for row in centers:
+        hs = []
+        for _, _, t in row:
+            bb = t.get_bbox_patch().get_window_extent(rd)
+            hs.append(inv.transform([[0, bb.y0], [0, bb.y1]]))
+        half_h.append([(p[1][1] - p[0][1]) / 2 for p in hs])
+    centers = [[(xc, yc) for xc, yc, _ in row] for row in centers]
+
+    def _arrow(src, dst, dashed=False, color="0.35"):
+        (i0, j0), (i1, j1) = src, dst
+        (x0, y0), (x1, y1) = centers[i0][j0], centers[i1][j1]
+        p0, p1 = (x0, y0), (x1, y1)
         if abs(y1 - y0) > 1e-9:
             s = 1 if y1 > y0 else -1
-            p0 = (x0, y0 + s * box_h / 2)
-            p1 = (x1, y1 - s * box_h / 2)
-            shrink = 2
+            p0 = (x0, y0 + s * (half_h[i0][j0] + 0.008))
+            p1 = (x1, y1 - s * (half_h[i1][j1] + 0.008))
+            shrink = 0
         else:
             shrink = 26          # 同泳道水平箭头维持原行为
         arrow = FancyArrowPatch(
@@ -74,11 +89,10 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
                 [pe.withStroke(linewidth=2.6, foreground="white")])
         ax.add_patch(arrow)
 
-    for (i0, j0), (i1, j1) in flows:
-        _arrow(centers[i0][j0], centers[i1][j1])
-    for (i0, j0), (i1, j1) in feedbacks:
-        _arrow(centers[i0][j0], centers[i1][j1], dashed=True,
-               color="#C44E52")
+    for src, dst in flows:
+        _arrow(src, dst)
+    for src, dst in feedbacks:
+        _arrow(src, dst, dashed=True, color="#C44E52")
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     if feedbacks:

@@ -56,7 +56,8 @@ figure-forge/
 │   ├── colors.py            # 调色板：Okabe-Ito、PuOr/YlOrRd/crest 场景映射、语义色、truncate_cmap
 │   ├── annotate.py          # stat_box()、callout()（引线标注）、end_label()（线端直标）
 │   ├── layout.py            # marginal_grid()（边缘分布）、small_multiples()、panel_label()、inset_zoom()
-│   └── qa.py                # 出图后自检：字号下限、图例遮挡、色图黑名单、画布尺寸、硬拒绝构图、注释层存在性
+│   ├── io.py                # load_table()（xlsx/CSV，自动试编码）、as_1d()（取列转数组）
+│   └── qa.py                # 出图后自检：字号下限、遮挡（图例/注释框）、色图黑名单、交付宽度、硬拒绝构图、注释层、图题存在性
 ├── recipes/                 # 按图种分类的可运行模板（每个自带合成数据 demo）
 │   ├── <按 taxonomy.md 的 P0/P1 图种一个文件>
 │   └── run_all.py           # 全量回归：跑通所有 demo

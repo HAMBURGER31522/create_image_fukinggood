@@ -9,7 +9,7 @@
 | `apply_style` | `(base_size=9.0, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
 | `new_figure` | `(width="onehalf", ratio=0.62, **subplots_kw)` | `fig, ax` |
 | `save_figure` | `(fig, path_no_ext, formats=("png","svg"), tight=True, exact_width=True)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
-| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None)`；字号/色图/硬拒绝构图（含分组竖柱）/注释层/豆腐块/图例遮挡；先 QA 再 save，坏图不落盘；有 `fig._ff_stats` 时警告未溯源的图题数字 | 问题列表 |
+| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；字号/色图/硬拒绝构图（含分组竖柱，叠加直方图放行）/注释层/豆腐块/图例遮挡（含柱体）；先 QA 再 save，坏图不落盘；有 `fig._ff_stats` 时警告未溯源的图题数字；同单位 ≤4 组场景可 `allow=("grouped_bars",)` 豁免 | 问题列表 |
 | `load_table` | `(path, sheet=0)`；xlsx/CSV 读表，CSV 自动试 utf-8-sig/gbk/utf-8 | DataFrame |
 | `as_1d` | `(x, col=None)`；DataFrame 取列 / 任意序列 → 一维 float ndarray，非数值转 NaN | ndarray |
 | `stat_box` | `(ax, lines, loc="upper left", fontsize=7.0)`；lines 为字符串列表 | Text |
@@ -29,7 +29,7 @@
 
 | 文件 | 函数 | 签名要点 | 返回 |
 |---|---|---|---|
-| pipeline_diagram | `pipeline` | `(lanes, flows, feedbacks, width="double", box_h=0.16)`；lanes=[(泳道名,[模块文本])]，flows=[((i,j),(i,j))]；跨泳道箭头锚在框缘 | `fig, ax, centers` |
+| pipeline_diagram | `pipeline` | `(lanes, flows, feedbacks, width="double")`；lanes=[(泳道名,[模块文本])]，flows=[((i,j),(i,j))]；跨泳道箭头锚在实测框缘 | `fig, ax, centers` |
 | comparison_rank | `sorted_lollipop` | `(labels, values, unit, highlight=None, title)`；highlight=None 自动强调最大值，或传原始索引/标签名（与 slopegraph 一致） | `fig, ax` |
 | | `dumbbell` | `(labels, before, after, cond_names, unit, xlabel, higher_is_better=True)` | `fig, ax` |
 | | `slopegraph` | `(labels, before, after, cond_names, unit, highlight=(), higher_is_better=True)` | `fig, ax` |
@@ -41,7 +41,7 @@
 | | `parallel_coords` | `(names, data, dims, highlight_idx, better=["↑","↓",...])` | `fig, ax` |
 | raincloud | `raincloud` | `(groups, labels, ylabel)` | `fig, ax` |
 | | `ridgeline` | `(groups, labels, xlabel, cmap_colors=None)` | `fig, ax` |
-| joint_marginal | `joint_hexbin` | `(x, y, xlabel, ylabel, effective_r=None, quantiles=(0.5,0.9))` | `fig, ax, stats` |
+| joint_marginal | `joint_hexbin` | `(x, y, xlabel, ylabel, effective_r=None, quantiles=(0.5,0.9), center=(0,0), unit="")`；center 默认原点仅适用偏差坐标，真实坐标需显式传或 `center=None` 用中位数 | `fig, ax, stats` |
 | fit_residual | `fit_residual_pair` | `(x, y, xfit, yfit, resid, band, threshold, x_at_threshold, ...)` | `fig, (ax1,ax2), inside` |
 | parity | `parity` | `(y_true, y_pred, band=("relative",0.10) 或 ("absolute",δ))`；数据跨 0 用绝对带 | `fig, ax, info(r2/rmse/mape/mae/inside)` |
 | timeseries_forecast | `forecast_fan` | `(t_hist, y_hist, t_fore, y_fore, bands={level:(lo,hi)}, split, y_test)`；统计框内置 | `fig, ax, info(mape/coverage/half_w_last)` |
@@ -59,7 +59,7 @@
 | front_overlay | `response_overlay` | `(X, Y, P, fronts, best, levels=(0.5,0.9))` | `fig, ax` |
 | | `pareto_front` | `(f1, f2, labels, knee=None, minimize=(True,True))` | `fig, ax, info(fx/fy/knee)` |
 | surface3d_project | `surface_with_projection` | `(X, Y, Z, best, stat_lines)`；保存用 `tight=False` | `fig, ax` |
-| small_multiples_frames | `frame_snapshots` | `(frames, titles, stats, xy, R, ncols=2)` | `fig, axes` |
+| small_multiples_frames | `frame_snapshots` | `(frames, titles, stats, xy=None, R=None, ncols=2, zlabel="…", width="double")` | `fig, axes` |
 | tornado | `tornado` | `(factors, low, high, baseline, xlabel)` | `fig, ax` |
 | | `spider_cartesian` | `(pct, outputs, names, ylabel)` | `fig, ax` |
 | phase_transition | `phase_density_orderparam` | `(phi, samples, order_param, phi_c)` | `fig, (ax1,ax2)` |

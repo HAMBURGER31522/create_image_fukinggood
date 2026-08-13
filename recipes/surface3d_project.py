@@ -17,7 +17,7 @@ from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
 def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
                             zlabel="z", width="onehalf", elev=25, azim=-60,
                             stat_lines=None):
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM
     fig = plt.figure(figsize=(w, w * 0.85))
     ax = fig.add_subplot(projection="3d")
     fig.subplots_adjust(left=0.0, right=0.86, bottom=0.06, top=0.92)

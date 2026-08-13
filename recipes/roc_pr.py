@@ -13,20 +13,34 @@ from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
 import matplotlib.pyplot as plt
 
 
+# NumPy 2.0 把 trapz 更名为 trapezoid；两个版本都要能跑
+_trapz = getattr(np, "trapezoid", None) or np.trapz
+
+
 def _roc_pr_points(y_true, score):
-    """按分数降序扫阈值，返回 (fpr, tpr, precision, recall, auc, ap)。"""
+    """按分数降序扫阈值，返回 (fpr, tpr, precision, recall, auc, ap)。
+
+    并列分数只在唯一阈值边界取点（与 sklearn.roc_curve 一致）——
+    逐样本累积会让 AUC 依赖同分样本的排列顺序。
+    """
     y_true = np.asarray(y_true, dtype=int).ravel()
     score = np.asarray(score, dtype=float).ravel()
-    order = np.argsort(-score)
-    y = y_true[order]
-    tp = np.cumsum(y)
-    fp = np.cumsum(1 - y)
-    P, N = tp[-1], fp[-1]
+    if set(np.unique(y_true)) - {0, 1}:
+        raise ValueError("y_true 必须是 0/1 二元标签")
+    if y_true.sum() == 0 or y_true.sum() == len(y_true):
+        raise ValueError("y_true 必须同时包含正负样本，否则 ROC/PR 无定义")
+    order = np.argsort(-score, kind="stable")
+    y, s = y_true[order], score[order]
+    # 唯一阈值边界 = 每段同分样本的最后一个位置
+    edge = np.r_[np.where(np.diff(s))[0], len(s) - 1]
+    tp = np.cumsum(y)[edge]
+    fp = np.cumsum(1 - y)[edge]
+    P, N = y.sum(), (1 - y).sum()
     tpr = np.r_[0, tp / P]
     fpr = np.r_[0, fp / N]
     recall = tpr
     precision = np.r_[1, tp / (tp + fp)]
-    auc = float(np.trapezoid(tpr, fpr))
+    auc = float(_trapz(tpr, fpr))
     ap = float(np.sum(np.diff(recall) * precision[1:]))
     return fpr, tpr, precision, recall, auc, ap
 
@@ -37,16 +51,21 @@ def roc_pr(models, width="double"):
     左 ROC（对角线=随机基线）、右 PR（水平线=正例率基线）。
     返回 (fig, axes, info)，info[名称] = dict(auc, ap)。
     """
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM
     fig, axes = plt.subplots(1, 2, figsize=(w, w * 0.42))
     fig.subplots_adjust(wspace=0.28, left=0.07, right=0.97, bottom=0.16,
                         top=0.86)
+    # 多模型必须共享同一 y_true，否则基线与 n 无意义
+    y_ref = np.asarray(models[0][1], dtype=int).ravel()
+    for name, y_true, _ in models[1:]:
+        if not np.array_equal(np.asarray(y_true, dtype=int).ravel(), y_ref):
+            raise ValueError(f"模型「{name}」的 y_true 与首个模型不一致——"
+                             "同图对比要求同一测试集")
+    pos_rate = float(y_ref.mean())
     info = {}
-    pos_rate = None
     for k, (name, y_true, score) in enumerate(models):
         fpr, tpr, prec, rec, auc, ap = _roc_pr_points(y_true, score)
         info[name] = dict(auc=auc, ap=ap)
-        pos_rate = float(np.mean(np.asarray(y_true, dtype=int)))
         c = PALETTE[k % len(PALETTE)]
         axes[0].plot(fpr, tpr, color=c, linewidth=1.3)
         # 曲线在 (1,1) 汇聚，标签放右下空白区错行叠放

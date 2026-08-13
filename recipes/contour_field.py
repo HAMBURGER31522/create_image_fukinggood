@@ -59,7 +59,7 @@ def masked_diverging_field(X, Y, Z, R, xlabel="x（m）", ylabel="y（m）",
 def polar_field(theta, r, Z, zlabel="幅值", width="single"):
     """极坐标顺序场：方位-半径天生极向时优于笛卡尔硬切。"""
     from core import MM, COLUMN_WIDTHS
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM
     fig = plt.figure(figsize=(w, w * 0.9))
     ax = fig.add_subplot(projection="polar")
     pm = ax.pcolormesh(theta, r, Z, cmap=cmap_for("sequential"),

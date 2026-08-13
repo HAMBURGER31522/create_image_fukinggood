@@ -65,7 +65,8 @@ reference/taxonomy.md    图种分类体系：选图决策树、平庸 vs 期刊
 reference/api.md         全部函数签名/返回值速查
 core/                    工具层：style(样式) colors(配色) annotate(注释)
                          layout(布局) qa(自检)
-recipes/                 20 个图种模板（每个自带合成数据 demo，可直接运行）
+recipes/                 23 个图种模板（每个自带合成数据 demo，可直接运行），
+                         含 ROC+PR、聚类、TSP/VRP 路线图等 B/C 题高频图种
 tools/contact_sheet.py   联络表：批量图拼网格，一次目测
 gallery/                 全部示例产出（可复现）
 demo/beat_baseline.py    门槛证明：重画平庸分组柱

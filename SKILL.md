@@ -78,7 +78,7 @@ fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写
 | 平庸构图 | 替代（recipes 文件） |
 |---|---|
 | 饼图（>3 类或需精确比较） | 有序水平条+直标 / 华夫图（composition.py） |
-| 分组柱表达"差异" | 哑铃/斜率/点距/蝴蝶（comparison_rank.py） |
+| 分组柱表达"差异" | 哑铃/斜率/点距/蝴蝶（comparison_rank.py）；同单位 ≤4 组确需分组柱时传 `run_qa(allow=("grouped_bars",))` 豁免 |
 | 不可通约量共用 y 轴 | 小倍数拆轴（comparison_rank.py: facet_metrics） |
 | 双 Y 轴（单位不同族） | 拆面板（phase_transition.py 的做法） |
 | jet/rainbow/hsv 色图 | cmap_for(scene)（core/colors.py） |

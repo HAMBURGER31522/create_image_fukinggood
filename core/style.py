@@ -39,8 +39,15 @@ _STYLE_APPLIED = False
 
 
 def is_styled() -> bool:
-    """apply_style 是否已调用（run_qa 用）。"""
-    return _STYLE_APPLIED
+    """当前 rcParams 是否处于本 skill 样式态（run_qa 用）。
+
+    不只看调用标志：rcdefaults()/样式被覆盖后应视为未生效——
+    用两个本样式独有的指纹参数核对。
+    """
+    return (_STYLE_APPLIED
+            and mpl.rcParams["axes.spines.top"] is False
+            and mpl.rcParams["mathtext.fontset"] == "stix"
+            and mpl.rcParams["savefig.pad_inches"] == 0.02)
 
 
 def is_draft() -> bool:
@@ -143,9 +150,14 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg"),
         if exact_width and bb.width < target:
             dx = (target - bb.width) / 2
             bb = Bbox.from_extents(bb.x0 - dx, bb.y0, bb.x1 + dx, bb.y1)
-        elif bb.width > target + 0.04:
+        elif bb.width > target + 3 / 25.4:   # 与 run_qa 的 ±3mm 容差一致
             print(f"[style WARN] 内容溢出声明栏宽："
                   f"{bb.width * 25.4:.0f} > {target * 25.4:.0f} mm")
+        if not exact_width:
+            w_mm = bb.width * 25.4
+            if not any(abs(w_mm - t) <= 3 for t in COLUMN_WIDTHS.values()):
+                print(f"[style WARN] exact_width=False 且落盘宽 {w_mm:.0f}mm "
+                      f"不是标准栏宽，字号契约不成立")
         bbox = bb
     out = []
     for ext in formats:
