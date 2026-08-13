@@ -4,3 +4,5 @@ __pycache__/
 _font_*.png
 _font_test.py
 gallery/_contact_sheet_*.png
+
+_commitmsg.txt
