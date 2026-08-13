@@ -101,8 +101,8 @@ if __name__ == "__main__":
     ax.set_title(f"伸缩量场环状分层，极值出现在 "
                  f"{finfo['r_max_frac']:.2f}R 环带且均在容差内",
                  fontsize=9, pad=8)
-    save_figure(fig, str(GALLERY / "contour_field_masked"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "contour_field_masked"))
 
     th = np.linspace(0, 2 * np.pi, 120)
     rr = np.linspace(0, 1, 60)
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     ax.set_title("方位分布呈三瓣对称", fontsize=9, pad=14)
     stat_box(ax, [f"网格 {Zp.shape[1]}×{Zp.shape[0]}（方位×径向）",
                   "三瓣对称：cos 3θ 分量主导"],
-             loc="lower left", fontsize=6)
-    save_figure(fig, str(GALLERY / "contour_field_polar"))
+             loc="lower left", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "contour_field_polar"))
     print("contour_field: 2 figures OK")

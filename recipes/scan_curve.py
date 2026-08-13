@@ -71,6 +71,6 @@ if __name__ == "__main__":
     ax.set_title(f"目标函数沿 D₀ 单谷：二阶段精搜区间 "
                  f"[{span[0]:.2f}, {span[1]:.2f}] 充分",
                  fontsize=9.5)
-    save_figure(fig, str(GALLERY / "scan_curve"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "scan_curve"))
     print("scan_curve: OK")

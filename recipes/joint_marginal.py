@@ -24,12 +24,20 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
     """中央 hexbin + 上/右边缘直方图（共享轴）+ 分位圆 + 计数框。"""
     fig, ax, ax_top, ax_right = marginal_grid(width, ratio=0.95, right=True)
 
+    # 共享轴不允许 aspect=equal（会挤散边缘直方图），改为强制 x/y
+    # 等跨度，让分位圆接近正圆；轴限用 99.5% 分位数（抗离群点，
+    # 极端落点不该决定整图比例）；密度读数走统计框，不放色条压数据
+    xlo, xhi = np.quantile(x, [0.005, 0.995])
+    ylo, yhi = np.quantile(y, [0.005, 0.995])
+    xc, yc = (xlo + xhi) / 2, (ylo + yhi) / 2
+    half = max(xhi - xlo, yhi - ylo) / 2 * 1.12
+    # extent 对齐视窗：gridsize 作用于可见范围而非全数据范围，
+    # 否则重尾离群点会把可见区的六边形撑得极粗
     hb = ax.hexbin(x, y, gridsize=gridsize, cmap=cmap_for("sequential2"),
-                   mincnt=1, linewidths=0.1)
-    cax = fig.add_axes([0.13, 0.13, 0.016, 0.22])
-    cb = fig.colorbar(hb, cax=cax)
-    cb.set_label("计数", fontsize=6.5, labelpad=3)
-    cb.ax.tick_params(labelsize=6)
+                   mincnt=1, linewidths=0.1,
+                   extent=(xc - half, xc + half, yc - half, yc + half))
+    ax.set_xlim(xc - half, xc + half)
+    ax.set_ylim(yc - half, yc + half)
 
     r = np.hypot(x, y)
     styles = ["--", ":"]
@@ -55,10 +63,12 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
 
     # 边缘分布与主轴共享同一坐标（标准 jointplot 结构）
     bins = 60
-    ax_top.hist(x, bins=bins, color="#8FBFA8", edgecolor="white",
-                linewidth=0.2)
-    ax_right.hist(y, bins=bins, color="#8FBFA8", edgecolor="white",
+    ax_top.hist(x, bins=bins, range=(xc - half, xc + half),
+                color="#8FBFA8", edgecolor="white", linewidth=0.2)
+    ax_right.hist(y, bins=bins, range=(yc - half, yc + half),
+                  color="#8FBFA8", edgecolor="white",
                   linewidth=0.2, orientation="horizontal")
+    fig._ff_stats = stats
     return fig, ax, stats
 
 
@@ -66,14 +76,13 @@ if __name__ == "__main__":
     apply_style()
     rng = np.random.default_rng(11)
     n = 40000
-    core_pts = rng.normal(0, 1.1, (int(n * 0.7), 2))
-    arms = []
-    for ang in np.linspace(0, 2 * np.pi, 8, endpoint=False):
-        t = rng.gamma(2.2, 2.4, int(n * 0.3 / 8))
-        w = rng.normal(0, 0.5, len(t))
-        arms.append(np.c_[t * np.cos(ang) - w * np.sin(ang),
-                          t * np.sin(ang) + w * np.cos(ang)])
-    pts = np.vstack([core_pts] + arms)
+    # 各向异性高斯核 + t 分布重尾散射，模拟真实光斑（而非规整几何）
+    core_pts = rng.normal(0, 1.0, (int(n * 0.75), 2)) * [1.35, 0.9]
+    tail = rng.standard_t(df=4, size=(n - len(core_pts), 2)) * [2.4, 1.7]
+    theta = np.deg2rad(18)                      # 光轴微倾，分布整体旋转
+    rot = np.array([[np.cos(theta), -np.sin(theta)],
+                    [np.sin(theta), np.cos(theta)]])
+    pts = np.vstack([core_pts, tail]) @ rot.T
     fig, ax, jstats = joint_hexbin(
         pts[:, 0], pts[:, 1],
         xlabel="接收面横坐标 η₁（m）",
@@ -83,6 +92,6 @@ if __name__ == "__main__":
     fig.suptitle(f"落点向中心强汇聚：50% 落点半径 {jstats[0.5]:.1f} m，"
                  f"有效接收 {jstats['eff_frac']:.1%}",
                  fontsize=10, fontweight="bold", y=0.99)
-    save_figure(fig, str(GALLERY / "joint_marginal"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "joint_marginal"))
     print("joint_marginal: OK")

@@ -43,9 +43,10 @@ from core import apply_style, new_figure, save_figure, run_qa, stat_box, callout
 apply_style()                                  # 1. 全局样式（必须最先调）
 fig, ax = new_figure("onehalf", ratio=0.62)    # 2. 按期刊栏宽建图
 ax.plot(...)                                   #    构图抄 recipes/ 里最接近的模板
-stat_box(ax, ["n = 692", "RMS = 5.07 cm"])     #    统计注释框
-save_figure(fig, "out/图名")                    # 3. 导出 png(300dpi)+svg
-run_qa(fig, expect_width=("onehalf",))         #    自动 QA，不过直接抛错
+stat_box(ax, [f"n = {len(x)}",                 #    统计注释框：数字必须是变量
+              f"RMS = {rms:.2f} cm"])
+run_qa(fig, expect_width=("onehalf",))         # 3. 先 QA：不过直接抛错
+save_figure(fig, "out/图名")                    # 4. 过了再导出 png(300dpi)+svg
 ```
 
 每个 recipe 都能独立运行看 demo：

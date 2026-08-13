@@ -84,8 +84,8 @@ if __name__ == "__main__":
                   f"几何参数影响 ≈ {geo_max:.1%}"],
              loc="upper left", fontsize=6.5)
     ax.set_title("结论由价格比主导，对几何建模细节稳健", fontsize=9.5)
-    save_figure(fig, str(GALLERY / "tornado"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "tornado"))
 
     pct = np.linspace(-30, 30, 41)
     outs = [base * (1 + 0.0105 * pct),
@@ -104,6 +104,6 @@ if __name__ == "__main__":
                   f"阈值判定右端斜率为左端 {abs(k_pos/k_neg):.1f} 倍"],
              loc="lower right", fontsize=6.5)
     ax.set_title("价格比近线性；阈值判定右端显著超线性", fontsize=9.5)
-    save_figure(fig, str(GALLERY / "spider_cartesian"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "spider_cartesian"))
     print("tornado: 2 figures OK")

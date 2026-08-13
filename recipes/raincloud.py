@@ -86,8 +86,8 @@ if __name__ == "__main__":
               rng.normal(3.3, 0.35, 150)]
     fig, ax = raincloud(groups, ["组1", "组2", "组3"], ylabel="轴长（µm）")
     ax.set_title("组2 均值差异来自长尾成分而非整体平移", fontsize=9.5)
-    save_figure(fig, str(GALLERY / "raincloud"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "raincloud"))
 
     groups = [rng.normal(3 + 0.25 * k, 0.4 + 0.03 * k, 200) for k in range(8)]
     from core import cmap_for
@@ -100,6 +100,6 @@ if __name__ == "__main__":
     stat_box(ax, [f"每组 n = {len(groups[0])}",
                   f"中位数漂移 {meds[-1]-meds[0]:+.1f} cm（t0 → t7）"],
              loc="lower right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "ridgeline"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "ridgeline"))
     print("raincloud: 2 figures OK")

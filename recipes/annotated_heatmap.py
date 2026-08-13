@@ -22,8 +22,11 @@ def confusion_matrix(M, class_names, xlabel="预测类别", ylabel="真实类别
     share = M / M.sum(axis=1, keepdims=True)
     n = len(class_names)
     fig, ax = new_figure(width, ratio=0.9)
-    ax.imshow(share, cmap=truncate_cmap(cmap_for("sequential2"), 0.0, 0.85),
-              vmin=0, vmax=1)
+    im = ax.imshow(share, cmap=truncate_cmap(cmap_for("sequential2"), 0.0, 0.85),
+                   vmin=0, vmax=1)
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    cb.set_label("行占比", fontsize=7)
+    cb.ax.tick_params(labelsize=6.5)
     for i in range(n):
         for j in range(n):
             dark = share[i, j] > 0.45
@@ -46,19 +49,34 @@ def confusion_matrix(M, class_names, xlabel="预测类别", ylabel="真实类别
         s.set_visible(False)
     acc = np.trace(M) / M.sum()
     recalls = np.diag(M) / M.sum(axis=1)
-    return fig, ax, dict(acc=acc, macro_recall=recalls.mean(), share=share)
+    # 统计放图外底部：格子全被数据占用，图内任何框都会压住单元格
+    fig.text(0.02, 0.02,
+             f"n = {int(M.sum())} 样本 · 总体准确率 {acc:.0%} · "
+             f"宏平均召回 {recalls.mean():.0%}",
+             fontsize=6.5, ha="left", va="bottom", color="0.3",
+             bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                       edgecolor="0.75", alpha=0.85, linewidth=0.5))
+    fig.subplots_adjust(bottom=0.24)
+    info = dict(acc=acc, macro_recall=recalls.mean(), share=share)
+    fig._ff_stats = info
+    return fig, ax, info
 
 
 def corr_matrix(R, names, width="single", emph_thresh=0.7):
     """下三角相关矩阵：掩膜上三角，|r| ≥ emph_thresh 加强调框。"""
     R = np.asarray(R, dtype=float)
     n = len(names)
-    mask = np.triu(np.ones_like(R, dtype=bool))
+    mask = np.triu(np.ones_like(R, dtype=bool), k=1)   # 保留对角，首行不空
     Rm = np.ma.masked_where(mask, R)
     fig, ax = new_figure(width, ratio=0.9)
-    ax.imshow(Rm, cmap=cmap_for("diverging"), vmin=-1, vmax=1)
+    im = ax.imshow(Rm, cmap=cmap_for("diverging"), vmin=-1, vmax=1)
+    cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
+    cb.set_label("Pearson r", fontsize=7)
+    cb.ax.tick_params(labelsize=6.5)
     n_strong = 0
     for i in range(n):
+        ax.text(i, i, "1", ha="center", va="center", fontsize=6.5,
+                color="white")
         for j in range(i):
             strong = abs(R[i, j]) >= emph_thresh
             n_strong += strong
@@ -77,7 +95,9 @@ def corr_matrix(R, names, width="single", emph_thresh=0.7):
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    return fig, ax, dict(n_strong=int(n_strong))
+    info = dict(n_strong=int(n_strong), thresh=emph_thresh)
+    fig._ff_stats = info
+    return fig, ax, info
 
 
 if __name__ == "__main__":
@@ -90,11 +110,8 @@ if __name__ == "__main__":
     ax.set_title(f"总体准确率 {info['acc']:.0%}，"
                  f"主要混淆为{names[worst[0]]}→{names[worst[1]]}"
                  f"（{info['share'][worst]:.0%}）", fontsize=9)
-    stat_box(ax, [f"n = {int(np.sum(M))} 样本",
-                  f"宏平均召回 {info['macro_recall']:.0%}"],
-             loc="lower left", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "confusion_matrix"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "confusion_matrix"))
 
     rng = np.random.default_rng(12)
     A = rng.normal(0, 1, (200, 5))
@@ -107,6 +124,6 @@ if __name__ == "__main__":
                  fontsize=9)
     stat_box(ax, ["n = 200 观测", "Pearson r，下三角"],
              loc="upper right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "corr_matrix"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "corr_matrix"))
     print("annotated_heatmap: 2 figures OK")

@@ -28,7 +28,10 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
                cmap=cmap_for("surface"), linewidths=0.8)
     if best is not None:
         bx, by = best
-        bz = Z[np.unravel_index(np.argmin(Z), Z.shape)]
+        # 竖线顶端取 best 点处的曲面值（约束最优 ≠ 全局谷底时不画错）
+        ib = np.unravel_index(np.argmin((X - bx) ** 2 + (Y - by) ** 2),
+                              Z.shape)
+        bz = Z[ib]
         ax.plot([bx], [by], [zmin], "*", color="#D55E00", markersize=12,
                 markeredgecolor="white", markeredgewidth=0.5, zorder=10)
         ax.plot([bx, bx], [by, by], [zmin, bz], ":", color="#D55E00",
@@ -69,6 +72,6 @@ if __name__ == "__main__":
                     f"RMS = {z_best:.3f} cm，谷底沿 ε 平坦"])
     ax.set_title("双参数响应曲面单谷：精度对 D₀ 敏感、对 ε 平坦",
                  fontsize=9, pad=-2)
-    save_figure(fig, str(GALLERY / "surface3d_project"), tight=False)
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "surface3d_project"), tight=False)
     print("surface3d_project: OK")

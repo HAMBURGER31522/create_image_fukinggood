@@ -12,24 +12,38 @@ from core import (apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, semantic)
 
 
-def parity(y_true, y_pred, band_pct=0.10, xlabel="实测值", ylabel="预测值",
-           width="single"):
-    """1:1 参考线 + ±band_pct 相对误差带 + 指标统计框 + 最大偏差点引线。
+def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
+           ylabel="预测值", width="single"):
+    """1:1 参考线 + 误差带 + 指标统计框 + 最大偏差点引线。
 
+    band: ("relative", 0.10) 相对带（数据须同号且远离 0）或
+          ("absolute", δ) 绝对带（数据跨 0 / 含 0 时用这个）。
+          兼容旧用法：直接传 float 视为相对带。
     返回 (fig, ax, info)，info 含 r2/rmse/mape/inside（可用于图题）。
     """
-    y_true = np.asarray(y_true, dtype=float)
-    y_pred = np.asarray(y_pred, dtype=float)
+    y_true = np.asarray(y_true, dtype=float).ravel()
+    y_pred = np.asarray(y_pred, dtype=float).ravel()
+    if not isinstance(band, (tuple, list)):
+        band = ("relative", float(band))
+    mode, bval = band
     lo = min(y_true.min(), y_pred.min())
     hi = max(y_true.max(), y_pred.max())
     pad = 0.06 * (hi - lo)
     lo, hi = lo - pad, hi + pad
 
     fig, ax = new_figure(width, ratio=0.95)
-    xs = np.array([max(lo, 1e-12), hi])
-    ax.fill_between(xs, xs * (1 - band_pct), xs * (1 + band_pct),
-                    color="0.88", alpha=0.7, lw=0,
-                    label=f"±{band_pct:.0%} 带")
+    xs = np.array([lo, hi])
+    if mode == "relative":
+        band_lo, band_hi = (np.minimum(xs * (1 - bval), xs * (1 + bval)),
+                            np.maximum(xs * (1 - bval), xs * (1 + bval)))
+        band_label = f"±{bval:.0%} 带"
+        tol = bval * np.abs(y_true)
+    else:
+        band_lo, band_hi = xs - bval, xs + bval
+        band_label = f"±{bval:g} 带"
+        tol = np.full_like(y_true, bval)
+    ax.fill_between(xs, band_lo, band_hi, color="0.88", alpha=0.7, lw=0,
+                    label=band_label)
     ax.plot([lo, hi], [lo, hi], "--", color="0.35", linewidth=0.9,
             label="y = x")
     ax.plot(y_true, y_pred, "o", color=semantic("data"), markersize=4,
@@ -43,23 +57,32 @@ def parity(y_true, y_pred, band_pct=0.10, xlabel="实测值", ylabel="预测值"
     ax.legend(loc="upper left", fontsize=6.5)
 
     resid = y_pred - y_true
-    ss_res = np.sum(resid ** 2)
     ss_tot = np.sum((y_true - y_true.mean()) ** 2)
+    nz = np.abs(y_true) > 1e-12          # MAPE 只对非零实测值定义
     info = dict(
-        r2=1 - ss_res / ss_tot,
+        r2=float(1 - np.sum(resid ** 2) / ss_tot) if ss_tot > 0 else np.nan,
         rmse=float(np.sqrt(np.mean(resid ** 2))),
-        mape=float(np.mean(np.abs(resid) / np.abs(y_true))) * 100,
-        inside=float(np.mean(np.abs(resid) <= band_pct * np.abs(y_true))),
+        mape=float(np.mean(np.abs(resid[nz]) / np.abs(y_true[nz]))) * 100
+             if nz.any() else np.nan,
+        mae=float(np.mean(np.abs(resid))),
+        inside=float(np.mean(np.abs(resid) <= tol)),
     )
+    err_line = (f"MAPE = {info['mape']:.1f}%" if np.isfinite(info["mape"])
+                else f"MAE = {info['mae']:.3g}")
+    r2_line = (f"R² = {info['r2']:.3f}" if np.isfinite(info["r2"])
+               else "R² 未定义（实测无方差）")
     stat_box(ax, [f"n = {len(y_true)}",
-                  f"R² = {info['r2']:.3f}，RMSE = {info['rmse']:.3g}",
-                  f"MAPE = {info['mape']:.1f}%，"
-                  f"带内 {info['inside']:.0%}"],
+                  f"{r2_line}，RMSE = {info['rmse']:.3g}",
+                  f"{err_line}，带内 {info['inside']:.0%}"],
              loc="lower right", fontsize=6.5)
-    iw = int(np.argmax(np.abs(resid) / np.abs(y_true)))
+    dev = np.abs(resid) / np.where(nz, np.abs(y_true), np.inf) \
+        if mode == "relative" else np.abs(resid)
+    iw = int(np.argmax(dev))
+    dev_txt = (f"{resid[iw]/y_true[iw]:+.0%}" if mode == "relative"
+               else f"{resid[iw]:+.3g}")
     callout(ax, xy=(y_true[iw], y_pred[iw]),
-            text=f"最大偏差 {resid[iw]/y_true[iw]:+.0%}",
-            xytext=(0.72, 0.16), textcoords="axes fraction",
+            text=f"最大偏差 {dev_txt}",
+            xytext=(0.60, 0.32), textcoords="axes fraction",
             color=semantic("bad"), rad=-0.2, mark=True)
     return fig, ax, info
 
@@ -75,6 +98,6 @@ if __name__ == "__main__":
     ax.set_title(f"预测可信：R² = {info['r2']:.2f}，"
                  f"{info['inside']:.0%} 样本落于 ±10% 带内",
                  fontsize=9)
-    save_figure(fig, str(GALLERY / "parity"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "parity"))
     print("parity: OK")

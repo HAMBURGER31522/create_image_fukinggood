@@ -34,7 +34,8 @@ def share_bars(labels, counts, unit="", width="single", highlight=None):
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
-    ax.margins(x=0.25)
+    # 条端标注文字宽度不随数据缩放，显式留 45% 头部空间防溢出画布
+    ax.set_xlim(0, max(counts) * 1.45)
     ax.set_xlabel(f"数量{('（' + unit + '）') if unit else ''}")
     return fig, ax
 
@@ -134,9 +135,9 @@ def parallel_coords(names, data, dims, highlight_idx=(), better=None,
     for xi, d in zip(x, dims):
         ax.axvline(xi, color="0.55", linewidth=0.6)
         ax.text(xi, 1.04, fmt(data[:, xi].max()), ha="center",
-                fontsize=6, color="0.4")
+                fontsize=6.5, color="0.4")
         ax.text(xi, -0.08, fmt(data[:, xi].min()), ha="center",
-                fontsize=6, color="0.4")
+                fontsize=6.5, color="0.4")
     ax.set_xticks(x)
     if better is not None:
         labels = [f"{d}\n（{b}优）" for d, b in zip(dims, better)]
@@ -165,8 +166,8 @@ if __name__ == "__main__":
                  fontsize=9)
     stat_box(ax, [f"总计 n = {tot} 根（单次 MC 实现）"],
              loc="lower right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "composition_share_bars"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "composition_share_bars"))
 
     wf_counts = [12, 27, 61]
     fig, ax = waffle(["介质A", "介质B", "基体"], wf_counts)
@@ -175,8 +176,8 @@ if __name__ == "__main__":
     stat_box(ax, ["每格 = 总成本 1%",
                   f"介质合计 {wf_counts[0]+wf_counts[1]}%（可压缩项）"],
              loc="lower left", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "composition_waffle"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "composition_waffle"))
 
     mat = np.array([[62, 30, 8], [33, 37, 30], [55, 33, 12]], dtype=float)
     big = mat[:, 2] / mat.sum(axis=1)
@@ -187,8 +188,8 @@ if __name__ == "__main__":
     ax.set_title(f"组2 大簇占比约 {ratio:.0f} 倍于其余组均值", fontsize=9)
     stat_box(ax, [f"组2 大簇 {big[1]:.0%} vs 其余均值 {big[[0, 2]].mean():.0%}"],
              loc="upper right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "composition_stacked"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "composition_stacked"))
 
     rng = np.random.default_rng(8)
     data = rng.uniform(0, 1, (24, 5)) * [10, 5, 100, 40, 1]
@@ -201,6 +202,6 @@ if __name__ == "__main__":
     stat_box(ax, [f"候选方案 n = {len(data)}，5 维独立归一",
                   "方案5 在成本/覆盖率两维同时占优"],
              loc="lower right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "parallel_coords"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "parallel_coords"))
     print("composition: 4 figures OK")

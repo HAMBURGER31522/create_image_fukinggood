@@ -14,10 +14,19 @@ Task Progress:
 - [ ] 1. 明确论点：这张图要证明什么（一句话）
 - [ ] 2. 填论点合同（见下）
 - [ ] 3. 过硬拒绝清单，命中则换构图
-- [ ] 4. 从 recipes/ 复制最接近的模板改数据，禁止从空白开始
-- [ ] 5. 运行出图 → run_qa 自动检查
-- [ ] 6. 用 Read 工具打开 PNG 目测，对照 QA 目测清单
-- [ ] 7. 不合格改到合格，交付 PNG + SVG
+- [ ] 4. 读数据：Excel/CSV 用 core.load_table + as_1d 转 ndarray
+- [ ] 5. 从 recipes/ 复制最接近的模板改数据，禁止从空白开始
+- [ ] 6. run_qa 自动检查 → 通过后 save_figure（坏图不落盘）
+- [ ] 7. 用 Read 工具打开 PNG 目测，对照 QA 目测清单
+- [ ] 8. 不合格改到合格，交付 PNG + SVG + 图注草稿
+```
+
+读数据示例（GBK CSV / xlsx 常见坑已处理）：
+
+```python
+from core import load_table, as_1d
+df = load_table("求解结果.xlsx")           # 或 .csv（自动试 utf-8-sig/gbk）
+y_true, y_pred = as_1d(df, "实测"), as_1d(df, "预测")
 ```
 
 **复制 recipe 时注意**：recipes 顶部的 `from _common import GALLERY` 是 demo 专用的
@@ -40,6 +49,15 @@ archetype（查 reference/taxonomy.md 选图决策树）：…
 ```
 
 合同不完整不出图。图题写结论（"A 成本仅为 B 的 53%"），不写描述（"A 与 B 的对比"）。
+
+**图注草稿随图交付**（参考图的结论都走图注，正文引用离不开它）：
+
+```
+图 N　<结论句（与图题同源，可直接复用）>。<方法与读图细节：色标含义 /
+带宽或 CI 定义 / n 与数据来源 / 特殊标记（星标、虚线圆）的含义>。
+```
+
+图内标题已写结论时，图注只补方法细节，不重复结论。
 
 **统计框三段式**：参考期刊图的注释框同时含三类信息——**设置**（网格数/步长/
 样本量/自由度）、**结果**（RMS/极值/占比）、**判定**（是否在容差内/是否可行）。
@@ -92,11 +110,12 @@ from core import apply_style, new_figure, save_figure, run_qa, \
 apply_style()                            # 必须最先调用
 fig, ax = new_figure("onehalf", ratio=0.62)
 # ... 画图（从 recipes/ 抄构图）...
-stat_box(ax, ["n = 692", "RMS = 5.068 cm"], loc="upper left")
+# 框里每个数字都必须是变量，禁止手写常数
+stat_box(ax, [f"n = {len(x)}", f"RMS = {rms:.3f} cm"], loc="upper left")
 callout(ax, xy=(x0, y0), text="最优点", xytext=(0.7, 0.6),
         textcoords="axes fraction", color=semantic("highlight"))
-save_figure(fig, "输出路径不带扩展名")     # 自动出 png(300dpi)+svg
-run_qa(fig, expect_width=("onehalf",))   # 不过直接抛错
+run_qa(fig, expect_width=("onehalf",))   # 先 QA：不过直接抛错，坏图不落盘
+save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+svg
 ```
 
 ### 5. QA 目测清单（Read PNG 后逐项过）
@@ -122,6 +141,9 @@ run_qa(fig, expect_width=("onehalf",))   # 不过直接抛错
 | 模型验证 | parity.py | 预测-实测 45° 对照+误差带 |
 | 时序预测 | timeseries_forecast.py | 历史+置信扇+回测点 |
 | 分类评估/相关性 | annotated_heatmap.py | 混淆矩阵、下三角相关阵 |
+| 分类器阈值全貌 | roc_pr.py | ROC+PR 双联+基线+AUC/AP 直标 |
+| 聚类结果 | cluster_scatter.py | 簇着色+簇心星标+2σ 椭圆+轮廓系数 |
+| 路径规划/调度 | route_map.py | 多车路线+途经序号+里程统计框 |
 | MC 收敛 | convergence_ci.py | CI 带 + log-log 双联 |
 | 算法收敛 | algo_convergence.py | best-so-far+收敛代标注 |
 | 参数扫描 | scan_curve.py | log y、星标、引线框、axvspan |

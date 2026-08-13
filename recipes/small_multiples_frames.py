@@ -35,7 +35,9 @@ def frame_snapshots(frames, titles, stats, xy=None, R=None,
         ax.set_xticks([])
         ax.set_yticks([])
         ax.grid(False)
-        ax.text(0.03, 0.03, s, transform=ax.transAxes, fontsize=6,
+        # 无刻度就别留 L 形残脊线，虚线口径圆即面板边界
+        ax.set_frame_on(False)
+        ax.text(0.03, 0.03, s, transform=ax.transAxes, fontsize=6.5,
                 va="bottom",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                           edgecolor="0.75", alpha=0.85, linewidth=0.5))
@@ -71,6 +73,6 @@ if __name__ == "__main__":
                  f"RMS {rms_list[0]:.1f} → {rms_list[-1]:.2f} cm，"
                  "环带残差逐帧消退",
                  fontsize=9.5, fontweight="bold", x=0.45)
-    save_figure(fig, str(GALLERY / "small_multiples_frames"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "small_multiples_frames"))
     print("small_multiples_frames: OK")

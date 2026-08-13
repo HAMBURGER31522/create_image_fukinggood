@@ -35,6 +35,17 @@ def _resolve_fonts() -> list[str]:
 
 
 _DRAFT_MODE = False
+_STYLE_APPLIED = False
+
+
+def is_styled() -> bool:
+    """apply_style 是否已调用（run_qa 用）。"""
+    return _STYLE_APPLIED
+
+
+def is_draft() -> bool:
+    """当前是否草稿档（run_qa 用）。"""
+    return _DRAFT_MODE
 
 
 def apply_style(base_size: float = 9.0, draft: bool = False) -> None:
@@ -43,8 +54,9 @@ def apply_style(base_size: float = 9.0, draft: bool = False) -> None:
     draft=True 为 72h 赛时草稿档：降 dpi、save_figure 只出 PNG，
     交付前必须用默认档重出一遍。
     """
-    global _DRAFT_MODE
+    global _DRAFT_MODE, _STYLE_APPLIED
     _DRAFT_MODE = draft
+    _STYLE_APPLIED = True
     fonts = _resolve_fonts()
     mpl.rcParams.update({
         # 直接给列表才能触发逐字符回退（拉丁用衬线、中文用 CJK 字体）
@@ -90,10 +102,28 @@ def new_figure(width: str | float = "onehalf", ratio: float = 0.62,
     return plt.subplots(figsize=figsize, **kwargs)
 
 
+def delivered_width_in(fig, tight: bool = True) -> float:
+    """交付 PNG 的实际宽度（英寸）：tight 裁剪 + 补白后的宽度。
+
+    run_qa 校验这个值而非 fig.get_figwidth()——后者是裁剪前的画布，
+    与落盘文件无关。
+    """
+    if not tight:
+        return fig.get_figwidth()
+    fig.canvas.draw()
+    pad = mpl.rcParams["savefig.pad_inches"]
+    bb_w = fig.get_tightbbox(fig.canvas.get_renderer()).padded(pad).width
+    # save_figure 会把窄于声明宽度的 bbox 对称补回，故取 max
+    return max(bb_w, fig.get_figwidth())
+
+
 def save_figure(fig, path_no_ext: str, formats=("png", "svg"),
-                tight: bool = True) -> list[str]:
+                tight: bool = True, exact_width: bool = True) -> list[str]:
     """导出 png(300dpi)+svg(文字可编辑)。返回输出文件列表。
 
+    tight=True 时不直接用 savefig.bbox="tight"——那会把留白裁掉，
+    交付宽度比声明栏宽小 3%–22%，排版放大后同一论文字号不一致。
+    这里显式算 tight bbox 后把宽度对称补回声明栏宽（exact_width）。
     tight=False 用于 3D 图：mplot3d 的轴标签不计入 tight bbox，
     会被裁掉，此时改走 subplots_adjust 手动边距。
     草稿档（apply_style(draft=True)）只出 PNG。
@@ -102,9 +132,24 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg"),
     Path(path_no_ext).parent.mkdir(parents=True, exist_ok=True)
     if _DRAFT_MODE:
         formats = ("png",)
+        path_no_ext = f"{path_no_ext}_DRAFT"   # 草稿不与交付物混名
+    bbox = None
+    if tight:
+        from matplotlib.transforms import Bbox
+        fig.canvas.draw()
+        pad = mpl.rcParams["savefig.pad_inches"]
+        bb = fig.get_tightbbox(fig.canvas.get_renderer()).padded(pad)
+        target = fig.get_figwidth()
+        if exact_width and bb.width < target:
+            dx = (target - bb.width) / 2
+            bb = Bbox.from_extents(bb.x0 - dx, bb.y0, bb.x1 + dx, bb.y1)
+        elif bb.width > target + 0.04:
+            print(f"[style WARN] 内容溢出声明栏宽："
+                  f"{bb.width * 25.4:.0f} > {target * 25.4:.0f} mm")
+        bbox = bb
     out = []
     for ext in formats:
         p = f"{path_no_ext}.{ext}"
-        fig.savefig(p, bbox_inches=None if tight else fig.bbox_inches)
+        fig.savefig(p, bbox_inches=bbox if tight else fig.bbox_inches)
         out.append(p)
     return out

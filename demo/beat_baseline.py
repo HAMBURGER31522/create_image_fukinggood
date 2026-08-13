@@ -70,7 +70,7 @@ callout(axes[2], xy=(cost[0], 1), text=f"同一目标下\nA 省 {saving:.1f} 元
         xytext=(0.62, 0.42), textcoords="axes fraction",
         color=semantic("highlight"), rad=-0.25)
 stat_box(axes[0], ["设置：MC 10⁵ 次/点", "阈值差与成本均为求解输出"],
-         loc="lower right", fontsize=6)
+         loc="lower right", fontsize=6.5)
 
 fig.suptitle(f"同一 90% 导通目标：介质 A 总成本仅为 B 的 {cost[0]/cost[1]:.0%}"
              f"——低阈值优势({threshold[1]/threshold[0]:.0f}×)"
@@ -79,6 +79,6 @@ fig.suptitle(f"同一 90% 导通目标：介质 A 总成本仅为 B 的 {cost[0]
 
 out_dir = Path(__file__).resolve().parents[1] / "gallery"
 out_dir.mkdir(exist_ok=True)
-save_figure(fig, str(out_dir / "demo_beat_baseline"))
 run_qa(fig, expect_width=("double",))
+save_figure(fig, str(out_dir / "demo_beat_baseline"))
 print("OK ->", out_dir / "demo_beat_baseline.png")

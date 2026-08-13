@@ -58,7 +58,7 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
                  color=semantic("highlight"), fontweight="bold")
     stat_box(ax2, [f"每点重复 n = {samples.shape[1]}",
                    f"φc = {phi_c:g}（P = 0.5 交点）"],
-             loc="lower right", fontsize=6)
+             loc="lower right", fontsize=6.5)
     fig.subplots_adjust(right=0.88)
     return fig, (ax1, ax2)
 
@@ -82,6 +82,6 @@ if __name__ == "__main__":
     fig.suptitle(f"最大簇占比在 φc = {phi_c:g} 劈裂跃变，"
                  "与导通概率 0.5 交点一致",
                  fontsize=9.5, fontweight="bold", x=0.46)
-    save_figure(fig, str(GALLERY / "phase_transition"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "phase_transition"))
     print("phase_transition: OK")

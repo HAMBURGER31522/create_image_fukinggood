@@ -19,12 +19,20 @@ from core import (apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, panel_label, PALETTE, semantic)
 
 
-def sorted_lollipop(labels, values, unit="", highlight=0, title=""):
-    """有序棒棒糖：按值降序、水平、条端直标；highlight 为强调项索引（排序后）。"""
+def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
+    """有序棒棒糖：按值降序、水平、条端直标。
+
+    highlight: 强调项——None=自动强调最大值；int=排序前的原始索引；
+    str=标签名。与 slopegraph 的 highlight（原始索引）语义一致。
+    """
+    if highlight is None:
+        highlight = int(np.argmax(values))
+    elif isinstance(highlight, str):
+        highlight = list(labels).index(highlight)
     order = np.argsort(values)          # 水平图从下往上增大
+    hi = int(np.where(order == highlight)[0][0])   # 排序后的位置
     labels = [labels[i] for i in order]
     values = [values[i] for i in order]
-    hi = len(values) - 1 - highlight    # 默认强调最大者
 
     fig, ax = new_figure("single", ratio=0.7)
     y = np.arange(len(values))
@@ -188,8 +196,8 @@ if __name__ == "__main__":
     callout(ax, xy=(top, 4), text=f"领先 {lead:.1f} 分（+{lead_pct:.0f}%）",
             xytext=(0.55, 0.55),
             textcoords="axes fraction", color=semantic("highlight"))
-    save_figure(fig, str(GALLERY / "comparison_lollipop"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "comparison_lollipop"))
 
     before, after = [3.2, 5.1, 4.4, 6.0], [2.1, 4.9, 2.8, 6.3]
     n_down = sum(a < b for a, b in zip(after, before))
@@ -203,8 +211,8 @@ if __name__ == "__main__":
     stat_box(ax, [f"n = {len(before)} 城市",
                   f"平均变化 {d_mean:+.2f} h"], loc="lower left",
              fontsize=6.5)
-    save_figure(fig, str(GALLERY / "comparison_dumbbell"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "comparison_dumbbell"))
 
     s_before = [72, 58, 66, 49, 61]
     s_after = [69, 71, 64, 52, 55]
@@ -218,8 +226,8 @@ if __name__ == "__main__":
                   f"上升 {sum(a > b for a, b in zip(s_after, s_before))} 个 / "
                   f"下降 {sum(a < b for a, b in zip(s_after, s_before))} 个"],
              loc="lower left", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "comparison_slopegraph"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "comparison_slopegraph"))
 
     d0s = np.arange(0, 0.57, 0.08)
     left_cnt = [270, 95, 0, 0, 0, 0, 0, 0]
@@ -239,8 +247,8 @@ if __name__ == "__main__":
     stat_box(ax, [f"D0 扫描 {len(d0s)} 档（步长 {d0s[1]-d0s[0]:.2f} m）",
                   f"行程越界合计 {sum(left_cnt)} 节点"],
              loc="lower right", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "comparison_butterfly"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "comparison_butterfly"))
 
     # 与 demo/beat_baseline 区分场景：算法对比（时间/内存/最优性 gap）
     t_solve = [312.0, 0.8]
@@ -256,6 +264,6 @@ if __name__ == "__main__":
     fig.suptitle(f"贪心以 {gaps[1]:g}% gap 换 {t_solve[0]/t_solve[1]:.0f}× 提速"
                  f"与 {mem[0]/mem[1]:.0f}× 省存：大规模场景可用",
                  fontsize=10, fontweight="bold")
-    save_figure(fig, str(GALLERY / "comparison_facet_metrics"))
     run_qa(fig, expect_width=("double",))
+    save_figure(fig, str(GALLERY / "comparison_facet_metrics"))
     print("comparison_rank: 5 figures OK")

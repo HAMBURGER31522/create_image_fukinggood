@@ -20,6 +20,8 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
     """bands: {置信度: (lo, hi)}，如 {0.5: (l1, h1), 0.95: (l2, h2)}。
 
     split: 训练/测试分割位置（x 值）；y_test: 分割后真实观测（回测点）。
+    返回 (fig, ax, info)：info 含 mape/coverage/half_w_last（图题用这些，
+    禁止手写）。统计框由函数内部生成，与图题同源。
     """
     fig, ax = new_figure(width, ratio=0.55)
     c_data, c_fit = semantic("data"), semantic("fit")
@@ -51,7 +53,28 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
     ax.set_ylabel(ylabel)
     ax.legend(loc="upper left", fontsize=6.5)
     ax.margins(x=0.02)
-    return fig, ax
+
+    # 指标在函数内计算，图题引用 info——保证同源
+    y_fore = np.asarray(y_fore, dtype=float)
+    top = max(bands)
+    lo_t, hi_t = (np.asarray(v) for v in bands[top])
+    info = dict(n_train=len(t_hist), top_level=top,
+                half_w_last=float((hi_t[-1] - lo_t[-1]) / 2 / abs(y_fore[-1]))
+                if y_fore[-1] else np.nan)
+    lines = [f"训练 {info['n_train']} 期"]
+    if y_test is not None:
+        y_test = np.asarray(y_test, dtype=float)
+        k = len(y_test)
+        info["mape"] = float(np.mean(
+            np.abs(y_test - y_fore[:k]) / np.abs(y_test))) * 100
+        info["coverage"] = float(np.mean(
+            (y_test >= lo_t[:k]) & (y_test <= hi_t[:k])))
+        lines += [f"留出回测 {k} 期，MAPE = {info['mape']:.1f}%",
+                  f"回测点 {info['coverage']:.0%} 落在 {top:.0%} 扇内"]
+    lines.append(f"末期 {top:.0%} 半宽 ±{info['half_w_last']:.0%}")
+    stat_box(ax, lines, loc="lower right", fontsize=6.5)
+    fig._ff_stats = info
+    return fig, ax, info
 
 
 if __name__ == "__main__":
@@ -66,22 +89,17 @@ if __name__ == "__main__":
              0.95: (y_f - 1.96 * sig, y_f + 1.96 * sig)}
     # 回测：留出最后 3 期做检验
     y_test = y_f[:3] * (1 + rng.normal(0, 0.02, 3))
-    mape = np.mean(np.abs(y_test - y_f[:3]) / y_test) * 100
-    half_w = 1.96 * sig[-1] / y_f[-1]
 
-    fig, ax = forecast_fan(
+    fig, ax, info = forecast_fan(
         t, y, t_f, y_f, bands, split=t[-1], y_test=y_test,
         xlabel="年份", ylabel="需求量（万件）",
         model_label="GM(1,1) 预测")
     from matplotlib.ticker import MaxNLocator
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))  # 年份不出小数
-    stat_box(ax, [f"训练 {len(t)} 期，留出回测 {len(y_test)} 期",
-                  f"回测 MAPE = {mape:.1f}%",
-                  f"末期 95% 半宽 ±{half_w:.0%}"],
-             loc="lower right", fontsize=6.5)
-    ax.set_title(f"回测 MAPE {mape:.1f}%：预测可信，"
-                 f"至 {t_f[-1]} 年 95% 区间半宽 ±{half_w:.0%}",
+    # 硬规则：图题数字来自 forecast_fan 返回的 info，与统计框同源
+    ax.set_title(f"回测 MAPE {info['mape']:.1f}%：预测可信，"
+                 f"至 {t_f[-1]} 年 95% 区间半宽 ±{info['half_w_last']:.0%}",
                  fontsize=9.5)
-    save_figure(fig, str(GALLERY / "timeseries_forecast"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "timeseries_forecast"))
     print("timeseries_forecast: OK")

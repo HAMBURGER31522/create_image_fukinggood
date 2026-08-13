@@ -18,13 +18,14 @@ _LANE_BG = ["#F4F6F8", "#FFFFFF"]
 
 
 def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
-             lane_colors=None):
+             lane_colors=None, box_h=0.16):
     """lanes: [(泳道名, [模块文本, ...]), ...]，每条泳道一行。
 
     flows: [((i0,j0),(i1,j1)), ...] 实线箭头；feedbacks 同构，虚线回路。
+    box_h: 模块框视觉高度（轴分数），箭头锚在框缘而非中心。
     返回 (fig, ax, centers)，centers[i][j] 为模块中心坐标（继续加注释用）。
     """
-    w = COLUMN_WIDTHS[width] * MM
+    w = COLUMN_WIDTHS.get(width, width) * MM   # 与 new_figure 一致，接受 mm
     fig, ax = plt.subplots(figsize=(w, w * ratio))
     ax.set_axis_off()
     n_lane = len(lanes)
@@ -50,10 +51,20 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
         centers.append(row)
 
     def _arrow(p0, p1, dashed=False, color="0.35"):
+        # 锚点取模块框上下缘而非中心：泳道间距小，固定 shrink 点数
+        # 会把箭头杆吃光只剩悬空箭头帽
+        (x0, y0), (x1, y1) = p0, p1
+        if abs(y1 - y0) > 1e-9:
+            s = 1 if y1 > y0 else -1
+            p0 = (x0, y0 + s * box_h / 2)
+            p1 = (x1, y1 - s * box_h / 2)
+            shrink = 2
+        else:
+            shrink = 26          # 同泳道水平箭头维持原行为
         arrow = FancyArrowPatch(
             p0, p1, arrowstyle="-|>", mutation_scale=9, color=color,
             linewidth=0.9, linestyle=(0, (4, 3)) if dashed else "-",
-            shrinkA=26, shrinkB=26,
+            shrinkA=shrink, shrinkB=shrink,
             connectionstyle="arc3,rad=0.16" if dashed else "arc3,rad=0.0",
             zorder=2)
         if dashed:
@@ -101,6 +112,6 @@ if __name__ == "__main__":
     fig, ax, _ = pipeline(lanes, flows, feedbacks)
     fig.suptitle("技术路线：四层管线，灵敏度检验反馈修正问题一参数",
                  fontsize=10, fontweight="bold", y=0.99)
-    save_figure(fig, str(GALLERY / "pipeline_diagram"))
     run_qa(fig, expect_width=("double",))
+    save_figure(fig, str(GALLERY / "pipeline_diagram"))
     print("pipeline_diagram: OK")

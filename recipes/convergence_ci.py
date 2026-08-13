@@ -58,6 +58,6 @@ if __name__ == "__main__":
     fig.suptitle(f"导通概率估计收敛：N = {n[-1]} 时 CI 半宽 {half[-1]:.3f}，"
                  "误差按 1/√N 收缩",
                  fontsize=10, fontweight="bold", y=0.97)
-    save_figure(fig, str(GALLERY / "convergence_ci"))
     run_qa(fig, expect_width=("double",))
+    save_figure(fig, str(GALLERY / "convergence_ci"))
     print("convergence_ci: OK")

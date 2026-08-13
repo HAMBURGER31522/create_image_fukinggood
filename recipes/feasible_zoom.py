@@ -100,6 +100,6 @@ if __name__ == "__main__":
              fontsize=6.5)
     ax.set_title("等值线—前沿切点给出最低成本解，放大窗排除平坦歧义",
                  fontsize=9, pad=8)
-    save_figure(fig, str(GALLERY / "feasible_zoom"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "feasible_zoom"))
     print("feasible_zoom: OK")

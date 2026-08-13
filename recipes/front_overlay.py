@@ -111,8 +111,8 @@ if __name__ == "__main__":
     stat_box(ax, [f"响应面网格 {P.shape[0]}×{P.shape[1]}",
                   f"P > 0.9 区域占 {np.mean(P > 0.9):.0%}"],
              loc="lower left", fontsize=6.5)
-    save_figure(fig, str(GALLERY / "front_overlay"))
     run_qa(fig, expect_width=("onehalf",))
+    save_figure(fig, str(GALLERY / "front_overlay"))
 
     rng = np.random.default_rng(4)
     cost = rng.uniform(8, 30, 60)
@@ -124,6 +124,6 @@ if __name__ == "__main__":
     dc = (info["fx"][k] - info["fx"][0]) / info["fx"][0]
     de = (info["fy"][k] - info["fy"][0]) / info["fy"][0]
     ax.set_title(f"膝点以 +{dc:.0%} 成本换 {de:.0%} 误差", fontsize=9.5)
-    save_figure(fig, str(GALLERY / "pareto_front"))
     run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "pareto_front"))
     print("front_overlay: 2 figures OK")
