@@ -573,6 +573,12 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                 _sh = (_over + 4) / max(1.0, _fg.bbox.width)
                 _x1 = max(_ps.x0 + 0.15, _ps.x1 - _sh)
                 ax.set_position([_ps.x0, _ps.y0, _x1 - _ps.x0, _ps.height])
+            if _over > 1.0:
+                # 撞到 0.15 下限后再收缩也无效。静默放弃会让用户拿到一张
+                # 数值列骑进邻居的图而毫无提示，且 QA 的遮挡检查只遍历带框
+                # 注释，兜不住无框直标。
+                print(f"[annotate note] 数值列让位未完成，仍越界 "
+                      f"{_over:.0f}px：改用 value_col='inside' 或加宽画布")
         except Exception as e:
             print(f"[annotate note] 数值列让位未执行：{e}")
     return (ok, order) if return_order else ok

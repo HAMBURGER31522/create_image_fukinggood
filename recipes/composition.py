@@ -91,10 +91,20 @@ def stacked_share(group_labels, cat_labels, matrix, width="onehalf",
                 alpha=1.0 if (is_emph or emphasize is None) else 0.6,
                 edgecolor="0.25" if is_emph else "none",
                 linewidth=0.9 if is_emph else 0)
+        # 段色深浅不一，白字一律写死会在浅色段上掉到 1.6:1。按底色亮度
+        # 选黑/白——annotated_heatmap.py 早就是这个写法。
+        from core.colors import luminance
+        import matplotlib.colors as _mc
+        _al = 1.0 if (is_emph or emphasize is None) else 0.6
+        _eff = tuple(_al * v + (1 - _al) for v in
+                     _mc.to_rgb(PALETTE[c % len(PALETTE)]))
+        # 阈值由 WCAG 反解，不是拍脑袋：白字要 ≥3:1 需 L_bg ≤ 0.30；
+        # 深字("0.15", L=0.019) 要 ≥3:1 需 L_bg ≥ 0.156。取 0.28 留余量。
+        _txt = "white" if luminance(_eff) <= 0.28 else "0.15"
         for yi, s, l in zip(y, shares[:, c], left):
             if s > 0.07:
                 ax.text(l + s / 2, yi, f"{s:.0%}", ha="center", va="center",
-                        fontsize=6.8, color="white", fontweight="bold")
+                        fontsize=6.8, color=_txt, fontweight="bold")
         left += shares[:, c]
     ax.set_yticks(y)
     ax.set_yticklabels(group_labels)

@@ -982,9 +982,11 @@ def test_qa_does_not_flag_readable_labels():
 def test_white_text_on_a_dark_cell_is_not_flagged():
     """深底白字是正确做法（热力图注数、条内直标），判据不能假定白底。"""
     fig, ax = new_figure("onehalf")
-    im = ax.imshow(np.linspace(0, 1, 16).reshape(4, 4), cmap="viridis")
+    # viridis 高值端是浅黄绿，白字在那上面确实不可读——只在深色端放白字，
+    # 这正是 annotated_heatmap.py 的做法（按格子亮度选黑/白）
+    ax.imshow(np.full((4, 4), 0.05), cmap="viridis", vmin=0, vmax=1)
     for i in range(4):
-        ax.text(i, i, "0.9", color="white", ha="center", va="center")
+        ax.text(i, i, "0.05", color="white", ha="center", va="center")
     assert not hit(fig, "对比度")
 
 
@@ -1006,3 +1008,109 @@ def test_custom_tick_labels_on_numeric_positions_are_flagged():
     ax.set_xticks([10, 20, 30, 40])
     ax.set_xticklabels(["方案A", "方案B", "方案C", "方案D"])
     assert hit(fig, "个点用折线连起来")
+
+
+# --- 第 5 轮评审：text_contrast 的豁免用几何冒充颜色 -------------------
+
+def test_white_text_on_a_contourf_field_is_not_flagged():
+    """`ContourSet.get_window_extent()` 返回 Bbox(inf,inf,-inf,-inf)，
+    几何豁免整个失效 → 场图白字被硬拒。而 contour_field 就是本库的
+    场图 recipe。"""
+    fig, ax = new_figure("onehalf")
+    X, Y = np.meshgrid(np.linspace(0, 1, 20), np.linspace(0, 1, 20))
+    ax.contourf(X, Y, X * Y, levels=8, cmap="viridis")
+    ax.text(0.2, 0.2, "0.04", color="white", ha="center")
+    assert not hit(fig, "对比度")
+
+
+def test_white_text_on_a_pale_segment_is_flagged():
+    """反向：白字落进**浅色**段被无条件豁免。gallery 的
+    composition_stacked 里就躺着 7 处这样的真缺陷（实测 1.64:1），
+    而检查看不见——它只判"有没有被图元覆盖"，不判底色深浅。"""
+    fig, ax = new_figure("onehalf")
+    ax.barh([0], [0.6], color="#9ecae1")
+    ax.text(0.3, 0, "62%", color="white", ha="center", va="center")
+    assert hit(fig, "对比度")
+
+
+def test_text_over_an_opaque_white_bbox_is_still_checked():
+    """只看 bbox 的 alpha 不看颜色：白底框里的浅橙字对白框仍不合格。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.annotate("白框里的浅橙字", xy=(2, 2), color="#E69F00", fontsize=8,
+                bbox=dict(boxstyle="round", fc="white", ec="0.7"))
+    assert hit(fig, "对比度")
+
+
+def test_figure_level_legend_text_is_inspected():
+    """`_all_texts` 漏掉 fig.legends → 字号下限 / 豆腐块 / nature 彩色文字
+    / 对比度**全部**对它失明。"""
+    from core.qa import _all_texts
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2], [1, 2], label="曲线")
+    fig.legend(fontsize=3)
+    assert any("曲线" in t.get_text() for t in _all_texts(fig))
+
+
+def test_three_d_axis_labels_are_inspected():
+    """3D 的 zlabel 与 z 刻度整条不在视野内，而 surface3d_project 是在产
+    recipe 且有 zlabel。"""
+    from core.qa import _all_texts
+    import matplotlib.pyplot as _plt
+    fig = _plt.figure()
+    ax = fig.add_subplot(projection="3d")
+    ax.set_zlabel("高程 z")
+    assert any("高程" in t.get_text() for t in _all_texts(fig))
+
+
+def test_unit_formatter_on_a_linear_axis_is_not_a_category_axis():
+    """`_non_numeric` 把 EngFormatter/千分位/带单位后缀全判成类别轴 →
+    等距连续扫描被硬拒。注释自己写着"不要去解析渲染后的刻度文本"。"""
+    from matplotlib.ticker import EngFormatter, FuncFormatter
+    for name, fmt in [("Eng", EngFormatter(unit="Hz")),
+                      ("单位后缀", FuncFormatter(lambda v, p: f"{v:g} km")),
+                      ("货币", FuncFormatter(lambda v, p: f"${v:.0f}"))]:
+        fig, ax = new_figure("onehalf")
+        ax.plot([5, 10, 15, 20, 25], [12, 9.5, 7.1, 5.4, 4.2], "o-",
+                color=PALETTE[0])
+        ax.xaxis.set_major_formatter(fmt)
+        assert not hit(fig, "个点用折线连起来"), name
+        plt.close(fig)
+
+
+def test_value_column_warns_when_it_cannot_fit():
+    """让位撞到 0.15 下限后静默放弃：用户拿到数值列骑进邻居的图，全程
+    无告警，而 QA 的遮挡检查只遍历带框注释，兜不住无框直标。"""
+    import matplotlib.pyplot as _plt
+    import io as _io
+    import contextlib
+    fig, axes = _plt.subplots(1, 3, figsize=(5.35, 1.8))
+    for a in axes[1:]:
+        a.set_ylabel("总成本 / 元")
+        a.plot([1, 2], [1, 2])
+    buf = _io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        dot_interval(axes[0], ["甲", "乙", "丙"], [0.2, 0.5, 0.8],
+                     [0.15, 0.45, 0.75], [0.25, 0.55, 0.85], threshold=0.6)
+        fig.canvas.draw()
+    assert "越界" in buf.getvalue() or "让位" in buf.getvalue(), buf.getvalue()
+
+
+def test_text_with_a_white_halo_on_a_field_is_not_flagged():
+    """白色描边光晕就是"文字压在场图上"的正解（annotate.py 的 `_halo`
+    专为此写）。采样只看 bbox 中位背景会把它算成低对比度。"""
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    X, Y = np.meshgrid(np.linspace(0, 1, 20), np.linspace(0, 1, 20))
+    ax.contourf(X, Y, X * Y, levels=8, cmap="YlOrRd")
+    t = ax.text(0.5, 0.5, "峰值 0.87", color="#3D7A6B", fontsize=8)
+    t.set_path_effects([_pe.withStroke(linewidth=2.4, foreground="white")])
+    assert not hit(fig, "对比度")
+
+
+def test_text_without_a_halo_on_a_field_is_still_flagged():
+    fig, ax = new_figure("onehalf")
+    X, Y = np.meshgrid(np.linspace(0, 1, 20), np.linspace(0, 1, 20))
+    ax.contourf(X, Y, X * Y, levels=8, cmap="YlOrRd")
+    ax.text(0.5, 0.5, "峰值 0.87", color="#E69F00", fontsize=8)
+    assert hit(fig, "对比度")

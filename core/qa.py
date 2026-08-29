@@ -64,10 +64,17 @@ def _all_axes(fig):
 
 def _all_texts(fig):
     texts = list(fig.texts)
+    # 图级图例与 3D 的 z 轴此前整体不在视野内，连带让**全部**文字类检查
+    # （字号下限 / 豆腐块 / nature 禁彩色文字 / 对比度）对它们失明。
+    for lg in getattr(fig, "legends", []):
+        texts += list(lg.get_texts())
     for ax in _all_axes(fig):
         texts += ax.texts
         texts += [ax.title, ax.xaxis.label, ax.yaxis.label]
         texts += ax.get_xticklabels() + ax.get_yticklabels()
+        if getattr(ax, "name", "") == "3d":
+            texts.append(ax.zaxis.label)
+            texts += ax.get_zticklabels()
         leg = ax.get_legend()
         if leg is not None:
             texts += leg.get_texts()
@@ -1222,59 +1229,77 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     #      #E69F00 只有 2.25:1，屏幕上已经发虚、300dpi 印刷后更糟。
     #      core.annotate 的着色点已在 _text_color 里统一压暗，但 recipe 里
     #      裸 `ax.annotate(color=PALETTE[...])` 绕开了它——没有这条检查，
-    #      这类缺陷结构上不可能被自动发现（实测曾有 7 张 gallery 图中招）。
-    #      WCAG 非文字/大字号下限 3:1。灰阶文字按其自身亮度一并检查。
+    #      这类缺陷结构上不可能被自动发现。WCAG 非文字/大字号下限 3:1。
+    #
+    #      **背景必须实测，不能靠几何猜**：早先版本用"文字中心落进任意实心
+    #      图元的 window_extent"当"深底豁免"，两个方向都错——contourf 与
+    #      Poly3D 的 window_extent 返回 Bbox(inf,...)，场图白字被硬拒；而
+    #      白字落进任何**浅色**段都被无条件豁免，实测漏掉了 gallery 自己的
+    #      7 处 1.64:1 缺陷。这里改为把全部文字藏起来渲染一次，直接采样每
+    #      段文字底下的真实像素中位亮度。代价是每次 run_qa 多一次 draw。
     try:
         from .colors import luminance
-        _dim = []
-        for t in _all_texts(fig):
-            txt = (t.get_text() or "").strip()
-            if not txt or not t.get_visible():
-                continue
-            bp = t.get_bbox_patch()
-            if bp is not None and bp.get_facecolor()[3] > 0.3:
-                continue                      # 有自己的底色，不对白底
-            # 深底白字是正确做法（热力图注数、条内直标），判据不能假定
-            # 白底：文字落在场图或实心图元之内就跳过。
-            _on_dark = False
+        _texts = [t for t in _all_texts(fig)
+                  if (t.get_text() or "").strip() and t.get_visible()]
+        _bg = None
+        if _texts:
+            _vis0 = [t.get_visible() for t in _texts]
+            for t in _texts:
+                t.set_visible(False)
             try:
-                _rd2 = fig.canvas.get_renderer()
-                _tb = t.get_window_extent(_rd2)
-                _cx = (_tb.x0 + _tb.x1) / 2
-                _cy = (_tb.y0 + _tb.y1) / 2
-                _pa = getattr(t, "axes", None)
-                if _pa is not None:
-                    _arts = (list(_pa.images) + list(_pa.collections)
-                             + list(_pa.patches)
-                             + [q for c in _pa.containers
-                                for q in getattr(c, "patches", [])])
-                    for _fa in _arts:
-                        if not _fa.get_visible():
-                            continue
-                        try:
-                            _fb = _fa.get_window_extent(_rd2)
-                        except Exception:
-                            continue
-                        if (_fb.x0 <= _cx <= _fb.x1
-                                and _fb.y0 <= _cy <= _fb.y1):
-                            _on_dark = True
-                            break
-            except Exception:
-                pass
-            if _on_dark:
+                fig.canvas.draw()
+                _bg = np.asarray(fig.canvas.buffer_rgba(), dtype=float) / 255.0
+            finally:
+                for t, v in zip(_texts, _vis0):
+                    t.set_visible(v)
+                fig.canvas.draw()
+        _rd3 = fig.canvas.get_renderer()
+        _H = None if _bg is None else _bg.shape[0]
+        _dim = []
+        for t in _texts:
+            # 白色描边光晕就是"文字压在场图上"的正解（annotate._halo 专为
+            # 此写，比不透明白底方框更好——它不会在图上打一个洞）。文字
+            # 有自己的浅色描边时，读者看到的局部背景就是描边而非底图。
+            _pe = t.get_path_effects()
+            if _pe and any(
+                    luminance(mcolors.to_rgb(
+                        getattr(e, "_gc", {}).get("foreground", "white")))
+                    > 0.6 for e in _pe):
                 continue
             col = mcolors.to_rgb(t.get_color())
             al = t.get_alpha()
-            if al is not None and al < 1.0:   # 半透明按叠白底的等效色算
-                col = tuple(1.0 - al * (1.0 - c) for c in col)
-            ratio = 1.05 / (luminance(col) + 0.05)
+            # 半透明文字先与其背景合成后再比
+            bb = t.get_window_extent(_rd3)
+            bg_rgb = (1.0, 1.0, 1.0)
+            if _bg is not None and np.all(np.isfinite(
+                    [bb.x0, bb.x1, bb.y0, bb.y1])):
+                x0 = max(0, int(bb.x0)); x1 = min(_bg.shape[1], int(bb.x1) + 1)
+                y0 = max(0, int(_H - bb.y1)); y1 = min(_H, int(_H - bb.y0) + 1)
+                if x1 > x0 and y1 > y0:
+                    patch = _bg[y0:y1, x0:x1, :3].reshape(-1, 3)
+                    bg_rgb = tuple(np.median(patch, axis=0))
+            # 文字自带底框时，**框才是背景**：藏文字会连框一起藏掉，采到的
+            # 是框底下的东西。callout 在浅色场上正是用半透明白框（而非描边）
+            # 保证可读，不算进来会把它误判成低对比度。
+            _bp = t.get_bbox_patch()
+            if _bp is not None:
+                _fc = _bp.get_facecolor()
+                if len(_fc) == 4 and _fc[3] > 0.15:
+                    bg_rgb = tuple(_fc[3] * c + (1 - _fc[3]) * b
+                                   for c, b in zip(_fc[:3], bg_rgb))
+            if al is not None and al < 1.0:
+                col = tuple(al * c + (1 - al) * b
+                            for c, b in zip(col, bg_rgb))
+            Lt, Lb = luminance(col), luminance(bg_rgb)
+            ratio = (max(Lt, Lb) + 0.05) / (min(Lt, Lb) + 0.05)
             if ratio < 3.0:
-                _dim.append((txt[:12], mcolors.to_hex(col), ratio))
+                _dim.append((t.get_text().strip()[:12],
+                             mcolors.to_hex(col), ratio))
         if _dim:
-            _hard(f"{len(_dim)} 处文字对白底对比度 < 3:1（印刷后发虚）："
+            _hard(f"{len(_dim)} 处文字与其实际背景对比度 < 3:1（印刷后发虚）："
                   f"{[(a, b, round(c, 2)) for a, b, c in _dim[:3]]}"
                   f"——语义色直接写字往往不够暗，走 annotate 的直标函数"
-                  f"（会自动压暗），或手动取更深的同色系",
+                  f"（会自动压暗）或 core.ink()；深底上的白字同理要够浅",
                   "text_contrast")
     except Exception as e:
         print(f"[QA note] 文字对比度检查未执行：{e}")
@@ -1382,7 +1407,13 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # FixedFormatter，只认后者等于没认。刻度**文本**非数值是可靠
             # 的补充信号——但只在**线性轴且无单位转换**时才看它，否则
             # log 的 mathtext、日期串会被误当类别（这正是上一轮的错法）。
-            _plain = (a.get_xscale() == "linear" and _conv is None)
+            # 必须与 **FixedLocator** 合取：只有 `set_xticks()` 显式定位
+            # 才装 FixedLocator，而 EngFormatter/千分位/带单位后缀这些常见
+            # formatter 走的是 AutoLocator——不加这个合取，等距连续扫描会
+            # 被一律误判成类别轴而硬拒（注释自己写着"不要解析刻度文本"）。
+            from matplotlib.ticker import FixedLocator
+            _plain = (a.get_xscale() == "linear" and _conv is None
+                      and isinstance(_xa.get_major_locator(), FixedLocator))
             _cat_axis = (isinstance(_conv, StrCategoryConverter)
                          or isinstance(_xa.get_major_formatter(),
                                        FixedFormatter)
