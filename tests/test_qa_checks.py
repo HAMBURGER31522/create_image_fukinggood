@@ -781,7 +781,7 @@ def test_value_column_does_not_intrude_into_a_neighbour_panel():
 # --- 第 3 轮评审：三处"测试绕开了失效区" -------------------------------
 
 def test_geometric_scan_on_a_log_axis_is_not_flagged():
-    """几何扫描的**标准画法**就是 log 轴，而 log 刻度是 mathtext
+    r"""几何扫描的**标准画法**就是 log 轴，而 log 刻度是 mathtext
     `$\mathdefault{10^{0}}$`，`float()` 解析不了 → 被判成类别轴 →
     等比豁免根本走不到 → 硬拒绝。上一条测试用线性轴，正好绕开。"""
     fig, ax = new_figure("onehalf")
@@ -1186,3 +1186,81 @@ def test_legend_title_is_inspected():
     ax.plot([1, 2], [1, 2], label="曲线")
     ax.legend(title="方案组")
     assert any("方案组" in t.get_text() for t in _all_texts(fig))
+
+
+# --- 第 7 轮：描边豁免在"退化取值"上仍 fail-open ----------------------
+
+def _dark_field_fig(color, effects=None, text="压在黑场上"):
+    fig, ax = new_figure("onehalf")
+    ax.imshow(np.zeros((6, 6)), cmap="gray", vmin=0, vmax=1)
+    t = ax.text(2.5, 2.5, text, color=color, fontsize=8, ha="center")
+    if effects:
+        t.set_path_effects(effects)
+    return fig
+
+
+def test_hairline_halo_does_not_grant_exemption():
+    """`linewidth=0.1` 画不出一圈可见光晕，但旧判据只看 foreground 键
+    存不存在，linewidth 完全没参与——一个关键字参数就能关掉硬拒检查。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field_fig("black", [_pe.withStroke(linewidth=0.1,
+                                                   foreground="white")])
+    assert hit(fig, "对比度")
+
+
+def test_transparent_halo_does_not_grant_exemption():
+    """`foreground=(1,1,1,0)` 全透明，`to_rgb` 又把 alpha 丢了。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field_fig("black", [_pe.withStroke(linewidth=3,
+                                                   foreground=(1, 1, 1, 0.0))])
+    assert hit(fig, "对比度")
+
+
+def test_none_halo_does_not_grant_exemption():
+    """`to_rgb("none")` 返回 (0,0,0)——白字压白底会被当成"有黑光晕"放行。"""
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    t = ax.annotate("看不见的白字", xy=(2, 2), color="white", fontsize=8)
+    t.set_path_effects([_pe.withStroke(linewidth=3, foreground="none")])
+    assert hit(fig, "对比度")
+
+
+def test_proper_halo_still_grants_exemption():
+    """真正的白光晕深字仍要放行，否则 contour_field 会被误杀。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field_fig("black", [_pe.withStroke(linewidth=2.4,
+                                                   foreground="white")])
+    assert not hit(fig, "对比度")
+
+
+def test_figure_level_legend_title_is_inspected():
+    """axes 图例补了 get_title()，同一函数上面五行的 fig.legends 循环没补。"""
+    from core.qa import _all_texts
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2], [1, 2], label="曲线")
+    fig.legend(title="图级图例标题")
+    assert any("图级图例标题" in t.get_text() for t in _all_texts(fig))
+
+
+def test_probe_does_not_install_an_engine_on_a_plain_figure():
+    """`set_layout_engine(None)` 会去读 rcParams：`figure.autolayout=True`
+    时，一张本来没有 engine 的图恢复后会凭空拿到 TightLayoutEngine，
+    紧接着的 draw 立即重排 —— 当场复现 N1 本身。"""
+    import matplotlib as _mpl
+    fig, ax = new_figure("onehalf")
+    fig.set_layout_engine(None)
+    ax.barh(["甲", "乙"], [0.6, 0.4], color="#08306b")
+    with _mpl.rc_context({"figure.autolayout": True}):
+        run_qa(fig, strict=False)
+    assert fig.get_layout_engine() is None, fig.get_layout_engine()
+
+def test_three_d_offset_text_is_inspected():
+    from core.qa import _all_texts
+    import matplotlib.pyplot as _plt
+    fig = _plt.figure()
+    ax = fig.add_subplot(projection="3d")
+    ax.plot([1, 2], [1, 2], [1e7, 2e7])      # 大值要放在 z 上才触发
+    ax.ticklabel_format(axis="z", style="sci", scilimits=(0, 0))
+    fig.canvas.draw()
+    assert any(t is ax.zaxis.get_offset_text() for t in _all_texts(fig))

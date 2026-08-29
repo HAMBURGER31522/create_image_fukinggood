@@ -68,16 +68,25 @@ def _all_texts(fig):
     # （字号下限 / 豆腐块 / nature 禁彩色文字 / 对比度）对它们失明。
     for lg in getattr(fig, "legends", []):
         texts += list(lg.get_texts())
+        if lg.get_title() is not None:
+            texts.append(lg.get_title())
     for ax in _all_axes(fig):
         texts += ax.texts
         texts += [ax.title, ax.xaxis.label, ax.yaxis.label]
         texts += ax.get_xticklabels() + ax.get_yticklabels()
-        texts += ax.get_xticklabels(minor=True) +             ax.get_yticklabels(minor=True)
+        # 次刻度：mpl 3.10 上 get_*ticklabels(minor=True) 返回的 Text 只在
+        # 真正渲染时才填内容，事后查恒为空串，会被本函数末尾的 strip 过滤
+        # 掉——**这一支目前取不到任何东西**（裸 mpl 亦然，非本库样式所致）。
+        # 保留是防御性的：换 mpl 版本或换查询时机它就有内容了。
+        texts += ax.get_xticklabels(minor=True)
+        texts += ax.get_yticklabels(minor=True)
         # offset text（scilimits 一触发就出现）与图例标题同样此前失明
         texts += [ax.xaxis.get_offset_text(), ax.yaxis.get_offset_text()]
         if getattr(ax, "name", "") == "3d":
             texts.append(ax.zaxis.label)
             texts += ax.get_zticklabels()
+            texts += ax.get_zticklabels(minor=True)
+            texts.append(ax.zaxis.get_offset_text())
         leg = ax.get_legend()
         if leg is not None:
             texts += leg.get_texts()
@@ -1263,7 +1272,14 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             finally:
                 for t, v in zip(_texts, _vis0):
                     t.set_visible(v)
-                fig.set_layout_engine(_eng)
+                if _eng is None:
+                    # set_layout_engine(None) 会去读 rcParams：
+                    # figure.autolayout=True 时会给一张本来没有 engine 的
+                    # 图凭空装上 TightLayoutEngine，紧接着的 draw 立即重排
+                    # ——当场复现这段代码正要防的那个漂移。
+                    fig._layout_engine = None
+                else:
+                    fig.set_layout_engine(_eng)
                 fig.canvas.draw()
         _rd3 = fig.canvas.get_renderer()
         _H = None if _bg is None else _bg.shape[0]
@@ -1277,11 +1293,26 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # （用文字自身色描边＝把过浅的字加粗）都能一行绕过这条硬拒
             # 检查，白字配白光晕压白底同样被放行。改成**把描边色当作背景
             # 参与比值**，三种情况自然各归其位。
-            _stroke = None
+            # 描边**按覆盖率加权**参与背景，不是有就整块顶替：只看
+            # foreground 键存不存在的话，`linewidth=0.1` 的发丝描边、
+            # `foreground="none"`（to_rgb 返回黑）、`foreground=(r,g,b,0)`
+            # 全透明这三种退化取值都能整块关掉这条硬拒检查——而它们实际
+            # 画不出一圈可见光晕。权重随 lw/字号单调，退化值落到 w≈0。
+            _stroke, _sw = None, 0.0
             for e in (t.get_path_effects() or []):
-                _fg = getattr(e, "_gc", {}).get("foreground")
-                if _fg is not None:
-                    _stroke = mcolors.to_rgb(_fg)
+                _gc = getattr(e, "_gc", {})
+                _fg = _gc.get("foreground")
+                if _fg is None:
+                    continue
+                _rgba = mcolors.to_rgba(_fg)
+                if _rgba[3] <= 0.05:
+                    continue                  # 全透明描边等于没有
+                _lw = float(_gc.get("linewidth", 0.0) or 0.0)
+                _fs = max(1e-6, float(t.get_size()))
+                # _halo 用 2.0–2.4pt @ 8pt 字；按这个比例折算成覆盖率
+                _w = min(1.0, (_lw / _fs) / 0.28)
+                if _w > _sw:
+                    _stroke, _sw = _rgba[:3], _w
             al = t.get_alpha()
             # 半透明文字先与其背景合成后再比
             bb = t.get_window_extent(_rd3)
@@ -1301,7 +1332,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # 是框底下的东西。callout 在浅色场上正是用半透明白框（而非描边）
             # 保证可读，不算进来会把它误判成低对比度。
             if _stroke is not None:
-                bg_rgb = _stroke
+                bg_rgb = tuple(_sw * s + (1 - _sw) * b
+                               for s, b in zip(_stroke, bg_rgb))
             _bp = t.get_bbox_patch()
             if _bp is not None:
                 _fc = _bp.get_facecolor()
@@ -1319,8 +1351,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         if _dim:
             _hard(f"{len(_dim)} 处文字与其实际背景对比度 < 3:1（印刷后发虚）："
                   f"{[(a, b, round(c, 2)) for a, b, c in _dim[:3]]}"
-                  f"——语义色直接写字往往不够暗，走 annotate 的直标函数"
-                  f"（会自动压暗）或 core.ink()；深底上的白字同理要够浅",
+                  f"——白底上：语义色直接写字往往不够暗，走 annotate 的"
+                  f"直标函数（会自动压暗）或 core.ink()。深底上：白字要够"
+                  f"浅，按底色亮度选黑/白（见 annotated_heatmap.py），"
+                  f"**不要**对白字用 ink()，它只会把字压成中灰",
                   "text_contrast")
     except Exception as e:
         print(f"[QA note] 文字对比度检查未执行：{e}")
