@@ -65,13 +65,20 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
     pm = ax.pcolormesh(theta, r, Z, cmap=cmap_for("sequential"),
                        shading="auto", rasterized=True)
     ax.set_theta_zero_location("N")
-    # 径向刻度移到 22.5° 方位、丢弃贴外圆的刻度、加白描边，避免裁切/相压
+    # 径向刻度：**不能用 set_yticks + get_yticklabels**。实测在极坐标轴上
+    # 这条路径的标签一个像素都画不出来（有刻度与无刻度的图逐像素相同），
+    # 而 get_yticklabels() 返回的又不是真正参与绘制的那批对象，所以连
+    # "标签是否可见"都探不出来——gallery 里这张图一直缺整条径向刻度，
+    # 读者无法把任何一圈映射到半径值。改用显式文字标注，确定会渲染。
     ax.set_rlabel_position(22.5)
     rmax = float(np.max(r))
-    ax.set_yticks([t for t in ax.get_yticks() if 0 < t < rmax * 0.95])
+    ax.set_yticks([])
     ax.tick_params(labelsize=7, pad=1)
-    for lbl in ax.get_yticklabels():
-        lbl.set_path_effects(_white_stroke())
+    _rt = [v for v in np.linspace(0, rmax, 6)[1:-1]]
+    for v in _rt:
+        ax.text(np.deg2rad(22.5), v, f"{v:.2g}", fontsize=7,
+                ha="center", va="center", color="0.15", zorder=6,
+                path_effects=_white_stroke())
     ax.grid(linewidth=0.3, alpha=0.4)
     # 收紧极轴、放宽右边距，防止 "270°" 被 colorbar 裁切
     fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)

@@ -68,16 +68,15 @@ def _all_texts(fig):
     # （字号下限 / 豆腐块 / nature 禁彩色文字 / 对比度）对它们失明。
     for lg in getattr(fig, "legends", []):
         texts += list(lg.get_texts())
-        if lg.get_title() is not None:
-            texts.append(lg.get_title())
+        texts.append(lg.get_title())   # 永不为 None，空标题由末尾 strip 滤
     for ax in _all_axes(fig):
         texts += ax.texts
         texts += [ax.title, ax.xaxis.label, ax.yaxis.label]
         texts += ax.get_xticklabels() + ax.get_yticklabels()
-        # 次刻度：mpl 3.10 上 get_*ticklabels(minor=True) 返回的 Text 只在
-        # 真正渲染时才填内容，事后查恒为空串，会被本函数末尾的 strip 过滤
-        # 掉——**这一支目前取不到任何东西**（裸 mpl 亦然，非本库样式所致）。
-        # 保留是防御性的：换 mpl 版本或换查询时机它就有内容了。
+        # 次刻度**是带负载的**：线性轴默认装 NullFormatter 所以为空，但
+        # log 轴与显式 minor formatter 下有内容（且 get_minorticklabels()
+        # 内部会 _update_ticks() 现填，不必先 draw）。实测一张显式 minor
+        # formatter 的图，字号检查在这一支上当场命中 22 处。
         texts += ax.get_xticklabels(minor=True)
         texts += ax.get_yticklabels(minor=True)
         # offset text（scilimits 一触发就出现）与图例标题同样此前失明
@@ -90,8 +89,7 @@ def _all_texts(fig):
         leg = ax.get_legend()
         if leg is not None:
             texts += leg.get_texts()
-            if leg.get_title() is not None:
-                texts.append(leg.get_title())
+            texts.append(leg.get_title())
     return [t for t in texts if t.get_text().strip()]
 
 
@@ -234,7 +232,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                          float(av.min()), float(av.min()) * 100))
         # 图题之外，stat_box / callout / 直标里的手写常数一样是事实错误级
         # 缺陷——独立评审就是在 stat_box 里查出 [0.87, 36.4] 这类手填值。
-        scan = ([fig._suptitle] if fig._suptitle else []) +             [ax.title for ax in fig.get_axes()]
+        scan = ([fig._suptitle] if fig._suptitle else [])
+        scan += [ax.title for ax in fig.get_axes()]
         for ax in fig.get_axes():
             scan += list(ax.texts)
         scan += list(fig.texts)
@@ -1292,7 +1291,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # （不画任何描边）和 `withStroke(linewidth=…)` 不给 foreground
             # （用文字自身色描边＝把过浅的字加粗）都能一行绕过这条硬拒
             # 检查，白字配白光晕压白底同样被放行。改成**把描边色当作背景
-            # 参与比值**，三种情况自然各归其位。
+            # 参与比值**。
             # 描边**按覆盖率加权**参与背景，不是有就整块顶替：只看
             # foreground 键存不存在的话，`linewidth=0.1` 的发丝描边、
             # `foreground="none"`（to_rgb 返回黑）、`foreground=(r,g,b,0)`
@@ -1305,12 +1304,18 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 if _fg is None:
                     continue
                 _rgba = mcolors.to_rgba(_fg)
-                if _rgba[3] <= 0.05:
-                    continue                  # 全透明描边等于没有
+                # 不透明度**参与权重**，不是二值门。早先只判 alpha>0.05
+                # 就把 alpha 丢掉，于是 6% 不透明的描边按满不透明算；而
+                # `_gc` 里的 alpha 键根本没读——`alpha=0.0` 时一个白像素
+                # 都没画（像素实测 0），却仍能整块关掉这条硬拒检查。
+                _ga = _gc.get("alpha")
+                _al = _rgba[3] * (1.0 if _ga is None else float(_ga))
+                if _al <= 0.05:
+                    continue                  # 近乎全透明的描边等于没有
                 _lw = float(_gc.get("linewidth", 0.0) or 0.0)
                 _fs = max(1e-6, float(t.get_size()))
                 # _halo 用 2.0–2.4pt @ 8pt 字；按这个比例折算成覆盖率
-                _w = min(1.0, (_lw / _fs) / 0.28)
+                _w = min(1.0, (_lw / _fs) / 0.28) * _al
                 if _w > _sw:
                     _stroke, _sw = _rgba[:3], _w
             al = t.get_alpha()

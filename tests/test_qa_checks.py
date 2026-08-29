@@ -1264,3 +1264,95 @@ def test_three_d_offset_text_is_inspected():
     ax.ticklabel_format(axis="z", style="sci", scilimits=(0, 0))
     fig.canvas.draw()
     assert any(t is ax.zaxis.get_offset_text() for t in _all_texts(fig))
+
+
+# --- 第 8 轮 ---------------------------------------------------------
+
+def test_minor_tick_labels_are_inspected():
+    """上一轮我声称"这一支取不到任何东西、加不了测试"——三句全错。
+
+    显式 minor formatter 下有 22 条非空标签，且**不用调 draw()**
+    （`get_minorticklabels()` 内部会 `_update_ticks()` 现填内容）。
+    这一支是带负载的：字号检查在这张图上当场命中 22 处。
+    """
+    from core.qa import _all_texts
+    from matplotlib.ticker import FormatStrFormatter
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 6], [1, 2])
+    ax.minorticks_on()
+    ax.xaxis.set_minor_formatter(FormatStrFormatter("%.2f"))
+    assert any(t.get_text().strip() == "1.20" for t in _all_texts(fig))
+
+
+def test_minor_tick_labels_are_size_checked():
+    from matplotlib.ticker import FormatStrFormatter
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 6], [1, 2])
+    ax.minorticks_on()
+    ax.xaxis.set_minor_formatter(FormatStrFormatter("%.2f"))
+    ax.tick_params(axis="x", which="minor", labelsize=2.0)
+    assert hit(fig, "字号")
+
+
+def _dark_field(color, eff):
+    fig, ax = new_figure("onehalf")
+    ax.imshow(np.zeros((6, 6)), cmap="gray", vmin=0, vmax=1)
+    t = ax.text(2.5, 2.5, "压在黑场上", color=color, fontsize=8, ha="center")
+    t.set_path_effects(eff)
+    return fig
+
+
+def test_barely_visible_halo_alpha_does_not_grant_exemption():
+    """上一轮只关了 lw 一半：`_rgba[3] <= 0.05` 只是二值门，过门后
+    `_rgba[:3]` 把 alpha 丢掉，于是 6% 不透明度的描边按满不透明算。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field("black", [_pe.withStroke(linewidth=3,
+                                               foreground=(1, 1, 1, 0.06))])
+    assert hit(fig, "对比度")
+
+
+def test_zero_alpha_keyword_does_not_grant_exemption():
+    """`_gc` 里的 alpha 键完全没读：`alpha=0.0` 时一个白像素都没画
+    （像素实测 0 vs alpha=1.0 时 1118），硬拒检查照样被一个关键字关掉。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field("black", [_pe.withStroke(linewidth=3,
+                                               foreground="white", alpha=0.0)])
+    assert hit(fig, "对比度")
+
+
+def test_soft_halo_still_grants_exemption():
+    """柔光晕（alpha 0.85 + 足够 lw）仍应放行，别过度修正。"""
+    import matplotlib.patheffects as _pe
+    fig = _dark_field("black", [_pe.withStroke(linewidth=2.4,
+                                               foreground=(1, 1, 1, 0.85))])
+    assert not hit(fig, "对比度")
+
+
+def test_polar_radial_labels_actually_render():
+    """极坐标轴上 `set_yticks` + `get_yticklabels` 的径向标签一个像素都
+    画不出来（有刻度与无刻度的图逐像素相同），而 `get_yticklabels()`
+    返回的又不是真正参与绘制的对象——连"是否可见"都探不出来。
+    gallery 的 contour_field_polar 因此一直缺整条径向刻度。"""
+    import matplotlib.pyplot as _plt
+    from core import cmap_for
+    th = np.linspace(0, 2 * np.pi, 60)
+    rr = np.linspace(0, 1, 30)
+    T, R = np.meshgrid(th, rr)
+
+    def _render(use_text):
+        fig = _plt.figure(figsize=(4, 3.6))
+        ax = fig.add_subplot(projection="polar")
+        ax.pcolormesh(T, R, np.cos(3 * T) * R, cmap=cmap_for("sequential"),
+                      shading="auto")
+        ax.set_rlabel_position(22.5)
+        ax.set_yticks([])
+        if use_text:
+            for v in (0.25, 0.5, 0.75):
+                ax.text(np.deg2rad(22.5), v, f"{v:g}", fontsize=7,
+                        ha="center", va="center", color="0.15", zorder=6)
+        fig.canvas.draw()
+        out = np.asarray(fig.canvas.buffer_rgba()).copy()
+        _plt.close(fig)
+        return out
+
+    assert int((_render(True) != _render(False)).any(axis=2).sum()) > 100
