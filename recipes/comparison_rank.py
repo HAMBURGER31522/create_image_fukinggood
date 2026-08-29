@@ -165,7 +165,8 @@ def facet_metrics(cat_labels, metrics, width="double"):
         ax.set_title(title, fontsize=8.5)
         ax.grid(axis="y", visible=False)
         ax.margins(x=0.22, y=0.3)
-        panel_label(ax, chr(ord("a") + k), dx=-0.04 if k else -0.3)
+        # 首格有 y 刻度标签要多让一点，但别让三个面板标签高低错位
+        panel_label(ax, chr(ord("a") + k), dx=-0.20 if k == 0 else -0.10)
     return fig, axes
 
 
@@ -203,17 +204,17 @@ if __name__ == "__main__":
 
     s_before = [72, 58, 66, 49, 61]
     s_after = [69, 71, 64, 52, 55]
-    n_up = sum(a > b for a, b in zip(s_after, s_before))
-    n_dn = sum(a < b for a, b in zip(s_after, s_before))
     fig, ax, cnt = slopegraph(
         ["方案A", "方案B", "方案C", "方案D", "方案E"], s_before, s_after,
         cond_names=("政策前", "政策后"), unit=" 分",
         highlight=(1, 4),
-        verdict="政策后名次反转 1 处（B 反超 A）")
+        verdict="连线颜色 = 变化方向；粗线 = 本文关注的两个方案")
     ax.set_title(f"政策后方案B 反超 A（{s_before[1]:g} → {s_after[1]:g} 分），"
                  f"方案E 下滑最多", fontsize=9)
+    # 计数直接用 slope_lines 的返回值：另起一套 comprehension 重算会
+    # 产生第二个真值源，两边迟早漂移。
     stat_box(ax, [f"n = {len(s_before)} 方案",
-                  f"上升 {n_up} 个 / 下降 {n_dn} 个"],
+                  f"上升 {cnt['up']} 个 / 下降 {cnt['down']} 个"],
              loc="lower left", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "comparison_slopegraph"))
@@ -276,7 +277,10 @@ if __name__ == "__main__":
     # 贪心是**最后**一个算法：数据从 2 个扩到 5 个时索引 [1] 没跟着改，
     # 图题一度写着割平面的数字却署名贪心——事实错误级缺陷。
     ig = len(gaps) - 1
-    stat_box(axes[0], [f"提速 {t_solve[0]/t_solve[ig]:.0f}×"],
+    # 图题已经写了 390× 提速，框里不再重复同一个数（Nature「不重复信息」），
+    # 改写它没说的：量纲不可通约、三个面板各自独立轴。
+    stat_box(axes[0], [f"{len(t_solve)} 个算法 × 3 项不可通约指标",
+                       "每面板独立轴与单位，不共用 y"],
              loc="center left", fontsize=6.5)
     fig.suptitle(f"贪心以 {gaps[ig]:g}% gap 换 {t_solve[0]/t_solve[ig]:.0f}× 提速"
                  f"与 {mem[0]/mem[ig]:.0f}× 省存：大规模场景可用",

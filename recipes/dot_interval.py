@@ -41,7 +41,8 @@ if __name__ == "__main__":
     thr = 0.90
 
     fig, ax = new_figure("onehalf", ratio=0.16 + 0.062 * len(phi))
-    fig.subplots_adjust(left=0.17, right=0.60, top=0.88, bottom=0.20)
+    # 右侧不必手动留位：value_col=True 会自己收缩本轴给数值列让位
+    fig.subplots_adjust(left=0.17, top=0.88, bottom=0.20)
     ok = dot_interval(ax, [f"φ = {v:.2f}%" for v in phi], p, lo, hi,
                       threshold=thr, thr_label=f"题面判据 P ≥ {thr:.0%}",
                       # 点面积编码**独立于 x 轴**的第二个量：拿 k 编码
@@ -54,7 +55,8 @@ if __name__ == "__main__":
     fig.suptitle(f"四档中仅 {n_ok} 档达标：φ = {phi[-1]:.2f}% 的下界 "
                  f"{lo[-1]:.4f} ≥ {thr:.2f}",
                  fontsize=9.5, fontweight="bold")
-    stat_box(ax, [f"每档 M = {M} 次仿真；点面积 ∝ N_A（{min(NA)}–{max(NA)} 根）",
+    stat_box(ax, [f"每档 M = {M} 次仿真；点面积随 N_A 线性递增"
+                  f"（{min(NA)}–{max(NA)} 根）",
                   f"区间半宽 {np.min((hi - lo) / 2):.4f}–"
                   f"{np.max((hi - lo) / 2):.4f}",
                   f"达标 {n_ok}/{len(phi)} 档（按下界判）"],

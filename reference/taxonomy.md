@@ -44,7 +44,7 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 置信带折线（ribbon） | P0 | `convergence_ci.py` |
 | 拟合+残差双联 | P0 | `fit_residual.py` |
 | Ridgeline（>6 组分布漂移） | P1 | `raincloud.py` 内含 |
-| 森林图/分位点图 | P2 | 指导见 §2.5 |
+| **森林图/点区间图（离散档位+区间+判据）** | **P0** | **`dot_interval.py`（`core.dot_interval`）** |
 
 ### 1.2 趋势、扫描与收敛
 | 图种 | 优先级 | recipe |
@@ -101,7 +101,7 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 | 图种 | 优先级 | recipe |
 |---|---|---|
 | Cleveland 点距 / 棒棒糖 | P0 | `comparison_rank.py` |
-| 哑铃 / 斜率图（两条件） | P0 | `comparison_rank.py`（dumbbell + slopegraph） |
+| 哑铃 / 斜率图（两条件） | P0 | `comparison_rank.py`（dumbbell + slopegraph）；大 N 用 `slopegraph(mode="cohort")`：群体压灰、只高亮个体 |
 | 蝴蝶图（发散条） | P0 | `comparison_rank.py` |
 | 不可通约指标 → 小倍数拆轴（硬规则） | P0 | `comparison_rank.py` |
 | 分组柱 | P2 | 仅同单位、≤4 组，需 `run_qa(allow=("grouped_bars",))` 显式豁免；否则拒绝 |
@@ -147,7 +147,6 @@ P0 = 必须有可运行模板（`recipes/`）；P1 = 应实现；P2 = 给构图�
 
 ## 2.5 P2 图种构图指导（无模板，按此手写）
 
-- **森林图/分位点图**：横向点+CI 横线，按效应量排序，`axvline` 标零效应；用 `sorted_lollipop` 骨架改造。
 - **瀑布图**：`barh`/`bar` 逐项累积，正负分 semantic("good"/"bad") 色，末柱为合计并加框强调；连接虚线用 `ax.plot` 灰细线。
 - **面积图/bump chart**：面积图仅当"总量+构成同时是论点"；bump chart（排名随期变化）用 `slopegraph` 扩展到多期，只强调变位者。
 - **treemap/马赛克**：层级占比才用；matplotlib 无原生支持，用 `squarify` 或改用嵌套有序条。Upset/Venn 集合交集用 `upsetplot`。

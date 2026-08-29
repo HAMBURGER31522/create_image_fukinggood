@@ -78,6 +78,7 @@ _ALLOW_CODES = frozenset({
     "grouped_bars", "unsourced", "overlap", "accessibility",
     "unexplained_band", "number_conflict", "duplicate_series",
     "clim_mismatch", "axis_slack", "sparse_line", "unit_axis_range",
+    "incommensurable",
 })
 
 
@@ -92,7 +93,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     taxonomy 允许的场景（同单位、≤4 组）。可用码：
     grouped_bars / unsourced / overlap / accessibility /
     unexplained_band / number_conflict / duplicate_series /
-    clim_mismatch / axis_slack / sparse_line / unit_axis_range。
+    clim_mismatch / axis_slack / sparse_line / unit_axis_range /
+    incommensurable。
     未知的码直接抛错（拼错时静默无效比报错更伤）。
     豁免会记入 fig._ff_qa_waived 并标进文件名。
     """
@@ -239,6 +241,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     msg = (f"数字 {tok} 未溯源到计算变量（疑似手写常数）："
                            f"…{txt[:26]}")
                     if "unsourced" in allow:
+                        _waived.append(msg)
                         print(f"[QA WAIVED] {msg}")
                     else:
                         problems.append(msg)
@@ -313,7 +316,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         # orientation 属性判断——比较数据坐标下的高宽会混用单位，
         # 比例数据（高<宽）可直接绕过。柱心 x 基本重合的是叠加
         # 直方图（合法构图），放行；错开小于一个柱宽的才是分组柱。
-        if "grouped_bars" not in allow:
+        # 不再用 `if code not in allow` 直接跳过检测：那样豁免不留痕，
+        # 而 docstring 承诺"豁免会记入 fig._ff_qa_waived 并标进文件名"。
+        # 检测照跑，报告走 _hard()，由它统一处理豁免与留痕。
+        if True:            # 保持缩进；检测恒跑，豁免交给 _hard()
             vbars = [c for c in ax.containers
                      if isinstance(c, BarContainer) and len(c.patches) >= 3
                      and getattr(c, "orientation", "vertical") == "vertical"]
@@ -335,11 +341,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     if np.median(d) > 0.05 * bw and np.median(d) <= 1.5 * bw:
                         offset_group = True
             if offset_group:
-                problems.append(
+                _hard(
                     "检测到分组竖柱——差异论证改用哑铃/斜率图/拆轴小倍数"
                     "（comparison_rank.py）；多组分布对比改用 raincloud/"
                     "ridgeline（raincloud.py）；确属同单位对比可传 "
-                    "allow=('grouped_bars',) 豁免")
+                    "allow=('grouped_bars',) 豁免", "grouped_bars")
 
     # 2d. 样式与图题：apply_style 必须先行；图题必须存在（结论句）
     if not is_styled():
@@ -761,7 +767,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         #      直标**互相叠字仍然漏网——实测 cohort 斜率图左侧两个高亮标签
         #      叠在一起，QA 全绿放行，而 SKILL.md 目测清单第 4 条明写
         #      "文字无重叠"。刻度之间的重叠由 6b 专管，这里不重复。
-        _bare = [t for t in bare_texts if not t[0].startswith("刻度")]
+        # 标题类由 5b2 专管，刻度类由 6b 专管，这里只查其余无框直标，
+        # 否则同一处重叠会被报两遍。
+        _bare = [t for t in bare_texts
+                 if not t[0].startswith("刻度") and t[0] != "图题"
+                 and not t[0].startswith("面板标题")]
         for _i in range(len(_bare)):
             for _j in range(_i + 1, len(_bare)):
                 _ni, _bi2, _, _ai2 = _bare[_i]
@@ -1193,6 +1203,51 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         except Exception as e:
             print(f"[QA note] 小倍数色标检查未执行：{e}")
 
+    # 11b. 同一根轴上叠不可通约的量。SPEC §2.2 把这条列为硬伤，但此前只
+    #      查了 twinx——直接在同一根 y 轴上画"比例 0–1"和"成本 1200 元"
+    #      一直漏网：小的那条被压成一条贴轴线，读者读不出任何变化。
+    #      判据保守：线性轴、两条彩色系列的取值区间**完全不相交**、且量级
+    #      差 >100×。对数轴豁免（跨数量级正是用 log 轴的理由）。
+    try:
+        for a in _all_axes(fig):
+            if getattr(a, "name", "") == "3d" or not a.axison:
+                continue
+            if a.get_yscale() != "linear" or _probe.has_field(a):
+                continue
+            rng_ = []
+            for ln in a.lines:
+                if not ln.get_visible() or not _is_colored(ln.get_color()):
+                    continue
+                yv = np.asarray(ln.get_xydata(), dtype=float)[:, 1]
+                yv = yv[np.isfinite(yv)]
+                if yv.size < 3 or np.ptp(yv) == 0:
+                    continue
+                rng_.append((float(yv.min()), float(yv.max())))
+            hit_pair = None
+            for i2 in range(len(rng_)):
+                for j2 in range(i2 + 1, len(rng_)):
+                    lo1, hi1 = rng_[i2]
+                    lo2, hi2 = rng_[j2]
+                    if hi1 >= lo2 and hi2 >= lo1:
+                        continue                      # 区间相交 = 同量纲
+                    m1 = max(abs(lo1), abs(hi1))
+                    m2 = max(abs(lo2), abs(hi2))
+                    lo_m, hi_m = min(m1, m2), max(m1, m2)
+                    if lo_m > 0 and hi_m / lo_m > 100:
+                        hit_pair = (lo_m, hi_m)
+                        break
+                if hit_pair:
+                    break
+            if hit_pair:
+                _hard(f"同一根线性 y 轴上叠了量级 {hit_pair[0]:.3g} 与 "
+                      f"{hit_pair[1]:.3g}（相差 {hit_pair[1]/hit_pair[0]:.0f}×）"
+                      f"且取值区间不相交的两条系列——不可通约或跨量级，"
+                      f"小的那条被压成贴轴线。拆面板（见 phase_transition.py）"
+                      f"；同单位跨量级改对数轴即可",
+                      "incommensurable")
+    except Exception as e:
+        print(f"[QA note] 同轴量纲检查未执行：{e}")
+
     # 12. 少量离散点用折线连起来。折线宣称"点之间可以插值"，而报数档 /
     #     方案 / 策略这类离散量之间没有中间态，语义就错了。实测 q2_1
     #     面板 (a)：4 个档位连成一条线，占满整个面板还看不见置信区间。
@@ -1223,22 +1278,46 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             from matplotlib.container import ErrorbarContainer
             if any(isinstance(c, ErrorbarContainer) for c in a.containers):
                 continue
+
+            def _numeric_tick(t):
+                q = t.strip().replace("−", "-").rstrip("%").strip()
+                if not q:
+                    return True
+                try:
+                    float(q)
+                    return True
+                except ValueError:
+                    return False
+
+            # x 是不是"类别轴"。离散方案几乎总画在整数位上（0,1,2,3），
+            # 而整数天然等距——早先那版"等距即放行"正好把本检查要抓的
+            # 最典型病灶漏掉了。真正的判据是刻度写的是不是类别名。
+            _cat_axis = any(not _numeric_tick(t.get_text())
+                            for t in a.get_xticklabels()
+                            if t.get_text().strip())
             for ln in _cand:
                 xy = np.asarray(ln.get_xydata(), dtype=float)
                 n = len(xy)
-                dx = np.abs(np.diff(xy[:, 0]))
-                dx = dx[np.isfinite(dx) & (dx > 0)]
-                # 等距 = 连续量的参数扫描（间隙 D0 每 0.1 一档），插值合法；
-                # 不等距才是离散报数档（φ = 0.5/0.6/0.7/1.00）。
-                if dx.size and dx.max() / dx.min() < 1.05:
-                    continue
-                if True:
-                    _hard(f"{n} 个点用折线连起来——折线宣称点之间可插值，"
-                          f"而离散档位/方案/策略没有中间态。改点区间图"
-                          f"（每档一行 + 误差棒 + 判据竖线）、有序条+直标"
-                          f"或哑铃图", "sparse_line")
-                    _sparse_hit = True
-                    break
+                if not _cat_axis:
+                    xs = xy[:, 0]
+                    dx = np.abs(np.diff(xs))
+                    dx = dx[np.isfinite(dx) & (dx > 0)]
+                    # 等差 = 连续量扫描（D0 每 0.1 一档）；等比 = 几何扫描
+                    # （网格加密 1,2,4,8,16 / 样本量倍增），两者插值都合法。
+                    arith = bool(dx.size) and dx.max() / dx.min() < 1.05
+                    geo = False
+                    if np.all(xs > 0) and len(xs) > 1:
+                        r = xs[1:] / xs[:-1]
+                        r = r[np.isfinite(r) & (r > 0)]
+                        geo = bool(r.size) and r.max() / r.min() < 1.05
+                    if arith or geo:
+                        continue
+                _hard(f"{n} 个点用折线连起来——折线宣称点之间可插值，"
+                      f"而离散档位/方案/策略没有中间态。改点区间图"
+                      f"（每档一行 + 误差棒 + 判据竖线）、有序条+直标"
+                      f"或哑铃图", "sparse_line")
+                _sparse_hit = True
+                break
     except Exception as e:
         print(f"[QA note] 稀疏折线检查未执行：{e}")
 

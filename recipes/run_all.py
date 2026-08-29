@@ -21,8 +21,10 @@ for f in sorted(HERE.glob("*.py")):
     status = "OK " if r.returncode == 0 else "FAIL"
     # 警告级项（注释框盖数据、草稿档等）不算失败，但必须可见，
     # 否则「ALL PASS」会把警告级回归一起吞掉
+    # 也捞 "未执行"：检查自身抛异常会被 qa 的 except 吞成一行 note，
+    # 只捞 WARN 的话「ALL PASS」会把"这条检查已经失效"一起吞掉。
     hits = [ln.strip() for ln in (r.stdout or "").splitlines()
-            if "WARN" in ln]
+            if "WARN" in ln or "未执行" in ln]
     print(f"[{status}] {f.name}" + (f"  ({len(hits)} warn)" if hits else ""))
     warns += [(f.name, h) for h in hits]
     if r.returncode != 0:

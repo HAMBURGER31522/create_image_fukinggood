@@ -589,3 +589,190 @@ def test_strict_mode_blocks_save_on_a_bad_figure():
     with pytest.raises(AssertionError):
         run_qa(fig, strict=True)
     assert not getattr(fig, "_ff_qa_ok", False)
+
+
+# --- 收尾：评审 P2 ---------------------------------------------------
+
+def test_value_column_does_not_overflow_the_canvas_by_default():
+    """`value_col=True` 的数值列锚在轴外 1.06 且 clip 关闭。
+
+    不预留右侧版面就会画出画布（实测溢出 9%），而这个义务此前只写在
+    docstring 里——函数应当自己让位。
+    """
+    fig, ax = new_figure("onehalf", ratio=0.45)
+    dot_interval(ax, ["甲", "乙", "丙"], [0.2, 0.5, 0.8],
+                 [0.15, 0.45, 0.75], [0.25, 0.55, 0.85], threshold=0.6)
+    fig.canvas.draw()
+    rd = fig.canvas.get_renderer()
+    right = max(t.get_window_extent(rd).x1 for t in ax.texts)
+    assert right <= fig.bbox.x1 + 1, (right, fig.bbox.x1)
+
+
+def test_cohort_context_lines_are_printable():
+    """cohort 的群体线原为 0.72@0.45，与白底对比度 1.33:1，300dpi 印刷后
+    几乎全白——它们仍然承载数据，不能淡到看不见。"""
+    fig, ax = new_figure("single")
+    rng = np.random.default_rng(1)
+    b = rng.normal(60, 8, 20)
+    slope_lines(ax, [f"S{i}" for i in range(20)], b, b + rng.normal(1, 5, 20),
+                highlight=(0,), mode="cohort")
+    from core.colors import luminance
+    ctx = [ln for ln in ax.lines if not _is_colored_hex(ln.get_color())]
+    assert ctx, "没有中性色群体线"
+    eff = []
+    for ln in ctx:
+        g = float(matplotlib.colors.to_rgb(ln.get_color())[0])
+        a = ln.get_alpha() if ln.get_alpha() is not None else 1.0
+        eff.append(1.0 - a * (1.0 - g))       # 叠在白底上的等效灰度
+    worst = max(eff)
+    ratio = 1.05 / (luminance((worst, worst, worst)) + 0.05)
+    assert ratio >= 2.8, f"对比度仅 {ratio:.2f}:1（等效灰度 {worst:.3f}）"
+
+
+def _is_colored_hex(c):
+    r, g, b = matplotlib.colors.to_rgb(c)
+    return max(r, g, b) - min(r, g, b) > 0.06
+
+
+def test_incommensurable_series_sharing_one_axis_is_flagged():
+    """SPEC §2.2 把"不可通约的量共用 y 轴"列为硬伤，但 qa 只查了 twinx，
+    同一根轴上直接叠两个量级差 100× 的量一直漏网。"""
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 30)
+    ax.plot(x, 0.2 + 0.6 * x, color=PALETTE[0])           # 比例 0–1
+    ax.plot(x, 1200 + 400 * x, color=PALETTE[1])          # 元，量级差 1000×
+    assert hit(fig, "不可通约")
+
+
+def test_series_on_comparable_scales_are_not_flagged():
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 30)
+    ax.plot(x, 20 + 30 * x, color=PALETTE[0])
+    ax.plot(x, 45 + 25 * x, color=PALETTE[1])
+    assert not hit(fig, "不可通约")
+
+
+def test_log_axis_spanning_decades_is_not_flagged_as_incommensurable():
+    """对数轴上跨几个数量级是正当的，那正是用 log 轴的理由。"""
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 30)
+    ax.set_yscale("log")
+    ax.plot(x, 0.01 * (1 + x), color=PALETTE[0])
+    ax.plot(x, 100 * (1 + x), color=PALETTE[1])
+    assert not hit(fig, "不可通约")
+
+
+# --- 第 2 轮评审：sparse_line 判据整个搞错了 ---------------------------
+
+def test_categorical_positions_joined_by_a_line_is_flagged():
+    """离散方案几乎总画在整数 x 上，而整数**天然等距**——等距豁免正好
+    把这条检查要抓的最典型病灶放行了。判据必须看刻度是不是类别名。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1, 2, 3], [72.1, 65.8, 88.4, 59.2], "o-", color=PALETTE[0])
+    ax.set_xticks([0, 1, 2, 3])
+    ax.set_xticklabels(["方案A", "方案B", "方案C", "方案D"])
+    assert hit(fig, "个点用折线连起来")
+
+
+def test_geometric_scan_is_not_flagged():
+    """网格加密倍数 / 样本量倍增（1,2,4,8,16）在数模里极常见，
+    它不等距，但等比——同样是连续量扫描，连线合法。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 4, 8, 16], [10, 5.2, 2.7, 1.4, 0.8], "o-",
+            color=PALETTE[0])
+    ax.set_xlabel("网格加密倍数")
+    assert not hit(fig, "个点用折线连起来")
+
+
+# --- dot_interval：面积声明与 marker 吞区间 ---------------------------
+
+def test_marker_area_is_affine_in_sizes():
+    """图内写"点面积 ∝ N_A"而 ms 是**直径**线性：实测面积比 3.16×，
+    N_A 之比 2.00×，读者按声明反解会高估 58%——事实错误级。"""
+    fig, ax = new_figure("onehalf", ratio=0.5)
+    sz = np.array([354.0, 425.0, 496.0, 707.0])
+    dot_interval(ax, list("甲乙丙丁"), [0.2, 0.4, 0.6, 0.8],
+                 [0.15, 0.35, 0.55, 0.75], [0.25, 0.45, 0.65, 0.85],
+                 sizes=sz, sort=False, value_col=False)
+    ms = np.array([ln.get_markersize() for ln in ax.lines
+                   if ln.get_marker() == "o"])
+    assert ms.size == 4
+    a = ms ** 2
+    norm_a = (a - a.min()) / np.ptp(a)
+    norm_s = (sz - sz.min()) / np.ptp(sz)
+    assert np.allclose(norm_a, norm_s, atol=0.02), (norm_a, norm_s)
+
+
+def test_marker_does_not_swallow_a_narrow_interval():
+    """结论那一行区间最窄（1.66pt）却被 8pt 实心点完全盖住——整张图要
+    论证的"下界过线"在图上看不见。窄于 marker 时应改空心并让区间压在上层。"""
+    fig, ax = new_figure("onehalf", ratio=0.5)
+    dot_interval(ax, ["宽", "窄"], [0.30, 0.90], [0.20, 0.8985],
+                 [0.40, 0.9015], threshold=0.85, sort=False,
+                 value_col=False)
+    fig.canvas.draw()
+    pts = [ln for ln in ax.lines if ln.get_marker() == "o"]
+    assert len(pts) == 2
+    narrow = pts[1]
+    assert narrow.get_markerfacecolor() in ("white", "w"), \
+        narrow.get_markerfacecolor()
+
+
+def test_dot_interval_rejects_mismatched_sizes_length():
+    fig, ax = new_figure("onehalf", ratio=0.4)
+    with pytest.raises(ValueError):
+        dot_interval(ax, list("甲乙丙"), [0.2, 0.4, 0.6],
+                     [0.1, 0.3, 0.5], [0.3, 0.5, 0.7], sizes=[1, 2])
+
+
+def test_dot_interval_reports_non_finite_rows():
+    """NaN 行此前静默变成"未达标"，还在数值列里印出字面量 nan。"""
+    fig, ax = new_figure("onehalf", ratio=0.45)
+    ok, order = dot_interval(ax, list("甲乙丙"), [0.5, np.nan, 0.8],
+                             [0.4, np.nan, 0.75], [0.6, np.nan, 0.85],
+                             threshold=0.7, return_order=True)
+    fig.canvas.draw()
+    assert not any("nan" in t.get_text().lower() for t in ax.texts)
+
+
+# --- 豁免留痕契约必须对所有码成立 ---
+
+def test_waiving_grouped_bars_leaves_a_trace():
+    """docstring 承诺"豁免会记入 fig._ff_qa_waived 并标进文件名"，
+    而它举例用的 grouped_bars 恰恰是纯跳过、连 [QA WAIVED] 都不打。"""
+    fig, ax = new_figure("onehalf")
+    ax.bar([0, 1, 2], [3, 4, 5], width=0.35)
+    ax.bar([0.35, 1.35, 2.35], [2, 3, 4], width=0.35)
+    run_qa(fig, strict=False, allow=("grouped_bars",))
+    assert getattr(fig, "_ff_qa_waived", None), "豁免没有留痕"
+
+
+# --- 直标文字对白底的对比度 ---
+
+def test_slope_end_labels_are_readable_on_white():
+    """semantic("bad")=#e69f00 对白底仅 2.25:1；斜率图六个下降方向的
+    端点直标全是这个色，比上一轮修掉的 1.33:1 好不了多少。"""
+    fig, ax = new_figure("single")
+    slope_lines(ax, ["A", "B", "C"], [72, 66, 61], [69, 64, 55])
+    from core.colors import luminance
+    worst = 21.0
+    for t in ax.texts:
+        if not t.get_text().strip():
+            continue
+        L = luminance(t.get_color())
+        worst = min(worst, 1.05 / (L + 0.05))
+    assert worst >= 3.0, f"最差直标对比度 {worst:.2f}:1"
+
+
+def test_value_column_does_not_intrude_into_a_neighbour_panel():
+    """自动让位只比对画布右缘，不知道右边有邻居——多面板下数值列会直接
+    骑进隔壁面板，而 5c"压数据"只遍历带框注释，无框直标兜不住。"""
+    import matplotlib.pyplot as _plt
+    fig, axes = _plt.subplots(1, 2, figsize=(5.35, 2.2))
+    dot_interval(axes[0], ["甲", "乙", "丙"], [0.2, 0.5, 0.8],
+                 [0.15, 0.45, 0.75], [0.25, 0.55, 0.85], threshold=0.6)
+    fig.canvas.draw()
+    rd = fig.canvas.get_renderer()
+    right = max(t.get_window_extent(rd).x1 for t in axes[0].texts)
+    nb_x0 = axes[1].get_window_extent(rd).x0
+    assert right <= nb_x0 + 1, (right, nb_x0)
