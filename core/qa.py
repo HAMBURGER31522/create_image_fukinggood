@@ -72,12 +72,17 @@ def _all_texts(fig):
         texts += ax.texts
         texts += [ax.title, ax.xaxis.label, ax.yaxis.label]
         texts += ax.get_xticklabels() + ax.get_yticklabels()
+        texts += ax.get_xticklabels(minor=True) +             ax.get_yticklabels(minor=True)
+        # offset text（scilimits 一触发就出现）与图例标题同样此前失明
+        texts += [ax.xaxis.get_offset_text(), ax.yaxis.get_offset_text()]
         if getattr(ax, "name", "") == "3d":
             texts.append(ax.zaxis.label)
             texts += ax.get_zticklabels()
         leg = ax.get_legend()
         if leg is not None:
             texts += leg.get_texts()
+            if leg.get_title() is not None:
+                texts.append(leg.get_title())
     return [t for t in texts if t.get_text().strip()]
 
 
@@ -1244,6 +1249,12 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         _bg = None
         if _texts:
             _vis0 = [t.get_visible() for t in _texts]
+            # 探测期间必须**钉住 layout engine**：constrained/tight 会在
+            # 文字藏起来后重新求解版面（实测坐标区 x0 从 0.077 漂到
+            # 0.021），于是背景采自另一套版面、而文字 extent 是恢复后量的
+            # ——黑刻度标签会被判成 1.65:1，一张完全可读的图被硬拒。
+            _eng = fig.get_layout_engine()
+            fig.set_layout_engine("none")
             for t in _texts:
                 t.set_visible(False)
             try:
@@ -1252,21 +1263,25 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             finally:
                 for t, v in zip(_texts, _vis0):
                     t.set_visible(v)
+                fig.set_layout_engine(_eng)
                 fig.canvas.draw()
         _rd3 = fig.canvas.get_renderer()
         _H = None if _bg is None else _bg.shape[0]
         _dim = []
         for t in _texts:
-            # 白色描边光晕就是"文字压在场图上"的正解（annotate._halo 专为
-            # 此写，比不透明白底方框更好——它不会在图上打一个洞）。文字
-            # 有自己的浅色描边时，读者看到的局部背景就是描边而非底图。
-            _pe = t.get_path_effects()
-            if _pe and any(
-                    luminance(mcolors.to_rgb(
-                        getattr(e, "_gc", {}).get("foreground", "white")))
-                    > 0.6 for e in _pe):
-                continue
             col = mcolors.to_rgb(t.get_color())
+            # 描边光晕是"文字压在场图上"的正解（annotate._halo 专为此写）：
+            # 读者看到的局部背景是描边而非底图。但**不能直接 continue**：
+            # 早先那版对属性/键缺失都默认成白色描边，于是 `pe.Normal()`
+            # （不画任何描边）和 `withStroke(linewidth=…)` 不给 foreground
+            # （用文字自身色描边＝把过浅的字加粗）都能一行绕过这条硬拒
+            # 检查，白字配白光晕压白底同样被放行。改成**把描边色当作背景
+            # 参与比值**，三种情况自然各归其位。
+            _stroke = None
+            for e in (t.get_path_effects() or []):
+                _fg = getattr(e, "_gc", {}).get("foreground")
+                if _fg is not None:
+                    _stroke = mcolors.to_rgb(_fg)
             al = t.get_alpha()
             # 半透明文字先与其背景合成后再比
             bb = t.get_window_extent(_rd3)
@@ -1276,11 +1291,17 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 x0 = max(0, int(bb.x0)); x1 = min(_bg.shape[1], int(bb.x1) + 1)
                 y0 = max(0, int(_H - bb.y1)); y1 = min(_H, int(_H - bb.y0) + 1)
                 if x1 > x0 and y1 > y0:
-                    patch = _bg[y0:y1, x0:x1, :3].reshape(-1, 3)
+                    # 与 _probe 的同胞探针同口径：把 alpha 叠到纸面上
+                    # 再比。裸读 RGB 只在 Agg 把空缓冲清成白时侥幸正确。
+                    _px = _bg[y0:y1, x0:x1].reshape(-1, 4)
+                    _a = _px[:, 3:4]
+                    patch = _px[:, :3] * _a + 1.0 * (1.0 - _a)
                     bg_rgb = tuple(np.median(patch, axis=0))
             # 文字自带底框时，**框才是背景**：藏文字会连框一起藏掉，采到的
             # 是框底下的东西。callout 在浅色场上正是用半透明白框（而非描边）
             # 保证可读，不算进来会把它误判成低对比度。
+            if _stroke is not None:
+                bg_rgb = _stroke
             _bp = t.get_bbox_patch()
             if _bp is not None:
                 _fc = _bp.get_facecolor()

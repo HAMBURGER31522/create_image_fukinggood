@@ -1114,3 +1114,75 @@ def test_text_without_a_halo_on_a_field_is_still_flagged():
     ax.contourf(X, Y, X * Y, levels=8, cmap="YlOrRd")
     ax.text(0.5, 0.5, "峰值 0.87", color="#E69F00", fontsize=8)
     assert hit(fig, "对比度")
+
+
+# --- 第 6 轮评审：像素采样的两个旁路 -----------------------------------
+
+def test_constrained_layout_does_not_drift_during_probe():
+    """藏字重绘会让 layout engine 重新求解，坐标区扩张（实测 x0 从 0.077
+    漂到 0.021），于是背景采自**另一套版面**，而文字 extent 是恢复后量的
+    ——黑刻度标签在白底上被判 1.65:1，一张完全可读的图被硬拒。"""
+    fig, ax = new_figure("onehalf", ratio=0.5, layout="constrained")
+    ax.barh(["甲", "乙", "丙"], [0.62, 0.44, 0.31], color="#08306b")
+    ax.set_ylabel("很长很长很长的分组名称轴")
+    assert not hit(fig, "对比度")
+
+
+def test_tight_layout_does_not_drift_during_probe():
+    fig, ax = new_figure("onehalf", ratio=0.5, layout="tight")
+    ax.barh(["甲", "乙", "丙"], [0.62, 0.44, 0.31], color="#08306b")
+    ax.set_ylabel("很长很长很长的分组名称轴")
+    assert not hit(fig, "对比度")
+
+
+def test_a_no_op_path_effect_does_not_grant_exemption():
+    """`pe.Normal()` 不画任何描边，却因为没有 `_gc` 属性走 fail-open 分支
+    被豁免——一行 shipped matplotlib 惯用法即可静默绕过一条硬拒检查。"""
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    t = ax.annotate("发虚的直标", xy=(2, 2), color="#E69F00", fontsize=8)
+    t.set_path_effects([_pe.Normal()])
+    assert hit(fig, "对比度")
+
+
+def test_stroke_without_foreground_does_not_grant_exemption():
+    """不给 foreground 时 mpl 用**文字自身色**描边＝把过浅的字加粗，
+    不是光晕。"""
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    t = ax.annotate("发虚的直标", xy=(2, 2), color="#E69F00", fontsize=8)
+    t.set_path_effects([_pe.withStroke(linewidth=2.5)])
+    assert hit(fig, "对比度")
+
+
+def test_white_text_with_white_halo_is_still_flagged():
+    """白字 + 白光晕压白底完全不可见，而旧判据不看文字自身颜色。"""
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    t = ax.annotate("看不见的字", xy=(2, 2), color="white", fontsize=8)
+    t.set_path_effects([_pe.withStroke(linewidth=2.4, foreground="white")])
+    assert hit(fig, "对比度")
+
+
+def test_offset_text_is_inspected():
+    """`ticklabel_format(style="sci")` 一触发就出现的 offset text 不在
+    `_all_texts` 视野内——字号下限/豆腐块/nature 禁彩色/对比度全部失明。"""
+    from core.qa import _all_texts
+    fig, ax = new_figure("onehalf")
+    ax.plot([1e6, 2e6], [1, 2])
+    ax.ticklabel_format(style="sci", scilimits=(0, 0))
+    fig.canvas.draw()
+    ot = ax.xaxis.get_offset_text()
+    assert ot.get_text().strip()
+    assert any(t is ot for t in _all_texts(fig))
+
+
+def test_legend_title_is_inspected():
+    from core.qa import _all_texts
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2], [1, 2], label="曲线")
+    ax.legend(title="方案组")
+    assert any("方案组" in t.get_text() for t in _all_texts(fig))

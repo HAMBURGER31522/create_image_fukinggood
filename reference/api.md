@@ -9,7 +9,7 @@
 | `apply_style` | `(base_size=9.0, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
 | `new_figure` | `(width="onehalf", ratio=0.62, **subplots_kw)` | `fig, ax` |
 | `save_figure` | `(fig, path_no_ext, formats=("png","svg"), tight=True, exact_width=True)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
-| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range` `incommensurable` `text_contrast`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
+| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线/文字对比度（实测像素背景）/同轴不可通约量。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range` `incommensurable` `text_contrast`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
 | `load_table` | `(path, sheet=0)`；xlsx/CSV 读表，CSV 自动试 utf-8-sig/gbk/utf-8 | DataFrame |
 | `as_1d` | `(x, col=None)`；DataFrame 取列 / 任意序列 → 一维 float ndarray，非数值转 NaN | ndarray |
 | `stat_box` | `(ax, lines, loc="auto", fontsize=None, outside=None, expand_axes=True)`；lines 为字符串列表；`loc="auto"` 在 8 个锚点里选压数据最少的；满铺场图自动降级到 `outside="top"`；轴内无真空位时传 `outside="bottom"` | Text |
