@@ -175,7 +175,7 @@ if __name__ == "__main__":
                  "介质B 为主要增量", fontsize=9)
     stat_box(ax, ["每格 = 总成本 1%",
                   f"介质合计 {wf_counts[0]+wf_counts[1]}%（可压缩项）"],
-             loc="lower left", fontsize=6.5)
+             outside="top", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "composition_waffle"))
 

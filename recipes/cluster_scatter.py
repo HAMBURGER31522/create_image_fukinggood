@@ -9,7 +9,7 @@ from _common import GALLERY
 import numpy as np
 from matplotlib.patches import Ellipse
 
-from core import (apply_style, new_figure, save_figure, run_qa, stat_box,
+from core import (smart_legend, apply_style, new_figure, save_figure, run_qa, stat_box,
                   PALETTE, semantic)
 
 
@@ -84,14 +84,15 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
                 sizes=sizes)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper right", fontsize=6.5)
+    smart_legend(ax)
     sil_line = (f"平均轮廓系数 = {info['silhouette']:.2f}"
                 if np.isfinite(info["silhouette"])
                 else "轮廓系数无定义（簇数 < 2）")
     stat_box(ax, [f"k = {len(ks)} 簇，n = {int((labels >= 0).sum())}",
                   sil_line,
                   f"星标 = 簇心，虚线 = {n_std:g}σ 协方差椭圆"],
-             loc="lower right", fontsize=6.5)
+             outside="top", fontsize=6.5)
+    info = dict(info, n=int((labels >= 0).sum()), k=len(ks))
     fig._ff_stats = info
     return fig, ax, info
 

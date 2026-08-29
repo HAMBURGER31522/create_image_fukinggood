@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-08-17",
+  "output_dir": "F:/mathematical modeling/skills/figure-forge/resource",
+  "papers_dir": "F:/mathematical modeling/papers",
+  "papers_dir_note": "PDF corpus moved out of skill resource on 2026-08-17; see F:/mathematical modeling/papers/MIGRATE-REPORT.md",
+  "method": [
+    "smart-search search/deep",
+    "HTTP 200 verification",
+    "GitHub API tree listing",
+    "pdftotext caption mining",
+    "OA HTML figure-mention extraction"
+  ],
+  "hubs": [
+    {
+      "name": "Jackksonns MCM-ICM Outstanding Papers",
+      "url": "https://github.com/Jackksonns/MCM-ICM-Outstanding-Papers",
+      "pdf_count": 403,
+      "years": "2013-2025",
+      "verified": true
+    },
+    {
+      "name": "COMAP previous contests",
+      "url": "https://www.contest.comap.com/undergraduate/contests/mcm/previous-contests.html",
+      "verified": true
+    },
+    {
+      "name": "COMAP 2025 outstanding blog",
+      "url": "https://comap.org/blog/item/2025-mcm-icm-results",
+      "verified": true
+    },
+    {
+      "name": "zhanwen MathModel",
+      "url": "https://github.com/zhanwen/MathModel",
+      "stars_approx": 11251,
+      "verified": true
+    },
+    {
+      "name": "personqianduixue Math_Model",
+      "url": "https://github.com/personqianduixue/Math_Model",
+      "stars_approx": 4906,
+      "verified": true
+    },
+    {
+      "name": "shumo wiki",
+      "url": "https://www.shumo.com/wiki/doku.php",
+      "verified": true
+    },
+    {
+      "name": "CUMCM official",
+      "url": "https://www.mcm.edu.cn/",
+      "verified": false,
+      "note": "TLS unstable in this environment; browser entry"
+    }
+  ],
+  "sampled_papers": [
+    {
+      "id": "2021A-2100454",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2100454.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "pipeline_flowchart",
+        "scatter_or_fit_curve",
+        "timeseries_process_curve",
+        "sensitivity_curves",
+        "bar_or_ability_profile",
+        "3d_schematic"
+      ],
+      "evidence": "pdftotext captions Fig.1-12"
+    },
+    {
+      "id": "2021A-2101951",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2101951.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "pipeline_flowchart",
+        "scatter_fit",
+        "timeseries_small_multiples",
+        "sensitivity_curves"
+      ],
+      "evidence": "pdftotext captions"
+    },
+    {
+      "id": "2021B-2102199",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2102199.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "pipeline_flowchart",
+        "spatial_map",
+        "heatmap_raster",
+        "route_or_hover_schematic",
+        "sensitivity"
+      ],
+      "evidence": "Fig.7 Heat map after Rasterization"
+    },
+    {
+      "id": "2021B-2104673",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2104673.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "contour_topographic",
+        "cellular_automata_field",
+        "severity_matrix_heatmap",
+        "sensitivity_curves",
+        "pipeline_flowchart"
+      ],
+      "evidence": "Fig.3 contour; Fig.9 severity matrix"
+    },
+    {
+      "id": "2021C-2101166",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "pipeline_flowchart",
+        "spatial_spread_small_multiples",
+        "histogram",
+        "loss_curve",
+        "network_architecture_diagram"
+      ],
+      "evidence": "Fig.6 histograms; Fig.7 loss curve"
+    },
+    {
+      "id": "2021C-2101587",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101587.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "spatial_probability_map",
+        "confusion_matrix",
+        "network_architecture_diagram"
+      ],
+      "evidence": "Fig.8 Confusion Matrix"
+    },
+    {
+      "id": "2022A-2200289",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "pipeline_flowchart",
+        "topographic_map",
+        "power_curve",
+        "optimization_convergence_curve",
+        "route_map",
+        "sensitivity"
+      ],
+      "evidence": "Fig.13 Route map; Fig.11 optimization process curve"
+    },
+    {
+      "id": "2022C-2200401",
+      "url": "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/C/2200401.pdf",
+      "source": "MCM",
+      "figure_types": [
+        "heatmap",
+        "acf_pacf",
+        "timeseries_forecast",
+        "strategy_comparison",
+        "sensitivity"
+      ],
+      "evidence": "Fig.6 Heat map, ACF and PACF; Fig.7 8 strategies"
+    },
+    {
+      "id": "CUMCM2023-heliostat",
+      "url": "https://github.com/linggm3/2023_CUMCM_National-First-Prize",
+      "source": "CUMCM",
+      "figure_types": [
+        "geometric_field",
+        "scatter_or_vector_field",
+        "pipeline_likely"
+      ],
+      "evidence": "repo pdf + figs; partial text extract"
+    },
+    {
+      "id": "Weissgerber2015",
+      "url": "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002128",
+      "source": "journal_methods",
+      "figure_types": [
+        "univariate_scatter",
+        "paired_scatter",
+        "boxplot",
+        "histogram",
+        "bar_mean_se_anti_pattern"
+      ],
+      "evidence": "OA HTML figure mentions"
+    },
+    {
+      "id": "Allen2019-raincloud",
+      "url": "https://wellcomeopenresearch.org/articles/4-63",
+      "source": "journal_methods",
+      "figure_types": [
+        "raincloud",
+        "half_violin",
+        "boxplot",
+        "jitter_strip"
+      ],
+      "evidence": "canonical definition paper; page HTTP 200"
+    },
+    {
+      "id": "Rougier2014",
+      "url": "https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1003833",
+      "source": "journal_methods",
+      "figure_types": [
+        "design_rules",
+        "trajectory_example",
+        "colormap_demo",
+        "default_trap_demo"
+      ],
+      "evidence": "OA HTML + local PDF text"
+    }
+  ],
+  "figure_type_to_links": {
+    "pipeline_flowchart": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2100454.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2102199.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf"
+    ],
+    "scatter_fit": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2101951.pdf",
+      "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002128"
+    ],
+    "timeseries_or_convergence": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2100454.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf"
+    ],
+    "heatmap_matrix": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2102199.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2104673.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/C/2200401.pdf",
+      "https://journals.plos.org/ploscompbiol/search?q=heatmap"
+    ],
+    "spatial_map_field": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101587.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2104673.pdf"
+    ],
+    "histogram": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002128"
+    ],
+    "boxplot_violin_raincloud": [
+      "https://wellcomeopenresearch.org/articles/4-63",
+      "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.1002128",
+      "https://www.nature.com/srep/search?q=violin+plot",
+      "https://journals.plos.org/ploscompbiol/search?q=violin+plot"
+    ],
+    "confusion_matrix": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101587.pdf"
+    ],
+    "acf_pacf_residual": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/C/2200401.pdf"
+    ],
+    "contour_topographic": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2104673.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf",
+      "https://github.com/linggm3/2023_CUMCM_National-First-Prize"
+    ],
+    "route_map": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2102199.pdf"
+    ],
+    "network_or_architecture": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101587.pdf"
+    ],
+    "sensitivity_scan": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/B/2104673.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/A/2200289.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2100454.pdf"
+    ],
+    "strategy_comparison": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2022/C/2200401.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2100454.pdf"
+    ],
+    "small_multiples": [
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/C/2101166.pdf",
+      "https://raw.githubusercontent.com/Jackksonns/MCM-ICM-Outstanding-Papers/main/2021/A/2101951.pdf"
+    ]
+  },
+  "notes": [
+    "COMAP results pages list outstanding teams but do not always host full PDFs publicly.",
+    "Community GitHub archives are the practical full-text source; copyright remains with authors/COMAP.",
+    "MCM outstanding papers rarely use raincloud/violin; journal method papers fill that gap for figure-forge.",
+    "Some recent PDFs are image-only scans; caption mining fails and those were not force-labeled."
+  ]
+}

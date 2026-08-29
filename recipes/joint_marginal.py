@@ -66,6 +66,8 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
                             color=semantic("good"), linewidth=1.2))
         n_in = int(np.sum(r <= effective_r))
         stats["eff_frac"] = n_in / len(r)
+        stats["n_in"] = n_in
+        stats["n_total"] = len(r)
         lines += [f"有效接收区 r ≤ {effective_r:g}{unit}",
                   f"落入 {n_in} / {len(r)} 条（{n_in/len(r):.1%}）"]
     lines.append(f"最远落点 {r.max():.1f}{unit}")

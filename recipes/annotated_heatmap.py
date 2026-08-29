@@ -57,7 +57,8 @@ def confusion_matrix(M, class_names, xlabel="预测类别", ylabel="真实类别
              bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                        edgecolor="0.75", alpha=0.85, linewidth=0.5))
     fig.subplots_adjust(bottom=0.24)
-    info = dict(acc=acc, macro_recall=recalls.mean(), share=share)
+    info = dict(acc=acc, macro_recall=recalls.mean(), share=share,
+                n_samples=int(M.sum()))
     fig._ff_stats = info
     return fig, ax, info
 
@@ -95,7 +96,9 @@ def corr_matrix(R, names, width="single", emph_thresh=0.7):
     ax.tick_params(length=0)
     for s in ax.spines.values():
         s.set_visible(False)
-    info = dict(n_strong=int(n_strong), thresh=emph_thresh)
+    # 格内数字直接来自 R 本身，把矩阵纳入来源（否则每个格值都会
+    # 被判成手写常数）
+    info = dict(n_strong=int(n_strong), thresh=emph_thresh, R=R)
     fig._ff_stats = info
     return fig, ax, info
 
@@ -120,9 +123,11 @@ if __name__ == "__main__":
     R = np.corrcoef(A.T)
     vnames = ["降雨量", "径流量", "坡度", "植被覆盖", "侵蚀量"]
     fig, ax, info = corr_matrix(R, vnames)
+    info["n_obs"] = len(A)
+    fig._ff_stats = info
     ax.set_title(f"{info['n_strong']} 对强相关（|r| ≥ 0.7）：需在回归前处理共线性",
                  fontsize=9)
-    stat_box(ax, ["n = 200 观测", "Pearson r，下三角"],
+    stat_box(ax, [f"n = {len(A)} 观测", "Pearson r，下三角"],
              loc="upper right", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "corr_matrix"))

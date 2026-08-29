@@ -9,7 +9,7 @@ from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
-from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (end_label, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, cmap_for, panel_label, semantic)
 
 
@@ -32,15 +32,20 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
     pm = ax1.pcolormesh(phi, ybins[:-1], H, cmap=cmap_for("sequential2"),
                         shading="auto", rasterized=True)
     mean = samples.mean(axis=1)
-    ax1.plot(phi, mean, color="#C44E52", linewidth=1.3, label="均值")
+    ax1.plot(phi, mean, color="#C44E52", linewidth=1.3)
     cax = fig.add_axes([0.91, 0.45, 0.025, 0.4])
     cb = fig.colorbar(pm, cax=cax)
     # 避免竖排时"一"字旋转后形似竖线被误读为字体回退
     cb.set_label("列内相对密度", fontsize=7)
     cb.ax.tick_params(labelsize=6.5)
     ax1.set_ylabel(y1label)
-    ax1.legend(loc="upper left", fontsize=6.5)
+    # 满铺密度场上只有一条均值线：直标严格优于图例——图例框在场上
+    # 无处安放（轴内压色块、轴下侵占 (b) 面板）
+    end_label(ax1, phi[-1], mean[-1], " 均值", "#C44E52", fontsize=6.5)
     panel_label(ax1, "a")
+    # ax1 是满铺密度场：图例已被推到轴下，统计框改走轴上方，
+    # 否则两者争同一条带
+
 
     # 下：序参量
     ax2.plot(phi, order_param, "o-", color=semantic("data"), markersize=3,

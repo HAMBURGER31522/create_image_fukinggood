@@ -7,7 +7,7 @@
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (smart_legend, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, callout, ref_line, panel_label, semantic)
 import matplotlib.pyplot as plt
 
@@ -36,7 +36,7 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
                     color=semantic("highlight"), rad=-0.25)
     ax1.set_xlabel(xlabel)
     ax1.set_ylabel(ylabel)
-    ax1.legend(loc="lower right")
+    smart_legend(ax1)
     panel_label(ax1, "a")
 
     ax2.fill_between(x, -band, band, color="0.85", alpha=0.8, lw=0,
@@ -46,11 +46,11 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
              markeredgecolor="white", markeredgewidth=0.7, label="拟合残差")
     ax2.set_xlabel(xlabel)
     ax2.set_ylabel("残差")
-    ax2.legend(loc="upper right")
+    smart_legend(ax2)
     panel_label(ax2, "b")
     inside = np.mean(np.abs(resid) <= band) * 100
     stat_box(ax2, [f"{inside:.0f}% 残差落入抽样带", "无系统性弯曲"],
-             loc="lower right")
+             outside="top")
     return fig, (ax1, ax2), inside
 
 

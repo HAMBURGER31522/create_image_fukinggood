@@ -6,3 +6,10 @@ _font_test.py
 gallery/_contact_sheet_*.png
 
 _commitmsg.txt
+# 候选参考图与审阅页：体积大且可由 _SOURCES.md 重下，不入库
+resource/ref/_candidates/
+resource/ref/_REVIEW.html
+# 第三方期刊参考图：只留在本地。CC-BY 的可再分发，但来源不明的
+# 截图不该进公开仓库历史；提炼出的规则见 resource/ref/_INDEX.md，
+# 逐张出处见 _SOURCES.md，可随时按 URL 重下。
+resource/ref/*.png

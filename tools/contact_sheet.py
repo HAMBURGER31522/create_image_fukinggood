@@ -18,6 +18,10 @@ matplotlib.use("Agg")
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+# 标签字体：等宽在前保持对齐感，后面挂 CJK 回退，中文文件名才不会豆腐块
+_LABEL_FONTS = ["DejaVu Sans Mono", "Consolas", "SimSun", "Microsoft YaHei",
+                "SimHei", "DejaVu Sans"]
+
 PER_SHEET = 12
 
 
@@ -38,7 +42,9 @@ def build(folder: str, cols: int = 3, per_sheet: int = PER_SHEET) -> list[str]:
             ax.set_axis_off()
         for ax, p in zip(axes, batch):
             ax.imshow(mpimg.imread(p))
-            ax.set_title(p.name, fontsize=8, family="monospace")
+            # 不能写死 monospace：DejaVu Sans Mono 没有 CJK 字形，
+            # 中文文件名会整排变豆腐块，联络表反而认不出是哪张图
+            ax.set_title(p.name, fontsize=8, family=_LABEL_FONTS)
         fig.tight_layout()
         out = d / f"_contact_sheet_{s // per_sheet + 1}.png"
         fig.savefig(out, dpi=110)

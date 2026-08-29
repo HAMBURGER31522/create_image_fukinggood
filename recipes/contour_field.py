@@ -48,7 +48,7 @@ def masked_diverging_field(X, Y, Z, R, xlabel="x（m）", ylabel="y（m）",
     rms = np.sqrt(np.nanmean(Zm ** 2))
     stat_box(ax, [f"节点 n = {np.sum(~np.isnan(Zm))}",
                   f"RMS = {rms:.4f}",
-                  f"最大幅值 {vmax:.3f}（容差内）"], loc="lower left",
+                  f"最大幅值 {vmax:.3f}（容差内）"], outside="top",
              fontsize=6.5)
     info = dict(r_max_frac=np.hypot(X[imax], Y[imax]) / R,
                 r_min_frac=np.hypot(X[imin], Y[imin]) / R,
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     ax.set_title("方位分布呈三瓣对称", fontsize=9, pad=14)
     stat_box(ax, [f"网格 {Zp.shape[1]}×{Zp.shape[0]}（方位×径向）",
                   "三瓣对称：cos 3θ 分量主导"],
-             loc="lower left", fontsize=6.5)
+             outside="top", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "contour_field_polar"))
     print("contour_field: 2 figures OK")

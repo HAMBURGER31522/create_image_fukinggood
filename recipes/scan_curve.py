@@ -10,7 +10,7 @@ import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, semantic, PALETTE)
 
 
@@ -52,7 +52,7 @@ def scan_curve(x, curves, xlabel, ylabel, logy=True, refine_span=None,
                 textcoords="axes fraction", color=_darken(c), rad=0.2)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper right")
+    smart_legend(ax)
     return fig, ax
 
 
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         xlabel="顶点径向偏移 D₀（m）", ylabel="口径内节点拟合 RMS（cm）",
         refine_span=span, yticks=(5, 7, 10, 20, 30))
     stat_box(ax, [f"全局扫描 D₀ ∈ [{x[0]:g}, {x[-1]:g}]，步长 {x[1]-x[0]:.2f} m",
-                  "两工况均单谷，一维精搜可行"], loc="upper left")
+                  "两工况均单谷，一维精搜可行"], outside="top")
     ax.set_title(f"目标函数沿 D₀ 单谷：二阶段精搜区间 "
                  f"[{span[0]:.2f}, {span[1]:.2f}] 充分",
                  fontsize=9.5)

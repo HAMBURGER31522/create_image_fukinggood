@@ -16,7 +16,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from core import (apply_style, new_figure, save_figure, run_qa,
-                  stat_box, callout, panel_label, PALETTE, semantic)
+                  stat_box, callout, panel_label, smart_legend,
+                  slope_lines, PALETTE, semantic)
 
 
 def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
@@ -83,41 +84,26 @@ def dumbbell(labels, before, after, cond_names=("前", "后"), unit="",
     # 线端语义代替图例；放左上空白，避免遮末行标注
     ax.plot([], [], "o", color=c0, label=cond_names[0])
     ax.plot([], [], "o", color=c1, label=cond_names[1])
-    ax.legend(loc="upper left", ncols=2)
+    smart_legend(ax)
     return fig, ax
 
 
 def slopegraph(labels, before, after, cond_names=("前", "后"), unit="",
-               highlight=(), higher_is_better=True, width="single"):
+               highlight=(), higher_is_better=True, width="single",
+               mode="emphasis", verdict="", ratio=0.85):
     """斜率图：两期数值/排名连线，交叉即排名变化。替代两期分组柱。
 
-    highlight: 需要强调的类别索引；其余灰化。
+    构图本体在 core.slope_lines()——**每条线按变化方向着色**（把非高亮
+    线一律压灰会丢掉方向信息，而方向正是这张图要说的事），判定文字标
+    在面板顶，两端直标自动避让。mode="cohort" 用于大 N：群体压灰、
+    只高亮个体。
     """
-    fig, ax = new_figure(width, ratio=0.85)
-    for i, (lb, b, a) in enumerate(zip(labels, before, after)):
-        emph = i in highlight
-        good = (a >= b) == higher_is_better
-        c = (semantic("good") if good else semantic("bad")) if emph else "0.7"
-        ax.plot([0, 1], [b, a], "-o", color=c,
-                linewidth=1.8 if emph else 1.0,
-                markersize=5 if emph else 3.5,
-                markeredgecolor="white", markeredgewidth=0.8,
-                zorder=4 if emph else 2)
-        ax.annotate(f"{lb} {b:g}{unit}", xy=(0, b), xytext=(-6, 0),
-                    textcoords="offset points", ha="right", va="center",
-                    fontsize=7.5 if emph else 7, color=c,
-                    fontweight="bold" if emph else "normal")
-        ax.annotate(f"{a:g}{unit}", xy=(1, a), xytext=(6, 0),
-                    textcoords="offset points", ha="left", va="center",
-                    fontsize=7.5 if emph else 7, color=c,
-                    fontweight="bold" if emph else "normal")
-    ax.set_xlim(-0.45, 1.3)
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels(cond_names, fontsize=8.5)
-    ax.grid(axis="x", visible=False)
-    ax.spines["left"].set_visible(False)
-    ax.set_yticks([])
-    return fig, ax
+    fig, ax = new_figure(width, ratio=ratio)
+    counts = slope_lines(ax, labels, before, after, cond_names=cond_names,
+                         unit=unit, highlight=highlight,
+                         higher_is_better=higher_is_better, mode=mode,
+                         verdict=verdict)
+    return fig, ax, counts
 
 
 def butterfly(labels, left, right, left_name, right_name, unit=""):
@@ -144,7 +130,7 @@ def butterfly(labels, left, right, left_name, right_name, unit=""):
     ax.set_xticklabels([f"{abs(t):g}" for t in ax.get_xticks()])
     ax.plot([], [], "s", color=cl, label=left_name)
     ax.plot([], [], "s", color=cr, label=right_name)
-    ax.legend(loc="upper right", ncols=1)
+    smart_legend(ax)
     if unit:
         ax.set_xlabel(unit)
     return fig, ax
@@ -159,6 +145,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
     from core import MM, COLUMN_WIDTHS
     w = COLUMN_WIDTHS.get(width, width) * MM
     fig, axes = plt.subplots(1, n, figsize=(w, w * 0.36))
+    fig._ff_small_multiples = True      # 小倍数：同一编码 × 不同指标
     axes = np.atleast_1d(axes)
     fig.subplots_adjust(wspace=0.35, top=0.85, bottom=0.15)
     y = np.arange(len(cat_labels))[::-1]
@@ -216,18 +203,43 @@ if __name__ == "__main__":
 
     s_before = [72, 58, 66, 49, 61]
     s_after = [69, 71, 64, 52, 55]
-    fig, ax = slopegraph(
+    n_up = sum(a > b for a, b in zip(s_after, s_before))
+    n_dn = sum(a < b for a, b in zip(s_after, s_before))
+    fig, ax, cnt = slopegraph(
         ["方案A", "方案B", "方案C", "方案D", "方案E"], s_before, s_after,
         cond_names=("政策前", "政策后"), unit=" 分",
-        highlight=(1, 4))
+        highlight=(1, 4),
+        verdict="政策后名次反转 1 处（B 反超 A）")
     ax.set_title(f"政策后方案B 反超 A（{s_before[1]:g} → {s_after[1]:g} 分），"
                  f"方案E 下滑最多", fontsize=9)
     stat_box(ax, [f"n = {len(s_before)} 方案",
-                  f"上升 {sum(a > b for a, b in zip(s_after, s_before))} 个 / "
-                  f"下降 {sum(a < b for a, b in zip(s_after, s_before))} 个"],
+                  f"上升 {n_up} 个 / 下降 {n_dn} 个"],
              loc="lower left", fontsize=6.5)
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "comparison_slopegraph"))
+
+    # cohort 模式：大 N 时群体压灰当背景，只高亮要论证的个体
+    # （ref/slopegraph__30：灰群体线 + 彩色高亮）
+    rng2 = np.random.default_rng(7)
+    n_c = 40
+    c_before = rng2.normal(62, 9, n_c)
+    c_after = c_before + rng2.normal(1.5, 6, n_c)
+    watch = (int(np.argmax(c_after - c_before)),
+             int(np.argmin(c_after - c_before)))
+    cu = int(np.sum(c_after > c_before))
+    fig, ax, _ = slopegraph(
+        [f"站点{i:02d}" for i in range(n_c)], c_before, c_after,
+        cond_names=("改造前", "改造后"), unit="",
+        highlight=watch, mode="cohort", ratio=0.95,
+        verdict="灰线为全体站点，彩色为增幅极值两站")
+    ax.set_title(f"改造后 {cu}/{n_c} 站点通行效率上升，"
+                 f"最大增幅 {np.max(c_after - c_before):.1f}", fontsize=9)
+    stat_box(ax, [f"n = {n_c} 站点",
+                  f"均值 {c_before.mean():.1f} → {c_after.mean():.1f}",
+                  f"改善 {cu} / 恶化 {n_c - cu}"],
+             loc="lower left", fontsize=6.5)
+    run_qa(fig, expect_width=("single",))
+    save_figure(fig, str(GALLERY / "comparison_slope_cohort"))
 
     d0s = np.arange(0, 0.57, 0.08)
     left_cnt = [270, 95, 0, 0, 0, 0, 0, 0]
@@ -246,23 +258,28 @@ if __name__ == "__main__":
                 color="#4C9A82", style="italic")
     stat_box(ax, [f"D0 扫描 {len(d0s)} 档（步长 {d0s[1]-d0s[0]:.2f} m）",
                   f"行程越界合计 {sum(left_cnt)} 节点"],
-             loc="lower right", fontsize=6.5)
+             outside="top", fontsize=6.5)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "comparison_butterfly"))
 
     # 与 demo/beat_baseline 区分场景：算法对比（时间/内存/最优性 gap）
-    t_solve = [312.0, 0.8]
-    mem = [1850.0, 95.0]
-    gaps = [0.0, 2.4]
+    # demo 用 5 个算法而非 2 个：两行的小倍数面板墨迹不足 5%，
+    # 是 QA 密度检查会拦下的"近空白面板"
+    t_solve = [312.0, 96.4, 21.7, 4.3, 0.8]
+    mem = [1850.0, 940.0, 410.0, 180.0, 95.0]
+    gaps = [0.0, 0.3, 0.9, 1.6, 2.4]
     fig, axes = facet_metrics(
-        ["分支定界（精确）", "贪心启发式"],
+        ["分支定界（精确）", "割平面", "禁忌搜索", "模拟退火", "贪心启发式"],
         [("求解时间（s）", t_solve, "log"),
          ("峰值内存（MB）", mem, "log"),
          ("最优性 gap（%）", gaps, "linear")])
-    stat_box(axes[0], [f"提速 {t_solve[0]/t_solve[1]:.0f}×"],
+    # 贪心是**最后**一个算法：数据从 2 个扩到 5 个时索引 [1] 没跟着改，
+    # 图题一度写着割平面的数字却署名贪心——事实错误级缺陷。
+    ig = len(gaps) - 1
+    stat_box(axes[0], [f"提速 {t_solve[0]/t_solve[ig]:.0f}×"],
              loc="center left", fontsize=6.5)
-    fig.suptitle(f"贪心以 {gaps[1]:g}% gap 换 {t_solve[0]/t_solve[1]:.0f}× 提速"
-                 f"与 {mem[0]/mem[1]:.0f}× 省存：大规模场景可用",
+    fig.suptitle(f"贪心以 {gaps[ig]:g}% gap 换 {t_solve[0]/t_solve[ig]:.0f}× 提速"
+                 f"与 {mem[0]/mem[ig]:.0f}× 省存：大规模场景可用",
                  fontsize=10, fontweight="bold")
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "comparison_facet_metrics"))

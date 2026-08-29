@@ -73,6 +73,8 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
                   f"回测点 {info['coverage']:.0%} 落在 {top:.0%} 扇内"]
     lines.append(f"末期 {top:.0%} 半宽 ±{info['half_w_last']:.0%}")
     stat_box(ax, lines, loc="lower right", fontsize=6.5)
+    info = dict(info, n_hist=len(y_hist), n_future=len(y_fore),
+                n_test=(len(y_test) if y_test is not None else 0))
     fig._ff_stats = info
     return fig, ax, info
 

@@ -47,10 +47,12 @@ def spatial_networks(nets, titles, xlim, ylim, ncols=3, width="double",
         ax.grid(False)
         ax.set_title(t, fontsize=8)
         n_span = int(span_mask.sum())
-        ax.text(0.03, 0.03,
-                f"边数：{len(edges)}\n贯穿簇边：{n_span}"
+        # 网络铺满整个面板，轴内没有真空位——角标压在轴内必然遮住贯穿簇
+        # 本身（正是这张图要展示的东西），只能移到坐标区下方
+        ax.text(0.0, -0.02,
+                f"边数：{len(edges)}　贯穿簇边：{n_span}"
                 f"（{n_span/max(len(edges),1):.0%}）",
-                transform=ax.transAxes, fontsize=6.5, va="bottom",
+                transform=ax.transAxes, fontsize=6.5, va="top", ha="left",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                           edgecolor="0.75", alpha=0.85, linewidth=0.5))
     fig.text(0.5, 0.015, "注：两侧米黄色竖带为电极接触带；红色边属于贯穿簇",

@@ -68,7 +68,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     stat_box(ax, [f"{len(routes)} 条路线，总里程 {info['total']:.0f} km",
                   f"负载不均衡度 {info['imbalance']:.0%}"
                   "＝(最长−最短)/最长"],
-             loc="lower left", fontsize=6.5)
+             outside="top", fontsize=6.5)
     fig._ff_stats = info
     return fig, ax, info
 

@@ -8,7 +8,7 @@
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, inset_zoom, panel_label, semantic)
 
 
@@ -51,7 +51,7 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
     ax.set_ylim(np.min(Y), np.max(Y))
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper left", bbox_to_anchor=(0.0, 0.88))
+    smart_legend(ax)
 
     axins = inset_zoom(ax, inset_rect, zoom_xlim, zoom_ylim)
     csz = axins.contour(X, Y, cost, levels=20, colors="#5B8DB8",
@@ -69,7 +69,7 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
         if d[idx] < 0.25 * step:
             manual.append((X[idx], Y[idx]))
     if manual:
-        axins.clabel(csz, inline=True, fontsize=5.5,
+        axins.clabel(csz, inline=True, fontsize=6.5,
                      fmt=f"%.1f {cost_unit}", manual=manual)
     axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
                        zorder=0)
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         xlabel="介质A 体积分数（%）", ylabel="介质B 体积分数（%）")
     stat_box(ax, [f"最低成本 = {cost_f[i]:.2f} 元",
                   f"位于 ({fx[i]:.2f}, {fy[i]:.1f})",
-                  "切点邻域平坦（见放大）"], loc="lower left",
+                  "切点邻域平坦（见放大）"], outside="top",
              fontsize=6.5)
     ax.set_title("等值线—前沿切点给出最低成本解，放大窗排除平坦歧义",
                  fontsize=9, pad=8)

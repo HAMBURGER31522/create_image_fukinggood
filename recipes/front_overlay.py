@@ -10,7 +10,7 @@ archetype 2: pareto_front    —— 目标空间散点 + 非支配前沿连线 +
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, cmap_for, semantic, truncate_cmap)
 
 
@@ -37,7 +37,7 @@ def response_overlay(X, Y, P, fronts, best=None, levels=(0.5, 0.9),
                 clip_on=False, label="最低成本点")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper right", fontsize=6.5)
+    smart_legend(ax)
     return fig, ax
 
 
@@ -81,7 +81,7 @@ def pareto_front(f1, f2, labels=("目标1", "目标2"), knee=None,
                 color=semantic("highlight"), rad=0.25)
     ax.set_xlabel(labels[0])
     ax.set_ylabel(labels[1])
-    ax.legend(loc="upper right")
+    smart_legend(ax)
     stat_box(ax, [f"候选 {len(f1)}，非支配 {len(nd)}"], loc="lower left",
              fontsize=6.5)
     info = dict(fx=fx, fy=fy, knee=knee)

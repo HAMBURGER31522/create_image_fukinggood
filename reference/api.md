@@ -9,13 +9,19 @@
 | `apply_style` | `(base_size=9.0, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
 | `new_figure` | `(width="onehalf", ratio=0.62, **subplots_kw)` | `fig, ax` |
 | `save_figure` | `(fig, path_no_ext, formats=("png","svg"), tight=True, exact_width=True)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
-| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；字号/色图/硬拒绝构图（含分组竖柱，叠加直方图放行）/注释层/豆腐块/图例遮挡（含柱体）；先 QA 再 save，坏图不落盘；有 `fig._ff_stats` 时警告未溯源的图题数字；同单位 ≤4 组场景可 `allow=("grouped_bars",)` 豁免 | 问题列表 |
+| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
 | `load_table` | `(path, sheet=0)`；xlsx/CSV 读表，CSV 自动试 utf-8-sig/gbk/utf-8 | DataFrame |
 | `as_1d` | `(x, col=None)`；DataFrame 取列 / 任意序列 → 一维 float ndarray，非数值转 NaN | ndarray |
-| `stat_box` | `(ax, lines, loc="upper left", fontsize=7.0)`；lines 为字符串列表 | Text |
+| `stat_box` | `(ax, lines, loc="auto", fontsize=None, outside=None, expand_axes=True)`；lines 为字符串列表；`loc="auto"` 在 8 个锚点里选压数据最少的；满铺场图自动降级到 `outside="top"`；轴内无真空位时传 `outside="bottom"` | Text |
 | `callout` | `(ax, xy, text, xytext, color, rad=0.25, textcoords="data", mark=False)`；目标点无标记时开 `mark=True` | Annotation |
 | `end_label` | `(ax, x, y, text, color, dx_pt=4.0)`；线端直标替代图例 | Annotation |
-| `ref_line` | `(ax, value, orientation="h", label=None, label_loc="right")` | None |
+| `end_labels` | `(ax, items, dx_pt=4.0, fontsize=None)`；items=[(x,y,text,color)]，多条线端直标一次排完并自动避让 | [Annotation] |
+| `ref_line` | `(ax, value, orientation="h", label=None, label_loc="right", level="focus")` | None |
+| `smart_legend` | `(ax, *args, **kw)`；按占用探测选位，避开数据与直标 | Legend |
+| `dot_interval` | `(ax, labels, est, lo, hi, threshold=None, thr_label="", better="high", sizes=None, sort=True, value_col=True, return_order=False)`；点区间/森林图：排序+判据线+达标着色+轴外数值列。**判定按区间靠判据的那一侧**（下界过线才算达标）。`value_col="inside"` 用于多面板（无轴外空间）；`value_col=True` 需自行预留右侧 ≥35% 版面 | `ok`，或 `(ok, order)` |
+| `slope_lines` | `(ax, labels, before, after, cond_names=("前","后"), unit="", highlight=(), higher_is_better=True, mode="emphasis", verdict="", label_ends=True)`；斜率图：**每条线按变化方向着色**；`mode="cohort"` 用于大 N（群体压灰、只高亮个体）；`verdict` 标在面板内顶部。长度不一致/highlight 越界直接抛 ValueError | `dict(up,down,flat,invalid)` |
+| `figure` | `(spec, width, height=None, row_heights=None, hspace=, wspace=)`；按内容分配面板尺寸（非等分），自动 a/b/c 编号 | `fig, {name: ax}` |
+| `share_colorbar` | `(fig, mappable, axes, label="", loc="right", size=0.018, pad=0.015, shrink=1.0)`；多面板共享色标 | Colorbar |
 | `marginal_grid` | `(width, ratio=0.85, right=True, top=True, size=0.22)` | `fig, ax_main, ax_top, ax_right` |
 | `small_multiples` | `(n, ncols=4, width="double", ratio=1.0)` | `fig, [axes]` |
 | `panel_label` | `(ax, "a", dx=-0.08, dy=1.04)` | None |
@@ -32,7 +38,8 @@
 | pipeline_diagram | `pipeline` | `(lanes, flows, feedbacks, width="double")`；lanes=[(泳道名,[模块文本])]，flows=[((i,j),(i,j))]；跨泳道箭头锚在实测框缘 | `fig, ax, centers` |
 | comparison_rank | `sorted_lollipop` | `(labels, values, unit, highlight=None, title)`；highlight=None 自动强调最大值，或传原始索引/标签名（与 slopegraph 一致） | `fig, ax` |
 | | `dumbbell` | `(labels, before, after, cond_names, unit, xlabel, higher_is_better=True)` | `fig, ax` |
-| | `slopegraph` | `(labels, before, after, cond_names, unit, highlight=(), higher_is_better=True)` | `fig, ax` |
+| | `slopegraph` | `(labels, before, after, cond_names, unit, highlight=(), higher_is_better=True, mode="emphasis"\|"cohort", verdict="", ratio=0.85)`；**返回三元组**（旧版是 `fig, ax`，照旧写法解包会 ValueError） | `fig, ax, counts` |
+| | `dot_interval`（recipe） | 见 `recipes/dot_interval.py`：离散档位+区间+判据的完整用法与 `wilson()` | — |
 | | `butterfly` | `(labels, left, right, left_name, right_name, unit)` | `fig, ax` |
 | | `facet_metrics` | `(cat_labels, [(标题, 值, "log"/"linear")], width="double")` | `fig, axes` |
 | composition | `share_bars` | `(labels, counts, unit="", width="single", highlight=None)` | `fig, ax` |

@@ -88,6 +88,8 @@ fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写
 | seaborn 默认全阵热力图 | 下三角/行归一+双标注（annotated_heatmap.py） |
 | 预测只画一条线无区间 | 置信扇+回测点（timeseries_forecast.py) |
 | Visio/PPT 风格流程图 | 泳道管线图（pipeline_diagram.py） |
+| **少量离散档位连折线**（3–6 个点） | 点区间图（dot_interval.py）；折线宣称档位可插值，语义错 |
+| **少量类别就拉大留白** | 加证据层而非留白：判据线 + 直标数值列 + 判定着色（dot_interval.py） |
 | 3D 柱 / 3D 饼 | 禁止，无例外 |
 
 饼图（Wedge）与双 Y 轴（twinx）由 run_qa 自动拦截；其余清单项靠此表执行。
@@ -98,16 +100,84 @@ fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写
 中文必然豆腐块）。混排用 Unicode：下标 ₀₁₂、上标 ⁻¹²³、希腊 φ ε η ξ σ μ Δ、
 符号 ± × ≤ ≥ √ ∈。纯拉丁字符串才允许 `$...$`。run_qa 自动拦截。
 
+### 3b. 两个样式档：`apply_style("cn" | "nature")`
+
+对齐 [Nature 官方制图规范](https://research-figure-guide.nature.com/figures/preparing-figures-our-specifications/)。
+
+| | `cn`（默认，中文数模交付） | `nature`（投期刊） |
+|---|---|---|
+| 字体 | 衬线，与论文宋体正文同族 | sans-serif（Arial/Helvetica） |
+| 正文字号 | 9pt | **≤7pt**（Nature 上限） |
+| 面板标签 | (a)(b)(c) 10pt 粗 | **小写 a b c，8pt 粗，无括号** |
+| 背景网格 | 极淡实线 alpha 0.22 | **无**（Nature 明文禁止） |
+| 数据线宽 | 1.2pt | **≤1pt**（区间 0.25–1pt） |
+| 标注文字 | 允许语义色 | **一律黑色**，语义走 keyline |
+
+两档共用：图高上限 **170mm**、`save_figure` 出 png+svg+**pdf**（Nature 主图
+只收矢量，明确拒收 png/jpeg/tiff）、下同的层次与配色规则。
+
+**字体解析只收有 Regular 字面的家族。** 思源系列常只装 Heavy(900) 一个字面，
+matplotlib 会拿它当 Regular，中文全渲染成粗黑块紧挨 400 字重的拉丁数字——
+看起来像渲染坏了。`apply_style` 自动跳过并打印提示，`run_qa` 复查。
+
+### 3c. 视觉层次：饱和度必须跟着重要性走
+
+Nature 艺术编辑的核心原则：**最重要的元素饱和度最高，背景元素用中性色**。
+用 `emphasis(color, level)` 显式分三级：
+
+```python
+ref_line(ax, 0.90, label="题面判据 P ≥ 90%", level="focus")      # 论点线：最饱和
+ax.plot(x, base, color=emphasis(PALETTE[0], "context"))          # 陪衬
+ax.plot(x, ref,  color=emphasis(PALETTE[0], "background"))       # 背景
+```
+
+**把论点线调灰、让无关 marker 高饱和，是本 skill 最典型的失手。**
+`ref_line` 的 `level` 默认 `focus` 就是为了防这个。
+
+### 3d. 分类色上限 4 类，超了必须加冗余编码
+
+穷举验证过：Okabe-Ito 取前 N 色在三类色盲下的最小色距为
+**N=2→0.93，N=3→0.42，N=4→0.23，N=5→0.12，N=6→0.05**。
+即 **≤4 类安全，5 类勉强，6 类必须靠形状/线型/直标区分**——
+6 个既色盲安全又灰度可分的分类色在 sRGB 里并不存在，这不是调色技巧问题。
+
+```python
+cols, mks, lss = categorical(3)     # 颜色 + 配套 marker + 线型，一并用上
+```
+
+`semantic("good"/"bad")` 用蓝/橙不用绿/红（Nature 明文避免红绿；红绿在
+deuteranopia 下色距仅 0.16、灰度差仅 0.08）。`run_qa` 会模拟三类色盲 + 灰度复查。
+
+### 3e. 稀疏数据（3–8 个离散档位/方案）：靠证据层填满，不靠留白
+
+数模里大量出现"四个档位""六个方案""三条策略"。**数据少不是图空的理由**——
+范例里 2 行、5 个点的面板照样饱满（见 resource/ref/_INDEX.md 第二批聚合）。
+五条硬默认，`recipes/dot_interval.py` 是参考实现：
+
+1. **排序即论点**——按值排，不按输入序/字母序。排序本身在回答"谁最好"。
+2. **判据参考线**——阈值/null/组均值画成线，并在两侧标方向语义
+   （"未达标 ← | → 达标"），读者才能自己判。
+3. **context 压灰 + 焦点上彩**——未达标压到中性色，达标上饱和色。
+   注意是**对照**不是消失：中性色别淡过 0.45，否则在底纹上就没了。
+4. **判定进视觉编码**——达标/不达标走实心/空心 + 颜色，不要只写在文字里。
+   判定按**区间靠判据的那一侧**定（下界过线才算达标），不是按点估计。
+5. **每点直标，标签走轴外数值列**——轴内没有真空位，硬塞必然压数据。
+   数值列格式 `估计 [下界, 上界]`，达标行加粗。
+
+**配色不要往低饱和调。** 期刊规范虽建议克制，但实际筛选反馈明确要求
+"颜色再鲜艳点""不要黑白单调"——`cn` 档保持 `PALETTE`（Okabe-Ito 原色），
+`PALETTE_MUTED` 只在需要压 context 层时局部使用，不作默认。
+
 ### 4. 出图代码骨架
 
 ```python
 import sys; sys.path.insert(0, r"<figure-forge 根目录>")
 from core import apply_style, new_figure, save_figure, run_qa, \
-    stat_box, callout, end_label, ref_line, panel_label, \
-    marginal_grid, small_multiples, inset_zoom, \
-    PALETTE, OKABE_ITO, cmap_for, semantic
+    stat_box, callout, end_label, end_labels, ref_line, panel_label, \
+    figure, marginal_grid, small_multiples, inset_zoom, share_colorbar, \
+    PALETTE, OKABE_ITO, cmap_for, semantic, emphasis, categorical
 
-apply_style()                            # 必须最先调用
+apply_style()                            # 必须最先调用（默认 cn 档）
 fig, ax = new_figure("onehalf", ratio=0.62)
 # ... 画图（从 recipes/ 抄构图）...
 # 框里每个数字都必须是变量，禁止手写常数
@@ -118,15 +188,42 @@ run_qa(fig, expect_width=("onehalf",))   # 先 QA：不过直接抛错，坏图�
 save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+svg
 ```
 
+### 4b. 一张 Figure = 一次多面板装配，不是一个 chart
+
+期刊感的最大来源是**构图**，不是注释。单轴单图只在论点确实只有一层时用；
+一条论证线有多个环节时，用 `figure()` 按内容分配面板尺寸（**不是等分**）：
+
+```python
+fig, ax = figure([[("field", 1.2), ("hist", 1)],      # 主面板宽，辅面板窄
+                  [("curve", 1), ("resid", 1)]],
+                 width="double", height=132, row_heights=[1, 0.9])
+ax["field"].contourf(...)                 # a/b/c/d 已自动编号
+share_colorbar(fig, im, [ax["field"], ax["hist"]], label="导通概率 P")
+```
+
+Nature 的硬约束：整页图 **≤6 面板**、读序 **左→右、上→下**、
+面板尺寸反映内容需要、**尽量压缩留白**、**不重复信息**
+（同一条曲线不要在两个面板里各画一遍）。
+
+判断该不该合并：**若几张图在论证同一个结论，它们本来就该是一张图的几个面板。**
+把一条论证拆成五张各自为战的图，是"作业感"最大的来源。
+
 ### 5. QA 目测清单（Read PNG 后逐项过）
 
 - [ ] 一句话能说出论点，图内证据支撑它（图题=结论）
 - [ ] 图题中的每个数字与图内统计框/标注一致（同一变量生成）
 - [ ] 至少一个统计注释框；关键点有引线直接标注
-- [ ] 文字无重叠、无裁切、无豆腐块；图例不遮数据
-- [ ] 配色低饱和、语义一致（同一对象全文同色）
-- [ ] 多面板：共享色标、锁定轴限、有 (a)(b) 面板标签
+- [ ] 文字无重叠、无裁切、无豆腐块；图例不遮数据、不压直标
+- [ ] **中文与拉丁字重一致**（中文明显更粗 = 字体解析到了 Heavy 字面）
+- [ ] **最饱和的元素就是论点所在**；陪衬已用 emphasis 压到 context/background
+- [ ] 配色语义一致（同一对象全文同色）；分类 >4 类时有 marker/线型冗余
+- [ ] **任何视觉编码都有解释**：置信带、第二组 marker、色标都能在图内查到含义
+- [ ] 多面板：共享色标、锁定轴限、有面板标签、面板尺寸按内容而非等分
+- [ ] **没有重复信息**：同一条曲线/同一个数没在两个面板里各出现一遍
 - [ ] 对照基线（如有）：信息密度与论证力明显更强
+
+Nature 艺术编辑的**视觉编辑五问**，落盘前逐条自问：
+必要元素是哪些 / 有没有缺 / 删掉什么还能说清 / 有无重复 / 有无纯装饰。
 
 ## 图种索引（recipes/，每个可直接运行看 demo）
 
@@ -144,6 +241,7 @@ save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+s
 | 分类器阈值全貌 | roc_pr.py | ROC+PR 双联+基线+AUC/AP 直标 |
 | 聚类结果 | cluster_scatter.py | 簇着色+簇心星标+2σ 椭圆+轮廓系数 |
 | 路径规划/调度 | route_map.py | 多车路线+途经序号+里程统计框 |
+| **离散档位 + 区间 + 判据** | **dot_interval.py** | **点区间/森林图：排序 + 判据线 + 达标着色 + 右侧数值列** |
 | MC 收敛 | convergence_ci.py | CI 带 + log-log 双联 |
 | 算法收敛 | algo_convergence.py | best-so-far+收敛代标注 |
 | 参数扫描 | scan_curve.py | log y、星标、引线框、axvspan |
