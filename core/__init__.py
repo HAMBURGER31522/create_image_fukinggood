@@ -7,7 +7,7 @@ from .colors import (OKABE_ITO, PALETTE, PALETTE_MUTED, MARKERS, LINESTYLES,
                      check_accessibility)
 from .annotate import (stat_box, callout, end_label, end_labels,
                        ref_line, smart_legend, dot_interval,
-                       slope_lines)
+                       slope_lines, ink)
 from .layout import (figure, marginal_grid, small_multiples, panel_label,
                      inset_zoom, share_colorbar, MAX_PANELS)
 from .qa import run_qa
@@ -22,7 +22,7 @@ __all__ = [
     "emphasis", "luminance", "contrast_ratio", "simulate_cvd",
     "check_accessibility",
     "stat_box", "callout", "end_label", "end_labels", "ref_line",
-    "smart_legend", "dot_interval", "slope_lines",
+    "smart_legend", "dot_interval", "slope_lines", "ink",
     "figure", "marginal_grid", "small_multiples", "panel_label",
     "inset_zoom", "share_colorbar", "MAX_PANELS",
     "run_qa", "load_table", "as_1d",

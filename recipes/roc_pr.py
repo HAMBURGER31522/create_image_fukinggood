@@ -8,7 +8,7 @@
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (ink, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, PALETTE, panel_label)
 import matplotlib.pyplot as plt
 
@@ -71,11 +71,11 @@ def roc_pr(models, width="double"):
         # 曲线在 (1,1) 汇聚，标签放右下空白区错行叠放
         axes[0].annotate(f"{name} AUC = {auc:.2f}", xy=(0.97, 0.26 - 0.09 * k),
                          xycoords="axes fraction", ha="right", fontsize=7,
-                         color=c, fontweight="bold")
+                         color=ink(c), fontweight="bold")
         axes[1].plot(rec, prec, color=c, linewidth=1.3)
         axes[1].annotate(f"{name} AP = {ap:.2f}", xy=(0.97, 0.90 - 0.09 * k),
                          xycoords="axes fraction", ha="right", fontsize=7,
-                         color=c, fontweight="bold")
+                         color=ink(c), fontweight="bold")
     axes[0].plot([0, 1], [0, 1], "--", color="0.6", linewidth=0.8)
     axes[0].annotate("随机基线", xy=(0.62, 0.56), fontsize=6.5, color="0.5",
                      rotation=38)

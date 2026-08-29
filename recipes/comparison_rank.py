@@ -15,7 +15,7 @@ from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, panel_label, smart_legend,
                   slope_lines, PALETTE, semantic)
 
@@ -45,7 +45,7 @@ def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
                 markeredgecolor="white", markeredgewidth=0.8)
         ax.annotate(f"{v:g}{unit}", xy=(v, yi), xytext=(5, 0),
                     textcoords="offset points", va="center", fontsize=7.5,
-                    fontweight="bold" if i == hi else "normal", color=c)
+                    fontweight="bold" if i == hi else "normal", color=ink(c))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
@@ -74,7 +74,8 @@ def dumbbell(labels, before, after, cond_names=("前", "后"), unit="",
         ax.annotate(f"{'+' if d >= 0 else ''}{d:g}{unit}",
                     xy=(max(a, b), yi), xytext=(6, 0),
                     textcoords="offset points", va="center", fontsize=7,
-                    color=semantic("good") if good else semantic("bad"))
+                    color=ink(semantic("good") if good
+                              else semantic("bad")))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
@@ -116,10 +117,10 @@ def butterfly(labels, left, right, left_name, right_name, unit=""):
     for yi, lv, rv in zip(y, left, right):
         ax.annotate(f"{lv:g}", xy=(-lv, yi), xytext=(-4, 0),
                     textcoords="offset points", ha="right", va="center",
-                    fontsize=7, color=cl)
+                    fontsize=7, color=ink(cl))
         ax.annotate(f"{rv:g}", xy=(rv, yi), xytext=(4, 0),
                     textcoords="offset points", ha="left", va="center",
-                    fontsize=7, color=cr)
+                    fontsize=7, color=ink(cr))
     ax.axvline(0, color="0.2", linewidth=0.8)
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
@@ -159,14 +160,19 @@ def facet_metrics(cat_labels, metrics, width="double"):
                     markeredgecolor="white", markeredgewidth=1.0)
             ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, 8),
                         textcoords="offset points", ha="center",
-                        fontsize=7.5, fontweight="bold", color=c)
+                        fontsize=7.5, fontweight="bold", color=ink(c))
         ax.set_yticks(y)
         ax.set_yticklabels(cat_labels if k == 0 else [""] * len(cat_labels))
         ax.set_title(title, fontsize=8.5)
         ax.grid(axis="y", visible=False)
         ax.margins(x=0.22, y=0.3)
-        # 首格有 y 刻度标签要多让一点，但别让三个面板标签高低错位
-        panel_label(ax, chr(ord("a") + k), dx=-0.20 if k == 0 else -0.10)
+        # 标签统一贴各自面板左缘：首格的 y 刻度标签占位更宽，按实测
+        # 刻度宽度折算成轴分数，而不是拍两个魔数
+        _tw = max((t.get_window_extent(
+            fig.canvas.get_renderer()).width for t in ax.get_yticklabels()
+            if t.get_text().strip()), default=0.0)
+        _aw = max(1.0, ax.get_window_extent().width)
+        panel_label(ax, chr(ord("a") + k), dx=-(_tw / _aw + 0.04))
     return fig, axes
 
 

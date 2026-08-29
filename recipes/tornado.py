@@ -8,7 +8,7 @@
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, semantic, PALETTE)
 
 
@@ -31,11 +31,11 @@ def tornado(factors, low, high, baseline, xlabel="输出", width="onehalf"):
         ax.annotate(f"{lo:g}", xy=(lo, yi), xytext=(-4 if lo < hi else 4, 0),
                     textcoords="offset points",
                     ha="right" if lo < hi else "left", va="center",
-                    fontsize=6.5, color=c_lo)
+                    fontsize=6.5, color=ink(c_lo))
         ax.annotate(f"{hi:g}", xy=(hi, yi), xytext=(4 if hi > lo else -4, 0),
                     textcoords="offset points",
                     ha="left" if hi > lo else "right", va="center",
-                    fontsize=6.5, color=c_hi)
+                    fontsize=6.5, color=ink(c_hi))
     ax.axvline(baseline, color="0.2", linewidth=0.9)
     ax.text(baseline, 0.99, f" 基准 {baseline:g}", fontsize=7, color="0.2",
             va="top", ha="left", transform=ax.get_xaxis_transform())

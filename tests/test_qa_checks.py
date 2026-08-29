@@ -880,3 +880,129 @@ def test_inside_value_column_uses_uniform_precision():
     txt = [t.get_text() for t in ax.texts if t.get_text().strip()]
     dec = {len(t.split(".")[1]) for t in txt if "." in t}
     assert len(dec) == 1, txt
+
+
+# --- 第 4 轮评审 -------------------------------------------------------
+
+def test_small_integer_continuous_quantity_is_not_flagged():
+    """k-means 肘部 k=2..6、迭代次数 1..5、多项式阶数 1..4 都是小整数上的
+    **连续量**，插值合法。`max<12 的整数即位置编码`判过头，把数模里最常见
+    的一类曲线硬挡了（sparse_line 是硬错，直接拦 save_figure）。"""
+    for xs, lab in ([[2, 3, 4, 5, 6], "簇数 k"],
+                    [[1, 2, 3, 4, 5], "迭代次数"],
+                    [[1, 2, 3, 4], "多项式阶数"]):
+        fig, ax = new_figure("onehalf")
+        ax.plot(xs, np.linspace(120, 35, len(xs)), "-o", color=PALETTE[0])
+        ax.set_xlabel(lab)
+        assert not hit(fig, "个点用折线连起来"), lab
+        plt.close(fig)
+
+
+def test_value_column_respects_neighbour_tight_bbox():
+    """判据用坐标区盒、度量用 tightbbox，两个口径不一致：邻居的 ylabel
+    往左伸出后 tightbbox.x0 跑到本轴右缘左边，邻居被整个排除，让位一次都
+    不收缩——比不改还差。断言必须用 tightbbox，否则测不出这个回归。"""
+    import matplotlib.pyplot as _plt
+    fig, axes = _plt.subplots(1, 2, figsize=(5.35, 2.2))
+    axes[1].set_ylabel("总成本 / 元")
+    axes[1].plot([1, 2], [1, 2])
+    dot_interval(axes[0], ["甲", "乙", "丙"], [0.2, 0.5, 0.8],
+                 [0.15, 0.45, 0.75], [0.25, 0.55, 0.85], threshold=0.6)
+    fig.canvas.draw()
+    rd = fig.canvas.get_renderer()
+    right = max(t.get_window_extent(rd).x1 for t in axes[0].texts)
+    assert right <= axes[1].get_tightbbox(rd).x0 + 1, \
+        f"侵入邻居 {right - axes[1].get_tightbbox(rd).x0:+.1f}px"
+
+
+def test_value_column_survives_a_hidden_panel():
+    """`Axes.get_tightbbox()` 对不可见轴返回 None（不抛异常），
+    `_ob.x0` 的 AttributeError 被外层 except 吞成一行 note，整个收缩
+    循环被跳过——而"网格里隐藏没用到的格子"正是小倍数的标准写法。"""
+    import matplotlib.pyplot as _plt
+    fig, ax = _plt.subplots(2, 2, figsize=(5.35, 3))
+    ax[1, 1].set_visible(False)
+    dot_interval(ax[0, 1], ["甲", "乙"], [0.3, 0.7], [0.2, 0.6],
+                 [0.4, 0.8], threshold=0.5)
+    fig.canvas.draw()
+    right = max(t.get_window_extent(fig.canvas.get_renderer()).x1
+                for t in ax[0, 1].texts)
+    assert right <= fig.bbox.x1 + 1, f"溢出画布 {right - fig.bbox.x1:+.1f}px"
+
+
+def test_scalar_sizes_raises_value_error():
+    """报错文案自己先炸：`len(np.asarray(5))` 对 0-d 数组非法。"""
+    fig, ax = new_figure("onehalf", ratio=0.4)
+    with pytest.raises(ValueError):
+        dot_interval(ax, list("甲乙丙"), [0.2, 0.4, 0.6],
+                     [0.1, 0.3, 0.5], [0.3, 0.5, 0.7], sizes=5)
+
+
+def test_nature_preset_can_produce_a_passing_figure():
+    """nature 档 figure.titlesize 留在 matplotlib 默认 large=8.4pt，而 qa
+    硬拒 >7pt；不加图题又报"无图题"——该档实际不可用，只因 gallery 全是
+    cn 档才从没暴露。"""
+    apply_style("nature")
+    fig, ax = new_figure("single")
+    x = np.linspace(0, 1, 40)
+    ax.plot(x, np.sin(x * 6), color=PALETTE[0])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("正弦在 x=0.26 处达峰")
+    stat_box(ax, ["n = 40"], loc="upper right")
+    assert not hit(fig, "7pt")
+
+
+def test_value_column_falls_back_when_magnitudes_span_decades():
+    """按最大值定位数会把小量级整行印成 0（比位数参差更伤：静默印错）。"""
+    fig, ax = new_figure("onehalf", ratio=0.4)
+    dot_interval(ax, ["大", "小"], [1.2e6, 3.4e-3], [1.1e6, 3.0e-3],
+                 [1.3e6, 3.8e-3], sort=False)
+    txt = [t.get_text() for t in ax.texts if "[" in t.get_text()]
+    assert not any(t.startswith("0 [0, 0]") for t in txt), txt
+
+
+def test_qa_flags_low_contrast_direct_labels():
+    """recipe 里裸 `ax.annotate(color=PALETTE[...])` 绕开 core.annotate，
+    7 张 gallery 图仍有 2.25:1 的直标。qa 里一条文字对比度检查都没有，
+    这类缺陷结构上不可能被自动发现。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.annotate("发虚的直标", xy=(2, 2), color="#E69F00", fontsize=8)
+    assert hit(fig, "对比度")
+
+
+def test_qa_does_not_flag_readable_labels():
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.annotate("清晰的直标", xy=(2, 2), color="#0072B2", fontsize=8)
+    assert not hit(fig, "对比度")
+
+
+def test_white_text_on_a_dark_cell_is_not_flagged():
+    """深底白字是正确做法（热力图注数、条内直标），判据不能假定白底。"""
+    fig, ax = new_figure("onehalf")
+    im = ax.imshow(np.linspace(0, 1, 16).reshape(4, 4), cmap="viridis")
+    for i in range(4):
+        ax.text(i, i, "0.9", color="white", ha="center", va="center")
+    assert not hit(fig, "对比度")
+
+
+def test_white_text_inside_a_dark_bar_is_not_flagged():
+    fig, ax = new_figure("onehalf")
+    ax.barh([0, 1, 2], [3, 5, 4], color="#0072B2")
+    for i, v in enumerate([3, 5, 4]):
+        ax.text(v * 0.5, i, f"{v}", color="white", ha="center", va="center")
+    assert not hit(fig, "对比度")
+
+
+def test_custom_tick_labels_on_numeric_positions_are_flagged():
+    """`set_xticklabels` 在 mpl 3.10 装的是 FuncFormatter 不是
+    FixedFormatter，所以那半个判据是死代码：方案画在 [10,20,30,40] 上
+    配自定义标签会漏检。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([10, 20, 30, 40], [72.1, 65.8, 88.4, 59.2], "o-",
+            color=PALETTE[0])
+    ax.set_xticks([10, 20, 30, 40])
+    ax.set_xticklabels(["方案A", "方案B", "方案C", "方案D"])
+    assert hit(fig, "个点用折线连起来")

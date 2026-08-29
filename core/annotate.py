@@ -26,7 +26,7 @@ def _ann_size(explicit: float | None = None) -> float:
     return max(5.0, plt.rcParams["font.size"] - 1.0)
 
 
-def _ink(color, min_ratio: float = 3.0):
+def ink(color, min_ratio: float = 3.0):
     """把用作**文字**的语义色压暗到对白底 ≥3:1。
 
     Okabe-Ito 的橙 #e69f00 对白底只有 2.25:1，用它写端点直标在屏幕上
@@ -52,7 +52,7 @@ def _text_color(color: str) -> str:
     """
     if current_preset() == "nature":
         return "black"
-    return _ink(color)
+    return ink(color)
 
 
 def _mark_lw(v: float) -> float:
@@ -368,10 +368,10 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
             raise ValueError(
                 "sizes 含非有限值：min/ptp 会被 NaN 传染，导致**每一行**的"
                 "markersize 都变成 nan、所有点静默不渲染")
-    if sizes is not None and np.asarray(sizes).ravel().size != est.size:
-        raise ValueError(
-            f"sizes 长度 {len(np.asarray(sizes))} 与 est 长度 {est.size} 不一致"
-            f"——太短会 IndexError，太长会静默截断")
+        if _sz0.size != est.size:
+            raise ValueError(
+                f"sizes 长度 {_sz0.size} 与 est 长度 {est.size} 不一致"
+                f"——太短会 IndexError，太长会静默截断（标量同样非法）")
     order = np.argsort(est) if sort else np.arange(len(est))
     labels = [labels[i] for i in order]
     est, lo, hi = est[order], lo[order], hi[order]
@@ -464,7 +464,14 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
     _fv = np.abs(np.concatenate([est[fin], lo[fin], hi[fin]]))         if fin.any() else np.array([1.0])
     _pos = _fv[_fv > 0]
     _mag = _pos.max() if _pos.size else 1.0
-    _dec = int(np.clip(3 - np.floor(np.log10(_mag)) - 1, 0, 6))
+    # 跨量级超过 10³ 时统一小数位必然坑一端（按最大值定会把 3.4e-3 印成
+    # 0，按最小值定会把 1.2e6 拖成一长串），这种列只能退回有效数字。
+    _wide = bool(_pos.size) and _pos.max() / _pos.min() > 1e3
+    _dec = None if _wide else int(
+        np.clip(3 - np.floor(np.log10(_mag)) - 1, 0, 6))
+
+    def _num(v):
+        return f"{v:.3g}" if _dec is None else f"{v:.{_dec}f}"
 
     # 区间比标记还窄时：标记转空心、区间压到标记**之上**，否则那一行只剩
     # 一个实心圆点，而最窄的往往正是结论所在的高精度档——整张图要论证的
@@ -492,7 +499,7 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
             if not fin[i]:
                 continue
             flip = hi[i] > x0 + 0.72 * (x1 - x0)
-            ax.annotate(f"{est[i]:.{_dec}f}",
+            ax.annotate(_num(est[i]),
                         xy=(lo[i] if flip else hi[i], y[i]),
                         xytext=(-6 if flip else 6, 0),
                         textcoords="offset points",
@@ -511,8 +518,8 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                             va="center", ha="left", fontsize=size,
                             color="0.55", annotation_clip=False)
                 continue
-            ax.annotate(f"{est[i]:.{_dec}f} "
-                        f"[{lo[i]:.{_dec}f}, {hi[i]:.{_dec}f}]",
+            ax.annotate(f"{_num(est[i])} "
+                        f"[{_num(lo[i])}, {_num(hi[i])}]",
                         xy=(1.06, y[i]), xycoords=("axes fraction", "data"),
                         va="center", ha="left", fontsize=size,
                         color=_text_color(focus if ok[i] else "0.35"),
@@ -539,16 +546,26 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                 _me = ax.get_window_extent(_rd)
                 _limit = _fg.bbox.x1
                 for _o in _fg.get_axes():
-                    if _o is ax or _o.get_label() == "<colorbar>":
+                    if _o is ax or _o.get_label() == "<colorbar>"                             or not _o.get_visible():
                         continue
-                    # 用 tightbbox：邻居的 y 刻度标签与 ylabel 在坐标区
-                    # **左侧之外**，只避开坐标区仍会压上去（实测 +28~33px）
+                    # **判据用坐标区盒、度量用 tightbbox**，两者不能混用：
+                    # 邻居的 ylabel 往左伸出后 tightbbox.x0 会跑到本轴右缘
+                    # 左边，拿它做"是不是右邻"的判据会把邻居整个排除，
+                    # 让位一次都不收缩（实测比不改还差一倍）。
+                    _ow = _o.get_window_extent(_rd)
+                    if not (_ow.x0 >= _me.x1 and _ow.y1 > _me.y0
+                            and _ow.y0 < _me.y1):
+                        continue
+                    # 收缩到邻居的 tightbbox：ylabel 与刻度标签在坐标区
+                    # 左侧之外，只避开坐标区仍会压上去。不可见轴的
+                    # get_tightbbox() 返回 **None**（不抛异常），
+                    # 不挡住会让 AttributeError 把整个让位循环吞掉。
+                    _ot = None
                     try:
-                        _ob = _o.get_tightbbox(_rd)
+                        _ot = _o.get_tightbbox(_rd)
                     except Exception:
-                        _ob = _o.get_window_extent(_rd)
-                    if _ob.x0 >= _me.x1 and _ob.y1 > _me.y0                             and _ob.y0 < _me.y1:
-                        _limit = min(_limit, _ob.x0)
+                        _ot = None
+                    _limit = min(_limit, _ow.x0 if _ot is None else _ot.x0)
                 _over = _need - _limit
                 if _over <= 0:
                     break

@@ -1,14 +1,15 @@
 """优化算法收敛曲线：迭代-目标值，多算法对照 + 收敛代标注 + 末值直标。
 
 论点合同示例：
-- 结论：改进 GA 在 62 代收敛，终值优于标准 GA 4.1%，且更稳定。
+- 结论：改进 GA 比标准 GA 提前约 25 代收敛，终值更优且更稳定。
+  （具体代数由数据算出，见图题的 f-string——写死在这里必然与图漂移）
 - 证据链：best-so-far 单调线 → 收敛代竖标 → 末端直标终值 → 统计框给设置。
 替代：把每代种群均值画成杂乱多折线（平庸）。
 """
 from _common import GALLERY
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, PALETTE)
 
 
@@ -49,7 +50,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
                 markeredgecolor="white", markeredgewidth=0.8, zorder=4)
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
                     xytext=(0, 9 + 9 * k), textcoords="offset points",
-                    ha="center", fontsize=6.5, color=c)
+                    ha="center", fontsize=6.5, color=ink(c))
         lab = end_label(ax, it[-1], final, f" {name} {final:.4g}", c)
         lab.set_va(va_of[k])
     ax.set_xlim(-0.02 * n_max, 1.2 * n_max)   # 右侧留线端标签位，左不出负代

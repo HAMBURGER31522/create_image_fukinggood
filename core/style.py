@@ -123,12 +123,15 @@ _PRESETS = {
         base_size=7.0, grid=False, grid_style="-", grid_alpha=0.0,
         line_width=1.0, axes_lw=0.5, mathtext="dejavusans",
         panel_label_size=8.0, panel_label_fmt="{}",   # 小写 a b c，无括号
+        # Nature 正文上限 7pt，标题不能例外（run_qa 硬拦 >7pt）
+        title_size=7.0,
     ),
     # 中文数模交付档：与论文宋体正文同族，字号大一级，极淡实线网格
     "cn": dict(
         base_size=9.0, grid=True, grid_style="-", grid_alpha=0.22,
         line_width=1.2, axes_lw=0.6, mathtext="stix",
         panel_label_size=10.0, panel_label_fmt="({})",
+        title_size=10.5,
     ),
 }
 
@@ -193,11 +196,16 @@ def apply_style(preset: str = "cn", base_size: float | None = None,
         "font.weight": "normal",
         "axes.unicode_minus": False,
         "font.size": bs,
-        "axes.titlesize": bs + 0.5,
+
         "axes.labelsize": bs,
         "xtick.labelsize": bs - 1,
         "ytick.labelsize": bs - 1,
         "legend.fontsize": bs - 1.5,
+        # figure.titlesize 留在 matplotlib 默认 "large"（= 1.2×base）时，
+        # nature 档 base=7 会渲染成 8.4pt，而 run_qa 硬拒 >7pt——不加图题
+        # 又报"无图题"，该档实际不可用。两个标题字号都必须显式定死。
+        "figure.titlesize": cfg["title_size"],
+        "axes.titlesize": cfg["title_size"],
         "axes.linewidth": cfg["axes_lw"],
         "xtick.major.width": cfg["axes_lw"], "ytick.major.width": cfg["axes_lw"],
         "xtick.major.size": 2.5, "ytick.major.size": 2.5,

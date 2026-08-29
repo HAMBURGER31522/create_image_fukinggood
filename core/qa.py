@@ -78,7 +78,7 @@ _ALLOW_CODES = frozenset({
     "grouped_bars", "unsourced", "overlap", "accessibility",
     "unexplained_band", "number_conflict", "duplicate_series",
     "clim_mismatch", "axis_slack", "sparse_line", "unit_axis_range",
-    "incommensurable",
+    "incommensurable", "text_contrast",
 })
 
 
@@ -94,7 +94,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     grouped_bars / unsourced / overlap / accessibility /
     unexplained_band / number_conflict / duplicate_series /
     clim_mismatch / axis_slack / sparse_line / unit_axis_range /
-    incommensurable。
+    incommensurable / text_contrast。
     未知的码直接抛错（拼错时静默无效比报错更伤）。
     豁免会记入 fig._ff_qa_waived 并标进文件名。
     """
@@ -105,7 +105,13 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             f"。拼错的码静默无效——图照样被拦，而你以为已经豁免了")
     def _is_canvas_like(ax):
         """流程图/示意图这类"画布轴"：坐标轴关掉、图上的框本身就是内容。
-        分组柱检测对它没有意义。"""
+        分组柱检测对它没有意义。
+
+        3D 轴的 `axison` 恒为 False 但它是真面板——与下面 `_is_canvas`
+        的护栏保持一致，否则每个 3D 面板都会被当成画布。
+        """
+        if getattr(ax, "name", "") == "3d":
+            return False
         return not ax.axison
 
     problems: list[str] = []
@@ -1212,6 +1218,67 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         except Exception as e:
             print(f"[QA note] 小倍数色标检查未执行：{e}")
 
+    # 11a. 文字对比度。语义色直接拿来写字在白底上往往不够：Okabe-Ito 的橙
+    #      #E69F00 只有 2.25:1，屏幕上已经发虚、300dpi 印刷后更糟。
+    #      core.annotate 的着色点已在 _text_color 里统一压暗，但 recipe 里
+    #      裸 `ax.annotate(color=PALETTE[...])` 绕开了它——没有这条检查，
+    #      这类缺陷结构上不可能被自动发现（实测曾有 7 张 gallery 图中招）。
+    #      WCAG 非文字/大字号下限 3:1。灰阶文字按其自身亮度一并检查。
+    try:
+        from .colors import luminance
+        _dim = []
+        for t in _all_texts(fig):
+            txt = (t.get_text() or "").strip()
+            if not txt or not t.get_visible():
+                continue
+            bp = t.get_bbox_patch()
+            if bp is not None and bp.get_facecolor()[3] > 0.3:
+                continue                      # 有自己的底色，不对白底
+            # 深底白字是正确做法（热力图注数、条内直标），判据不能假定
+            # 白底：文字落在场图或实心图元之内就跳过。
+            _on_dark = False
+            try:
+                _rd2 = fig.canvas.get_renderer()
+                _tb = t.get_window_extent(_rd2)
+                _cx = (_tb.x0 + _tb.x1) / 2
+                _cy = (_tb.y0 + _tb.y1) / 2
+                _pa = getattr(t, "axes", None)
+                if _pa is not None:
+                    _arts = (list(_pa.images) + list(_pa.collections)
+                             + list(_pa.patches)
+                             + [q for c in _pa.containers
+                                for q in getattr(c, "patches", [])])
+                    for _fa in _arts:
+                        if not _fa.get_visible():
+                            continue
+                        try:
+                            _fb = _fa.get_window_extent(_rd2)
+                        except Exception:
+                            continue
+                        if (_fb.x0 <= _cx <= _fb.x1
+                                and _fb.y0 <= _cy <= _fb.y1):
+                            _on_dark = True
+                            break
+            except Exception:
+                pass
+            if _on_dark:
+                continue
+            col = mcolors.to_rgb(t.get_color())
+            al = t.get_alpha()
+            if al is not None and al < 1.0:   # 半透明按叠白底的等效色算
+                col = tuple(1.0 - al * (1.0 - c) for c in col)
+            ratio = 1.05 / (luminance(col) + 0.05)
+            if ratio < 3.0:
+                _dim.append((txt[:12], mcolors.to_hex(col), ratio))
+        if _dim:
+            _hard(f"{len(_dim)} 处文字对白底对比度 < 3:1（印刷后发虚）："
+                  f"{[(a, b, round(c, 2)) for a, b, c in _dim[:3]]}"
+                  f"——语义色直接写字往往不够暗，走 annotate 的直标函数"
+                  f"（会自动压暗），或手动取更深的同色系",
+                  "text_contrast")
+    except Exception as e:
+        print(f"[QA note] 文字对比度检查未执行：{e}")
+
     # 11b. 同一根轴上叠不可通约的量。SPEC §2.2 把这条列为硬伤，但此前只
     #      查了 twinx——直接在同一根 y 轴上画"比例 0–1"和"成本 1200 元"
     #      一直漏网：小的那条被压成一条贴轴线，读者读不出任何变化。
@@ -1297,13 +1364,34 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             from matplotlib.ticker import FixedFormatter
             from matplotlib.scale import LinearScale
             _xa = a.xaxis
-            _cat_axis = (isinstance(_xa.converter, StrCategoryConverter)
+            # `Axis.converter` 在 3.10 弃用、3.12 移除；`_scale` 是私有。
+            # 用公开 API，否则升级后整条检查会被 except 静默吞掉。
+            _conv = (_xa.get_converter() if hasattr(_xa, "get_converter")
+                     else getattr(_xa, "converter", None))
+            def _non_numeric(t):
+                q = t.strip().replace("−", "-").rstrip("%").strip()
+                if not q:
+                    return False
+                try:
+                    float(q.replace(",", ""))
+                    return False
+                except ValueError:
+                    return True
+
+            # `set_xticklabels` 在 mpl 3.10 装的是 FuncFormatter 而非
+            # FixedFormatter，只认后者等于没认。刻度**文本**非数值是可靠
+            # 的补充信号——但只在**线性轴且无单位转换**时才看它，否则
+            # log 的 mathtext、日期串会被误当类别（这正是上一轮的错法）。
+            _plain = (a.get_xscale() == "linear" and _conv is None)
+            _cat_axis = (isinstance(_conv, StrCategoryConverter)
                          or isinstance(_xa.get_major_formatter(),
-                                       FixedFormatter))
+                                       FixedFormatter)
+                         or (_plain and any(
+                             _non_numeric(t.get_text())
+                             for t in a.get_xticklabels())))
             # 日期/对数等非线性或有单位转换的轴 = 连续量，整轴放行
-            _continuous_axis = (not isinstance(a.xaxis._scale, LinearScale)
-                                or (_xa.converter is not None
-                                    and not _cat_axis))
+            _continuous_axis = (a.get_xscale() != "linear"
+                                or (_conv is not None and not _cat_axis))
             if _continuous_axis:
                 continue
             for ln in _cand:
@@ -1318,7 +1406,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     # 但"恰好落在 0..n-1 小整数上"是位置编码，不是采样：
                     # 连续量不会只在 0,1,2,3 上取 3–6 个样本。
                     arith = bool(dx.size) and dx.max() / dx.min() < 1.05
-                    ints = np.allclose(xs, np.round(xs)) and xs.max() < 12
+                    # 必须是 **0..n-1 连续整数**才算位置编码。"任何 <12
+                    # 的整数"会把 k-means 肘部 k=2..6、迭代次数 1..5、
+                    # 多项式阶数 1..4 这类小整数**连续量**全部硬挡——
+                    # 它们插值完全合法，而 sparse_line 是硬错。
+                    ints = np.allclose(xs, np.arange(len(xs)))
                     geo = False
                     if np.all(xs > 0) and len(xs) > 1:
                         r = xs[1:] / xs[:-1]

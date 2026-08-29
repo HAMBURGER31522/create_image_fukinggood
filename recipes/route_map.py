@@ -9,7 +9,7 @@ from _common import GALLERY
 import numpy as np
 from matplotlib.collections import LineCollection
 
-from core import (apply_style, new_figure, save_figure, run_qa, stat_box,
+from core import (ink, apply_style, new_figure, save_figure, run_qa, stat_box,
                   PALETTE, semantic)
 
 
@@ -45,7 +45,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
             for i, idx in enumerate((k for k in r if k != depot), 1):
                 ax.annotate(str(i), nodes[idx], xytext=(3, 3),
                             textcoords="offset points", fontsize=6.5,
-                            color=c, zorder=6,
+                            color=ink(c), zorder=6,
                             path_effects=[pe.withStroke(
                                 linewidth=1.8, foreground="white")])
     ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=13,

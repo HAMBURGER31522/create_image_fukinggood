@@ -9,7 +9,7 @@
 | `apply_style` | `(base_size=9.0, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
 | `new_figure` | `(width="onehalf", ratio=0.62, **subplots_kw)` | `fig, ax` |
 | `save_figure` | `(fig, path_no_ext, formats=("png","svg"), tight=True, exact_width=True)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
-| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range` `incommensurable`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
+| `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range` `incommensurable` `text_contrast`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
 | `load_table` | `(path, sheet=0)`；xlsx/CSV 读表，CSV 自动试 utf-8-sig/gbk/utf-8 | DataFrame |
 | `as_1d` | `(x, col=None)`；DataFrame 取列 / 任意序列 → 一维 float ndarray，非数值转 NaN | ndarray |
 | `stat_box` | `(ax, lines, loc="auto", fontsize=None, outside=None, expand_axes=True)`；lines 为字符串列表；`loc="auto"` 在 8 个锚点里选压数据最少的；满铺场图自动降级到 `outside="top"`；轴内无真空位时传 `outside="bottom"` | Text |
@@ -17,6 +17,7 @@
 | `end_label` | `(ax, x, y, text, color, dx_pt=4.0)`；线端直标替代图例 | Annotation |
 | `end_labels` | `(ax, items, dx_pt=4.0, fontsize=None)`；items=[(x,y,text,color)]，多条线端直标一次排完并自动避让 | [Annotation] |
 | `ref_line` | `(ax, value, orientation="h", label=None, label_loc="right", level="focus")` | None |
+| `ink` | `(color, min_ratio=3.0)`；把语义色压暗到对白底 ≥3:1。`core.annotate` 的直标函数已内置，recipe 里裸 `ax.annotate(color=…)` 需自己调 | 色号 |
 | `smart_legend` | `(ax, *args, **kw)`；按占用探测选位，避开数据与直标 | Legend |
 | `dot_interval` | `(ax, labels, est, lo, hi, threshold=None, thr_label="", better="high", sizes=None, sort=True, value_col=True, return_order=False)`；点区间/森林图：排序+判据线+达标着色+轴外数值列。**判定按区间靠判据的那一侧**（下界过线才算达标）。`value_col="inside"` 用于多面板（无轴外空间）；`value_col=True` 会自动收缩本轴给数值列让位（右界取画布右缘与右邻面板左缘中更靠左者），不必手动 `subplots_adjust` | `ok`，或 `(ok, order)` |
 | `slope_lines` | `(ax, labels, before, after, cond_names=("前","后"), unit="", highlight=(), higher_is_better=True, mode="emphasis", verdict="", label_ends=True)`；斜率图：**每条线按变化方向着色**；`mode="cohort"` 用于大 N（群体压灰、只高亮个体）；`verdict` 标在面板内顶部。长度不一致/highlight 越界直接抛 ValueError | `dict(up,down,flat,invalid)` |
