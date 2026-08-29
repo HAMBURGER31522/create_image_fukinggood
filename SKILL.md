@@ -173,7 +173,7 @@ deuteranopia 下色距仅 0.16、灰度差仅 0.08）。`run_qa` 会模拟三类
 ```python
 import sys; sys.path.insert(0, r"<figure-forge 根目录>")
 from core import apply_style, new_figure, save_figure, run_qa, \
-    stat_box, callout, end_label, end_labels, ref_line, panel_label, \
+    stat_box, callout, end_label, end_labels, ref_line, panel_label, ink, \
     figure, marginal_grid, small_multiples, inset_zoom, share_colorbar, \
     PALETTE, OKABE_ITO, cmap_for, semantic, emphasis, categorical
 
@@ -215,6 +215,10 @@ Nature 的硬约束：整页图 **≤6 面板**、读序 **左→右、上→下
 - [ ] 至少一个统计注释框；关键点有引线直接标注
 - [ ] 文字无重叠、无裁切、无豆腐块；图例不遮数据、不压直标
 - [ ] **中文与拉丁字重一致**（中文明显更粗 = 字体解析到了 Heavy 字面）
+- [ ] **文字对其背景对比度 ≥3:1**：语义色直接写字往往不够暗（Okabe-Ito 橙
+      仅 2.25:1）。`stat_box`/`callout`/`end_label` 等已内置压暗；裸写
+      `ax.annotate(color=…)` 要自己套 `ink(color)`。深底白字同理——浅色段上
+      写白字会掉到 1.6:1，按底色亮度选黑/白（见 annotated_heatmap.py）
 - [ ] **最饱和的元素就是论点所在**；陪衬已用 emphasis 压到 context/background
 - [ ] 配色语义一致（同一对象全文同色）；分类 >4 类时有 marker/线型冗余
 - [ ] **任何视觉编码都有解释**：置信带、第二组 marker、色标都能在图内查到含义
