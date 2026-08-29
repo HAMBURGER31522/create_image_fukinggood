@@ -776,3 +776,107 @@ def test_value_column_does_not_intrude_into_a_neighbour_panel():
     right = max(t.get_window_extent(rd).x1 for t in axes[0].texts)
     nb_x0 = axes[1].get_window_extent(rd).x0
     assert right <= nb_x0 + 1, (right, nb_x0)
+
+
+# --- 第 3 轮评审：三处"测试绕开了失效区" -------------------------------
+
+def test_geometric_scan_on_a_log_axis_is_not_flagged():
+    """几何扫描的**标准画法**就是 log 轴，而 log 刻度是 mathtext
+    `$\mathdefault{10^{0}}$`，`float()` 解析不了 → 被判成类别轴 →
+    等比豁免根本走不到 → 硬拒绝。上一条测试用线性轴，正好绕开。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 4, 8, 16], [10, 5.2, 2.7, 1.4, 0.8], "o-",
+            color=PALETTE[0])
+    ax.set_xscale("log")
+    ax.set_xlabel("网格加密倍数")
+    assert not hit(fig, "个点用折线连起来")
+
+
+def test_evenly_spaced_dates_are_not_flagged():
+    """等间隔的日期轴同样是连续量，刻度文本却解析不成 float。"""
+    import datetime as _dt
+    fig, ax = new_figure("onehalf")
+    xs = [_dt.date(2026, 1, 5) + _dt.timedelta(days=7 * i) for i in range(5)]
+    ax.plot(xs, [12, 9.5, 7.1, 5.4, 4.2], "o-", color=PALETTE[0])
+    assert not hit(fig, "个点用折线连起来")
+
+
+def test_integer_positions_without_tick_labels_are_still_flagged():
+    """作者忘了 set_xticklabels 时，四个方案画在 0,1,2,3 上仍是离散档位。
+    连续量不会恰好只在小整数上取 3–6 个样本。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1, 2, 3], [72.1, 65.8, 88.4, 59.2], "o-", color=PALETTE[0])
+    assert hit(fig, "个点用折线连起来")
+
+
+def test_bare_label_covering_a_panel_title_is_flagged():
+    """5b3 把标题整类从 _bare 剔除后，"无框直标压面板标题"从有覆盖变成
+    零覆盖——而面板标题按本项目的规矩就是结论句。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_title("方案 C 成本最低")
+    # 标题在坐标区**之上**，用 axes 坐标才放得上去（数据坐标会被 clip
+    # 成退化 bbox，测试就测了个寂寞）
+    ax.annotate("压住标题的直标", xy=(0.35, 1.02), xycoords="axes fraction",
+                fontsize=9)
+    assert hit(fig, "压住") or hit(fig, "重叠")
+
+
+def test_narrow_interval_detection_uses_settled_limits():
+    """_tight 判定时 viewLim 还停在默认 (0,1)，与真实渲染宽度无关：
+    量级 1200 的极窄区间（0.45pt）判成"不窄"仍用实心点吞掉证据。"""
+    fig, ax = new_figure("onehalf", ratio=0.4)
+    dot_interval(ax, list("甲乙丙"), [1200., 1500., 1800.],
+                 [1199.5, 1499.5, 1799.5], [1200.5, 1500.5, 1800.5],
+                 value_col=False, sort=False)
+    fig.canvas.draw()
+    pts = [ln for ln in ax.lines if ln.get_marker() == "o"]
+    assert all(p.get_markerfacecolor() in ("white", "w") for p in pts), \
+        [p.get_markerfacecolor() for p in pts]
+
+
+def test_wide_interval_keeps_a_solid_marker():
+    """反向：量程 0.007 时区间渲染 38.8pt（几乎横跨面板），却被判成
+    "比标记还窄"而全部转空心。"""
+    fig, ax = new_figure("onehalf", ratio=0.4)
+    dot_interval(ax, list("甲乙丙"), [0.001, 0.004, 0.007],
+                 [0.0005, 0.0035, 0.0065], [0.0015, 0.0045, 0.0075],
+                 threshold=0.006, value_col=False, sort=False)
+    fig.canvas.draw()
+    pts = [ln for ln in ax.lines if ln.get_marker() == "o"]
+    ok_pt = pts[-1]
+    assert ok_pt.get_markerfacecolor() not in ("white", "w")
+
+
+def test_end_labels_are_readable_on_white():
+    """_ink 只接了 3/6 个着色点：end_labels/callout/end_label 仍吐原色，
+    实测 #E69F00 = 2.25:1。8 张 gallery 图受影响。"""
+    from core import end_labels
+    from core.colors import luminance
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [1, 2])
+    end_labels(ax, [(1, 2, "方案A", "#E69F00"), (1, 1.5, "方案B", "#56B4E9")])
+    worst = 21.0
+    for t in ax.texts:
+        if t.get_text().strip():
+            worst = min(worst, 1.05 / (luminance(t.get_color()) + 0.05))
+    assert worst >= 3.0, f"最差 {worst:.2f}:1"
+
+
+def test_sizes_with_nan_does_not_silently_hide_every_marker():
+    """sz.min()/ptp 被 NaN 传染 → 每行 ms=nan → 所有点不渲染，无警告。"""
+    fig, ax = new_figure("onehalf", ratio=0.45)
+    with pytest.raises(ValueError):
+        dot_interval(ax, list("甲乙丙丁"), [0.2, 0.4, 0.6, 0.8],
+                     [0.1, 0.3, 0.5, 0.7], [0.3, 0.5, 0.7, 0.9],
+                     sizes=[1, 2, np.nan, 4])
+
+
+def test_inside_value_column_uses_uniform_precision():
+    """N13 只修了 value_col=True 一半，"inside" 分支仍是 :.3g。"""
+    fig, ax = new_figure("onehalf", ratio=0.45)
+    dot_interval(ax, list("甲乙"), [0.994, 0.0698], [0.98, 0.06],
+                 [0.999, 0.08], value_col="inside", sort=False)
+    txt = [t.get_text() for t in ax.texts if t.get_text().strip()]
+    dec = {len(t.split(".")[1]) for t in txt if "." in t}
+    assert len(dec) == 1, txt

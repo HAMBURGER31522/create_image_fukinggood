@@ -103,6 +103,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         raise ValueError(
             f"未知的 allow 码 {sorted(unknown)}；可用：{sorted(_ALLOW_CODES)}"
             f"。拼错的码静默无效——图照样被拦，而你以为已经豁免了")
+    def _is_canvas_like(ax):
+        """流程图/示意图这类"画布轴"：坐标轴关掉、图上的框本身就是内容。
+        分组柱检测对它没有意义。"""
+        return not ax.axison
+
     problems: list[str] = []
     _waived: list[str] = []
 
@@ -319,7 +324,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         # 不再用 `if code not in allow` 直接跳过检测：那样豁免不留痕，
         # 而 docstring 承诺"豁免会记入 fig._ff_qa_waived 并标进文件名"。
         # 检测照跑，报告走 _hard()，由它统一处理豁免与留痕。
-        if True:            # 保持缩进；检测恒跑，豁免交给 _hard()
+        if not _is_canvas_like(ax):
             vbars = [c for c in ax.containers
                      if isinstance(c, BarContainer) and len(c.patches) >= 3
                      and getattr(c, "orientation", "vertical") == "vertical"]
@@ -767,17 +772,21 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         #      直标**互相叠字仍然漏网——实测 cohort 斜率图左侧两个高亮标签
         #      叠在一起，QA 全绿放行，而 SKILL.md 目测清单第 4 条明写
         #      "文字无重叠"。刻度之间的重叠由 6b 专管，这里不重复。
-        # 标题类由 5b2 专管，刻度类由 6b 专管，这里只查其余无框直标，
-        # 否则同一处重叠会被报两遍。
-        _bare = [t for t in bare_texts
-                 if not t[0].startswith("刻度") and t[0] != "图题"
-                 and not t[0].startswith("面板标题")]
+        # 刻度类由 6b 专管。标题**要留在池子里**：5b2 只做标题×标题，
+        # 把标题整类剔除会让"无框直标压面板标题"变成零覆盖——而面板标题
+        # 按本项目的规矩就是结论句。重复报告改为在配对时跳过标题×标题。
+        _bare = [t for t in bare_texts if not t[0].startswith("刻度")]
+
+        def _is_title(nm):
+            return nm == "图题" or nm.startswith("面板标题")
         for _i in range(len(_bare)):
             for _j in range(_i + 1, len(_bare)):
                 _ni, _bi2, _, _ai2 = _bare[_i]
                 _nj, _bj2, _, _aj2 = _bare[_j]
                 if _ai2 is _aj2:
                     continue
+                if _is_title(_ni) and _is_title(_nj):
+                    continue        # 标题×标题由 5b2 专管，别报两遍
                 if min(_bi2.width * _bi2.height,
                        _bj2.width * _bj2.height) <= 0:
                     continue
@@ -1279,22 +1288,24 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             if any(isinstance(c, ErrorbarContainer) for c in a.containers):
                 continue
 
-            def _numeric_tick(t):
-                q = t.strip().replace("−", "-").rstrip("%").strip()
-                if not q:
-                    return True
-                try:
-                    float(q)
-                    return True
-                except ValueError:
-                    return False
-
-            # x 是不是"类别轴"。离散方案几乎总画在整数位上（0,1,2,3），
-            # 而整数天然等距——早先那版"等距即放行"正好把本检查要抓的
-            # 最典型病灶漏掉了。真正的判据是刻度写的是不是类别名。
-            _cat_axis = any(not _numeric_tick(t.get_text())
-                            for t in a.get_xticklabels()
-                            if t.get_text().strip())
+            # x 是不是"类别轴"。**不要去解析渲染后的刻度文本**：log 轴是
+            # mathtext `$\mathdefault{10^{0}}$`、日期轴是 "2026-01-05"、
+            # 千分位是 "1,000"，它们 float() 全都解析不了，会被一律误判成
+            # 类别轴，于是连续量扫描的标准画法反而挨拦。直接问 matplotlib
+            # 这根轴是什么类型才可靠。
+            from matplotlib.category import StrCategoryConverter
+            from matplotlib.ticker import FixedFormatter
+            from matplotlib.scale import LinearScale
+            _xa = a.xaxis
+            _cat_axis = (isinstance(_xa.converter, StrCategoryConverter)
+                         or isinstance(_xa.get_major_formatter(),
+                                       FixedFormatter))
+            # 日期/对数等非线性或有单位转换的轴 = 连续量，整轴放行
+            _continuous_axis = (not isinstance(a.xaxis._scale, LinearScale)
+                                or (_xa.converter is not None
+                                    and not _cat_axis))
+            if _continuous_axis:
+                continue
             for ln in _cand:
                 xy = np.asarray(ln.get_xydata(), dtype=float)
                 n = len(xy)
@@ -1304,13 +1315,16 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     dx = dx[np.isfinite(dx) & (dx > 0)]
                     # 等差 = 连续量扫描（D0 每 0.1 一档）；等比 = 几何扫描
                     # （网格加密 1,2,4,8,16 / 样本量倍增），两者插值都合法。
+                    # 但"恰好落在 0..n-1 小整数上"是位置编码，不是采样：
+                    # 连续量不会只在 0,1,2,3 上取 3–6 个样本。
                     arith = bool(dx.size) and dx.max() / dx.min() < 1.05
+                    ints = np.allclose(xs, np.round(xs)) and xs.max() < 12
                     geo = False
                     if np.all(xs > 0) and len(xs) > 1:
                         r = xs[1:] / xs[:-1]
                         r = r[np.isfinite(r) & (r > 0)]
                         geo = bool(r.size) and r.max() / r.min() < 1.05
-                    if arith or geo:
+                    if (arith or geo) and not ints:
                         continue
                 _hard(f"{n} 个点用折线连起来——折线宣称点之间可插值，"
                       f"而离散档位/方案/策略没有中间态。改点区间图"

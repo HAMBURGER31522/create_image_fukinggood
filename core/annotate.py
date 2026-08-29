@@ -26,11 +26,6 @@ def _ann_size(explicit: float | None = None) -> float:
     return max(5.0, plt.rcParams["font.size"] - 1.0)
 
 
-def _text_color(color: str) -> str:
-    """nature 档强制黑字（语义色留给边框/标记）；cn 档允许彩色文字。"""
-    return "black" if current_preset() == "nature" else color
-
-
 def _ink(color, min_ratio: float = 3.0):
     """把用作**文字**的语义色压暗到对白底 ≥3:1。
 
@@ -45,6 +40,19 @@ def _ink(color, min_ratio: float = 3.0):
             break
         r, g, b = r * 0.88, g * 0.88, b * 0.88
     return mcolors.to_hex((r, g, b))
+
+
+def _text_color(color: str) -> str:
+    """nature 档强制黑字（语义色留给边框/标记）；cn 档允许彩色文字，
+    但压暗到对白底 ≥3:1。
+
+    压暗放在这里而不是各调用点：此前只在 dot_interval / slope_lines 两处
+    调了，callout / end_label / end_labels 仍吐原色，实测 8 张 gallery 图
+    还有 2.25:1 的直标。着色点每多一个就漏一个，只能下沉到唯一入口。
+    """
+    if current_preset() == "nature":
+        return "black"
+    return _ink(color)
 
 
 def _mark_lw(v: float) -> float:
@@ -354,7 +362,13 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
         raise ValueError(
             f"labels/est/lo/hi 长度必须一致，收到 {len(labels)}/{est.size}/"
             f"{lo.size}/{hi.size}——zip 静默截断会让整行数据无声消失")
-    if sizes is not None and len(np.asarray(sizes)) != est.size:
+    if sizes is not None:
+        _sz0 = np.asarray(sizes, dtype=float).ravel()
+        if not np.all(np.isfinite(_sz0)):
+            raise ValueError(
+                "sizes 含非有限值：min/ptp 会被 NaN 传染，导致**每一行**的"
+                "markersize 都变成 nan、所有点静默不渲染")
+    if sizes is not None and np.asarray(sizes).ravel().size != est.size:
         raise ValueError(
             f"sizes 长度 {len(np.asarray(sizes))} 与 est 长度 {est.size} 不一致"
             f"——太短会 IndexError，太长会静默截断")
@@ -389,21 +403,14 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
         if i % 2 == 0:
             ax.axhspan(i - 0.5, i + 0.5, color=band, zorder=0, linewidth=0)
 
-    _dpi = ax.figure.dpi or 100.0
+    _rows = []          # (行号, 区间线, 标记, ms, 色) —— 轴限定型后回改
     for i in range(len(est)):
         if not fin[i]:
             continue
         c = focus if ok[i] else ctx
-        # 区间比标记还窄时：标记改空心、区间压到标记**之上**。否则那一行
-        # 只剩一个实心圆点，而最窄的往往正是结论所在的高精度档——整张图
-        # 要论证的"下界过线"在图上看不见。
-        _px = abs(ax.transData.transform((hi[i], y[i]))[0]
-                  - ax.transData.transform((lo[i], y[i]))[0])
-        _wpt = _px * 72.0 / _dpi
-        _tight = _wpt < 1.1 * (7.0 if sz is None else 8.0)
-        ax.plot([lo[i], hi[i]], [y[i], y[i]], color=c,
-                linewidth=_mark_lw(3.0 if ok[i] else 2.0),
-                solid_capstyle="butt", zorder=6 if _tight else 2)
+        _seg, = ax.plot([lo[i], hi[i]], [y[i], y[i]], color=c,
+                        linewidth=_mark_lw(3.0 if ok[i] else 2.0),
+                        solid_capstyle="butt", zorder=2)
         for x in (lo[i], hi[i]):        # 端帽：短区间没帽子会退化成点
             ax.plot([x, x], [y[i] - _cap, y[i] + _cap], color=c,
                     linewidth=_mark_lw(1.6 if ok[i] else 1.2), zorder=2)
@@ -413,13 +420,16 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
         if sz is None:
             ms = 6.5
         else:
-            _t = (sz[i] - sz.min()) / (np.ptp(sz) + 1e-12)
-            ms = float(np.sqrt(4.5 ** 2 + (8.0 ** 2 - 4.5 ** 2) * _t))
-        ax.plot(est[i], y[i], "o", markersize=ms,
-                color="white" if (_tight or not ok[i]) else c,
-                markeredgecolor=c,
-                markeredgewidth=1.3, zorder=4,
-                clip_on=False)          # 估计值贴轴边界时别被切成半圆
+            if np.ptp(sz) == 0:
+                ms = 6.5            # 全等 = 没有第二个量可编码，回中性尺寸
+            else:
+                _t = (sz[i] - sz.min()) / np.ptp(sz)
+                ms = float(np.sqrt(4.5 ** 2 + (8.0 ** 2 - 4.5 ** 2) * _t))
+        _pt, = ax.plot(est[i], y[i], "o", markersize=ms,
+                       color=c if ok[i] else "white", markeredgecolor=c,
+                       markeredgewidth=1.3, zorder=4,
+                       clip_on=False)   # 估计值贴轴边界时别被切成半圆
+        _rows.append((i, _seg, _pt, ms, c))
 
     if threshold is not None:
         hl = semantic("highlight")
@@ -448,27 +458,51 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
 
+    # 全列统一小数位：`:.3g` 会让同一列出现 0.994 与 0.0698，位数参差、
+    # 无法按小数点对齐。位数按**最大值**需要的有效位定——按最小值定会让
+    # 一个 1e-4 的下界把整列拖成 6 位。
+    _fv = np.abs(np.concatenate([est[fin], lo[fin], hi[fin]]))         if fin.any() else np.array([1.0])
+    _pos = _fv[_fv > 0]
+    _mag = _pos.max() if _pos.size else 1.0
+    _dec = int(np.clip(3 - np.floor(np.log10(_mag)) - 1, 0, 6))
+
+    # 区间比标记还窄时：标记转空心、区间压到标记**之上**，否则那一行只剩
+    # 一个实心圆点，而最窄的往往正是结论所在的高精度档——整张图要论证的
+    # "下界过线"在图上看不见。
+    # 这一步**必须在轴限定型之后**：绘制过程中 viewLim 还停在默认 (0,1)，
+    # 拿它换算出的像素宽度与真实渲染无关，实测两个方向都判反（0.45pt 的
+    # 极窄区间给了实心点、38.8pt 的极宽区间反倒全转空心）。
+    try:
+        ax.autoscale_view()
+        _dpi = ax.figure.dpi or 100.0
+        for i, _seg, _pt, _ms, _c in _rows:
+            _px = abs(ax.transData.transform((hi[i], y[i]))[0]
+                      - ax.transData.transform((lo[i], y[i]))[0])
+            if _px * 72.0 / _dpi < 1.1 * _ms:
+                _pt.set_markerfacecolor("white")
+                _seg.set_zorder(6)
+    except Exception as e:
+        print(f"[annotate note] 窄区间判定未执行：{e}")
+
     if value_col == "inside":
         # 多面板里轴外没有空间：标签跟着区间端点走，贴右边界时翻到左侧
         # ——"标签放空白处"（ref/orderedbar__23）
         x0, x1 = ax.get_xlim()
         for i in range(len(est)):
+            if not fin[i]:
+                continue
             flip = hi[i] > x0 + 0.72 * (x1 - x0)
-            ax.annotate(f"{est[i]:.3g}",
+            ax.annotate(f"{est[i]:.{_dec}f}",
                         xy=(lo[i] if flip else hi[i], y[i]),
                         xytext=(-6 if flip else 6, 0),
                         textcoords="offset points",
                         va="center", ha="right" if flip else "left",
-                        fontsize=size, color=_text_color(_ink(focus) if ok[i] else "0.35"),
+                        fontsize=size, color=_text_color(focus if ok[i] else "0.35"),
                         fontweight="bold" if ok[i] else "normal")
         ax.set_xlim(x0, x1)
     elif value_col:
         xr = ax.get_xlim()
-        # 全列统一小数位：`:.3g` 会让同一列出现 0.994 与 0.0698，
-        # 位数参差且无法按小数点对齐。
-        _fv = np.abs(np.concatenate([est[fin], lo[fin], hi[fin]]))             if fin.any() else np.array([1.0])
-        _mag = _fv[_fv > 0].min() if np.any(_fv > 0) else 1.0
-        _dec = int(np.clip(3 - np.floor(np.log10(_mag)) - 1, 0, 6))
+
         for i in range(len(est)):
             if not fin[i]:
                 ax.annotate("—（无有效数据）",
@@ -481,7 +515,7 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                         f"[{lo[i]:.{_dec}f}, {hi[i]:.{_dec}f}]",
                         xy=(1.06, y[i]), xycoords=("axes fraction", "data"),
                         va="center", ha="left", fontsize=size,
-                        color=_text_color(_ink(focus) if ok[i] else "0.35"),
+                        color=_text_color(focus if ok[i] else "0.35"),
                         fontweight="bold" if ok[i] else "normal",
                         annotation_clip=False)
         ax.annotate("估计 [95% 区间]", xy=(1.06, len(est) - 0.32),
@@ -507,7 +541,12 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                 for _o in _fg.get_axes():
                     if _o is ax or _o.get_label() == "<colorbar>":
                         continue
-                    _ob = _o.get_window_extent(_rd)
+                    # 用 tightbbox：邻居的 y 刻度标签与 ylabel 在坐标区
+                    # **左侧之外**，只避开坐标区仍会压上去（实测 +28~33px）
+                    try:
+                        _ob = _o.get_tightbbox(_rd)
+                    except Exception:
+                        _ob = _o.get_window_extent(_rd)
                     if _ob.x0 >= _me.x1 and _ob.y1 > _me.y0                             and _ob.y0 < _me.y1:
                         _limit = min(_limit, _ob.x0)
                 _over = _need - _limit
@@ -653,7 +692,7 @@ def slope_lines(ax, labels, before, after, cond_names=("前", "后"), unit="",
                         xytext=(-6 if side == 0 else 6, 0),
                         textcoords="offset points",
                         ha="right" if side == 0 else "left", va="center",
-                        fontsize=fs, color=_text_color(_ink(c)), fontweight=w,
+                        fontsize=fs, color=_text_color(c), fontweight=w,
                         annotation_clip=False)
             if abs(py - yv) > gap * 0.35:   # 挪动明显时补一条细引线
                 ax.annotate("", xy=(side, yv), xytext=(side, py),
