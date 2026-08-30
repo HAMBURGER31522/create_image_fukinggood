@@ -1,18 +1,26 @@
 {
-  "round": 14,
-  "head": "b438806",
+  "round": 15,
+  "head": "edc20b9",
   "target": "F:/mathematical modeling/skills/figure-forge",
   "gate": "交付给用户的东西（产物 + 公开 API + 文档）有没有会让用户拿到错误结果、或在正确用法上被无理由硬拒的缺陷。不看内部整洁度。",
-  "verdict_last": "未达标",
-  "changed": "core/style.py（apply_style 认 FF_PRESET、ptx lw 在 cn 恒等）、recipes/*（回到 apply_style()、grid 按档、光晕改 kind=pt）、AUDIT-RUNBOOK.md + audit.py + audit.state.json",
+  "verdict_last": "未达标（两方评审：ref_line 静默画错方向 + 墨迹检查不分档且无豁免 + 三处彩色文字）",
+  "changed": "core/annotate.py（ref_line orientation 校验）、core/qa.py（墨迹阈值按档 + sparse_panel 豁免码）、recipes/{phase_transition,route_map,comparison_rank}.py（text_color）",
   "fixed_last_round": [
-    "N-1 照 SKILL.md 复制模板会 NameError：档位选择移进 apply_style（读 FF_PRESET），recipe 回到 apply_style()",
-    "N-3 contour_field 的 ax.grid(False, **线属性) 反向打开网格（matplotlib 当场警告过）",
-    "N-4 ptx(v,'lw') 把 cn 默认线宽当上限；comparison_rank 三元尾巴致 nature 层次反转；4 处文字光晕改走 kind='pt'"
+    "ref_line 的 orientation 加校验——此前任何非 'h' 的值静默画成竖线，阈值点错轴而 QA 全部 30 条检查无一命中（全库唯一会产出几何错误却照常交付的缺陷，Sonnet 独有发现）",
+    "墨迹密度两条硬检查改为按档取阈值（nature 面板 3.0% / 图级 9%）并加 sparse_panel 豁免码——此前不分档且直接 problems.append，没有 allow 出口",
+    "三处裸 annotate(color=…) 改走 text_color()：phase_transition / route_map / comparison_rank"
   ],
   "pending": [
-    "N-2 SKILL.md/api.md 未记 ptx / text_color / FF_PRESET；§5 教的 ink() 在 nature 档会硬拒",
-    "N-5 run_qa 放行图题渲染成 nan / 数组 repr；NaN 坐标的 callout 静默消失而 QA 说 PASS",
-    "nature 档 5/25 仍失败：algo_convergence comparison_rank fit_residual phase_transition route_map"
-  ]
+    "N-5 run_qa 放行图题渲染成 nan / 数组 repr；NaN 坐标的 callout 静默消失而 QA 说 PASS（Opus 第 14 轮报，尚未处理）",
+    "api.md 漂移：callout rad 文档 0.25 实际 0.12；ink min_ratio 文档 3.0 实际 3.3",
+    "SKILL.md / api.md 未记 ptx / text_color / FF_PRESET；SKILL.md §5 教的 ink() 在 nature 档会硬拒（应教 text_color）",
+    "nature 24/25：comparison_rank 的 18cm² 面板 2.5% 墨迹——真实构图问题，判断要不要并 panel 或显式豁免"
+  ],
+  "what": "figure-forge：给数学建模论文生成期刊级图表的 Python skill。core/ 五模块（style 样式档 cn|nature / colors / layout / annotate / qa 出图前自动检查，不过就抛错 / _probe 占用与像素探测）；recipes/ 每图种一个模板；tests/ pytest；文档 SKILL.md（agent 入口）+ SPEC.md（设计合同）+ reference/",
+  "baseline": {
+    "pytest": "144 passed",
+    "run_all_cn": "25/25 ALL PASS",
+    "run_all_nature": "24/25"
+  },
+  "history": "已跑 14 轮。历轮最有效的方向是「用户视角实跑」（只读 SKILL.md 照骨架写图，撞出过两处十轮没人碰到的硬拒）和「交叉验证」（两个不同模型并行，Sonnet 找到了两轮 Opus 都没碰到的 ref_line 静默画错方向）。反复出现的失败模式：判据去解析渲染结果、豁免 fail-open、测试恰好绕开失效区、commit 里把部分完成写成完成。"
 }
