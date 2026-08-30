@@ -727,10 +727,16 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 if art.get_text().strip():
                     bare_texts.append((f"{nm}「{art.get_text()[:14]}」",
                                        art.get_window_extent(rd), ax, art))
-            for tk in ax.get_xticklabels() + ax.get_yticklabels():
-                if tk.get_text().strip():
-                    bare_texts.append((f"刻度「{tk.get_text()[:8]}」",
-                                       tk.get_window_extent(rd), ax, tk))
+            # 名字带方向：跨轴检查要判"沿**自己那根轴**的方向有没有越出
+            # 视窗"——色标刻度横向落在自己窄轴之外是正常的，而视窗外刻度
+            # 是沿轴向越界。不分方向就没法区分这两件事。
+            for _ax_dir, _tks in (("x", ax.get_xticklabels()),
+                                  ("y", ax.get_yticklabels())):
+                for tk in _tks:
+                    if tk.get_text().strip():
+                        bare_texts.append(
+                            (f"刻度{_ax_dir}「{tk.get_text()[:8]}」",
+                             tk.get_window_extent(rd), ax, tk))
         for t in fig.texts:
             bp = t.get_bbox_patch()
             if bp is not None:
@@ -827,6 +833,52 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 if _fr2 > 0.15:
                     _hit(f"直标互相重叠 {_fr2:.0%}（{_ni} / {_nj}）——"
                          f"错开位置或缩短其一")
+
+        # 5b4. **跨轴**的刻度与排版文字互压。5b3 把刻度整类排除（同轴内
+        #      刻度密集由 6b 专管），于是"色标刻度压住邻格 ylabel"这类
+        #      跨轴重叠无人覆盖——实测 share_colorbar 挂在双面板左格时，
+        #      色标刻度与右格 ylabel 重叠 21%、间距 2px，目视糊成一团而
+        #      QA 全绿。只比**不同轴**的两个文字，同轴的交给 6b。
+        def _in_own_view(item):
+            """刻度落在自己坐标区的视窗内才算数。
+
+            matplotlib 保留视窗外刻度的 artist，渲染时裁掉、肉眼不可见，
+            但 window extent 仍报位置——而那位置常落在邻格上，会造出
+            "重叠 100%" 的幽灵告警。
+            """
+            nm, bb2, ax2, _art = item
+            if ax2 is None or not nm.startswith("刻度"):
+                return True
+            ab = ax2.get_window_extent()
+            if nm.startswith("刻度x"):
+                c = (bb2.x0 + bb2.x1) / 2
+                lo, hi, pad = ab.x0, ab.x1, 0.02 * ab.width + 2
+            else:
+                c = (bb2.y0 + bb2.y1) / 2
+                lo, hi, pad = ab.y0, ab.y1, 0.02 * ab.height + 2
+            return lo - pad <= c <= hi + pad
+
+        _cross = [t for t in bare_texts
+                  if t[2] is not None and _in_own_view(t)]
+        for _i in range(len(_cross)):
+            for _j in range(_i + 1, len(_cross)):
+                _ni, _bi3, _axi, _ai3 = _cross[_i]
+                _nj, _bj3, _axj, _aj3 = _cross[_j]
+                if _axi is _axj or _ai3 is _aj3:
+                    continue                  # 同轴内交给 6b
+                if min(_bi3.width * _bi3.height,
+                       _bj3.width * _bj3.height) <= 0:
+                    continue
+                _it3 = Bbox.intersection(_bi3, _bj3)
+                if _it3 is None:
+                    continue
+                _fr3 = (_it3.width * _it3.height) / max(
+                    1e-9, min(_bi3.width * _bi3.height,
+                              _bj3.width * _bj3.height))
+                if _fr3 > 0.15:
+                    _hit(f"跨面板文字重叠 {_fr3:.0%}（{_ni} / {_nj}）——"
+                         f"两个坐标区的文字挤在同一条缝里，加大 wspace、"
+                         f"缩短标签，或把色标换到 loc='bottom'")
 
         # 5c. 压数据：场按面积、曲线按吞没率与绝对点数
         for name, bb, ax, is_leg, art in boxes:

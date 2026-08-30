@@ -17,7 +17,9 @@ from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
 def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
                           xlabel="x", ylabel="y", cost_unit="元",
                           width="onehalf"):
-    inset_rect = (0.56, 0.52, 0.42, 0.4)
+    # 放大窗右移一点：原位置的左上角刚好压在主图"20 元"等值线标签上，
+    # 窗内 y 刻度与那个标签重叠 55%（QA 的跨轴文字重叠检查抓到的）
+    inset_rect = (0.60, 0.52, 0.38, 0.4)
     fig, ax = new_figure(width, ratio=0.78)
     cs = ax.contour(X, Y, cost, levels=10, colors="#5B8DB8", linewidths=0.8)
     # 主图等值线标签手动放置：避开放大窗 footprint 与轴边缘，防止裁切

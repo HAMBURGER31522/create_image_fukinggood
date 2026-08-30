@@ -1478,3 +1478,51 @@ def test_share_colorbar_keeps_the_declared_column_width():
     share_colorbar(fig, im, list(axd.values()), label="相对密度")
     w = delivered_width_in(fig) * 25.4
     assert abs(w - 183) <= 3.0, f"交付宽 {w:.1f}mm 不在 183±3"
+
+
+def test_cross_axes_tick_and_label_overlap_is_flagged():
+    """跨轴的"刻度 vs 排版文字"重叠此前无人覆盖：5b3 排除了刻度、
+    6b 只比同一根轴内的相邻刻度。
+
+    实测：`share_colorbar` 挂在双面板的左格上时，色标刻度与右格的
+    ylabel 重叠 21%，两者水平间距 2px，目视糊成一团，而 QA 全绿。
+    """
+    from core import figure, share_colorbar, cmap_for
+    X, Y = np.meshgrid(np.linspace(0, 1, 30), np.linspace(0, 1, 30))
+    fig, ax = figure([[("a", 1), ("b", 1)]], width="double", height=100)
+    im = ax["a"].pcolormesh(X, Y, np.sin(3 * X),
+                            cmap=cmap_for("sequential"), shading="auto")
+    ax["b"].plot([1, 2], [1, 2])
+    ax["b"].set_ylabel("总成本 / 元")
+    share_colorbar(fig, im, [ax["a"]], label="相对密度")
+    assert hit(fig, "重叠")
+
+
+def test_ticks_of_the_same_axis_do_not_trigger_the_cross_axes_check():
+    """同一根轴内的刻度密集不该由这条检查报（6b 专管，且判据不同）。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot(np.linspace(0, 1, 50), np.linspace(0, 1, 50))
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    assert not hit(fig, "跨面板文字重叠")
+
+
+def test_clipped_out_of_view_ticks_do_not_trigger_the_cross_axes_check():
+    """matplotlib 保留**视窗外**刻度的 artist：它们渲染时被裁掉、肉眼
+    不可见，但 `get_window_extent()` 仍报位置，而那位置常落在邻格上。
+
+    实测 facet_metrics 的 log 面板：首个刻度报在 x=330，而它自己的轴是
+    441–667，于是与左邻格的刻度"重叠 100%"。判据必须排掉这些。
+    """
+    import sys as _sys
+    import pathlib as _pl
+    _rp = str(_pl.Path(__file__).resolve().parents[1] / "recipes")
+    if _rp not in _sys.path:
+        _sys.path.append(_rp)
+    from comparison_rank import facet_metrics
+    fig, axes = facet_metrics(
+        ["A", "B", "C", "D", "E"],
+        [("总成本（元）", [9.13, 9.6, 10.2, 11.0, 12.4], "linear"),
+         ("失效率", [0.002, 0.02, 0.2, 2.0, 20.0], "log"),
+         ("满意度", [4.6, 4.2, 3.9, 3.1, 2.8], "linear")])
+    assert not hit(fig, "跨面板文字重叠")
