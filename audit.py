@@ -33,6 +33,52 @@ ROOT = _target()
 STATE = ROOT / "audit.state.json"
 ENV = dict(os.environ, PYTHONIOENCODING="utf-8")
 
+JUDGMENTS = """
+── 每轮都要守的四条 ──────────────────────────────────────────
+① 逐条验证，不要照收。先跑评审给的复现方式；复现不出来的标"未证实"，不动。
+   它给的**修法**同样要审——问题为真、解法为假的情况反复出现。
+② 先红后绿。先写测试并确认 FAILED，再改实现。每条检查配两侧用例：
+   该触发 + 不该触发。
+③ 变异测试是硬门槛。`python audit.py mutate <改动文件>` 退回后必须变红，
+   **且红的是该红的那条**。仍全绿 = 这处修复没有测试守着，补测试再继续。
+④ 停止由评审说了算，主窗口不自己判。评审说"无发现"但你知道还有没修完的项，
+   或报回来的全是打磨项 → 方向选错，换方向重派而不是收工。
+
+提交前：commit 正文里每句"已修复"都要有一条刚跑过的命令支撑。
+        这一环栽过三次，每次都发生在"总结战果"的时候。
+
+下一步  python audit.py prompt   拿评审提示，派新 agent（别 fork，每轮换 model）
+        python audit.py traps    开工前过一遍「已知会踩的坑」
+"""
+
+TRAPS = """
+── 已知会踩的坑（照着查，不要重新发现）──────────────────────
+批处理脚本中途失败、前面改动全丢
+    逐条 replace → 立刻语法校验 → 立刻写盘；改完 grep -c '<旧词>' 应为 0
+判据解析"渲染结果"（刻度文本、包围盒）
+    改成问对象自己是什么（get_xscale() / isinstance / 属性），或实测像素
+豁免 fail-open
+    任何"满足条件就跳过"的分支，问：取不到值时会怎样？应 fail-closed
+检查被 except 静默吞掉
+    audit.py check 已自动检测「未执行/未完成」
+死参数（文档登记、函数体不读）
+    grep 参数名，只出现在签名/docstring/文档三处就是死的
+测试恰好绕开失效区
+    用**偏离**现有用例的输入复验：不同量级、类型、布局
+库函数当场警告但没人看
+    跑全量时留意 UserWarning——grid(False, **props) 那次就是这么漏的
+文档说 A、库要 B
+    照文档主路径**真的走一遍**（复制模板、删掉文档让删的行、跑起来）
+公开 API 的字符串参数无校验
+    传一个语义合理但非法的值（orientation="horizontal"），看是静默走错分支还是报错
+并行派两个评审
+    各给一个 git worktree，否则会撞上对方的中间状态
+
+换到别的项目：改 audit.state.json 的 target / gate，改 cmd_check() 的命令表。
+    gate 必须写成一句话（评审据此判达标）；交付物不是图像时，
+    "目测产物"换成人工走一遍真实使用路径——这一环不能省。
+"""
+
 DIRECTIONS = [
     "正确性 bug",
     "测试质量：断言有没有判别力（把修复退回，测试是否真的变红）",
@@ -68,6 +114,10 @@ def _dirty():
     return bool(_run("git status --porcelain").stdout.strip())
 
 
+def cmd_traps():
+    print(TRAPS)
+
+
 def cmd_status():
     d = _load()
     if d.get("what"):
@@ -92,6 +142,7 @@ def cmd_status():
         for x in d["pending"]:
             print("  -", x)
     print(f"\n本轮方向  {DIRECTIONS[d['round'] % len(DIRECTIONS)]}")
+    print(JUDGMENTS)
 
 
 def cmd_prompt():
@@ -207,7 +258,7 @@ def cmd_bump():
 if __name__ == "__main__":
     a = sys.argv[1:] or ["status"]
     fn = {"status": cmd_status, "prompt": cmd_prompt, "check": cmd_check,
-          "bump": cmd_bump}.get(a[0])
+          "bump": cmd_bump, "traps": cmd_traps}.get(a[0])
     if a[0] == "mutate":
         cmd_mutate(a[1])
     elif fn:
