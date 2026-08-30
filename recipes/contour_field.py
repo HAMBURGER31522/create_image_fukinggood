@@ -1,7 +1,9 @@
 """二维场图：圆形掩膜发散场（笛卡尔）与极坐标顺序场。
 
 论点合同示例（掩膜场）：
-- 结论：伸缩量场呈环状分层，最大伸/缩出现在半径 0.62R 环带，均在容差内。
+- 结论：伸缩量场呈环状分层，最大伸/缩出现在某一环带，均在容差内。
+  （具体半径由数据算出、经 f-string 进图题——写死在这里必然与图漂移，
+   这正是 SPEC §2.1 要防的"手写常数"，只不过 docstring 逃过了 QA）
 - 证据链：PuOr 对零发散色 → 等高线分层 → 极值三角+引线 → RMS 统计框。
 参考：skills/photo 图 8 / 图 15（口径场图）。
 """
@@ -65,6 +67,7 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
     pm = ax.pcolormesh(theta, r, Z, cmap=cmap_for("sequential"),
                        shading="auto", rasterized=True)
     ax.set_theta_zero_location("N")
+    ax.set_theta_direction(-1)      # 罗盘方位顺时针增长，否则 90° 指向西
     # 径向刻度与网格必须显式抬到场图之上。根因是本库样式的
     # `axes.axisbelow=True`（core/style.py）把极轴 zorder 压到 0.5，被
     # zorder=1 的 pcolormesh 整块盖住——**裸 matplotlib 下同样的代码是

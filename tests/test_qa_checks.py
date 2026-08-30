@@ -1328,54 +1328,76 @@ def test_soft_halo_still_grants_exemption():
     assert not hit(fig, "对比度")
 
 
-def test_polar_field_renders_radial_ticks_and_grid():
-    """直接测 `polar_field` 本身，不另起炉灶。
+def _perceptible_diff(a, b, thresh=8):
+    """可感知像素数。
 
-    上一版测试在函数体内重搭了一个 mini 极坐标图、从不 import recipe，
-    于是把 recipe 退回缺陷版后整套测试仍然全绿——它钉住的是"mpl 的
-    ax.text 会渲染"，不是 recipe 的行为。
-
-    根因是本库样式的 `axes.axisbelow=True` 把极轴 zorder 压到 0.5，被
-    zorder=1 的场图整块盖住（裸 mpl 下同样代码渲染 4539px）。所以径向
-    刻度**与网格圆环**一起消失——只补文字标注治不了后者。
+    反锯齿毛边会让"任意通道有差异"的计数虚高：实测场图 quad 接缝能贡献
+    989 px，而中位通道差只有 2/255、Δ>8 的像素数为 0。用它当断言等于
+    没有断言——第 9 轮那条"网格未渲染"的断言就是这样在网格确实空转时
+    照样通过的。
     """
+    import numpy as _np
+    d = _np.abs(a[..., :3].astype(int) - b[..., :3].astype(int)).max(axis=2)
+    return int((d > thresh).sum())
+
+
+def _polar_demo():
     import sys as _sys
     import pathlib as _pl
-    _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]
-                            / "recipes"))
-    from contour_field import polar_field
+    _rp = str(_pl.Path(__file__).resolve().parents[1] / "recipes")
+    if _rp not in _sys.path:
+        _sys.path.append(_rp)      # append 而非 insert：recipes/ 下有
+    from contour_field import polar_field   # composition/parity 等通用名
     th = np.linspace(0, 2 * np.pi, 60)
     rr = np.linspace(0, 1, 30)
     T, R = np.meshgrid(th, rr)
+    return polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
 
-    fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
+
+def _buf(fig):
     fig.canvas.draw()
-    base = np.asarray(fig.canvas.buffer_rgba()).copy()
-    ax.set_yticks([])
-    for t in list(ax.texts):
-        t.set_visible(False)
-    fig.canvas.draw()
-    assert int((base != np.asarray(fig.canvas.buffer_rgba())
-                ).any(axis=2).sum()) > 100, "径向刻度未渲染"
+    return np.asarray(fig.canvas.buffer_rgba()).copy()
+
+
+def test_polar_field_renders_radial_tick_labels():
+    """只隔离**径向刻度标签**本身。
+
+    第 9 轮那版把 `set_yticks([])` 与藏 `ax.texts` 混在一起，于是在缺陷版
+    上量到的 1141px 全部来自手写 `ax.text`、刻度贡献 0——测试绿着，缺陷
+    还在。根因是本库样式的 `axes.axisbelow=True` 把极轴 zorder 压到 0.5，
+    被 zorder=1 的场图整块盖住。
+    """
+    fig, ax = _polar_demo()
+    base = _buf(fig)
+    for lbl in ax.get_yticklabels():
+        lbl.set_visible(False)
+    assert _perceptible_diff(base, _buf(fig)) > 100, "径向刻度标签未渲染"
     plt.close(fig)
 
-    fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
-    fig.canvas.draw()
-    b2 = np.asarray(fig.canvas.buffer_rgba()).copy()
-    ax.grid(False)
-    fig.canvas.draw()
-    assert int((b2 != np.asarray(fig.canvas.buffer_rgba())
-                ).any(axis=2).sum()) > 100, "极坐标网格未渲染（ax.grid 空转）"
+
+def test_polar_field_renders_radial_grid_rings():
+    """只隔离**径向网格圆环**，且用可感知门槛。
+
+    第 9 轮那条用 `ax.grid(False)` + "任意通道有差异"计数，在网格确实
+    空转的两个变体上都得 989px 而通过——失败信息写着"ax.grid 空转"，
+    却永远不会因为这个原因触发。
+    """
+    fig, ax = _polar_demo()
+    base = _buf(fig)
+    ax.yaxis.grid(False)
+    assert _perceptible_diff(base, _buf(fig)) > 100, "径向网格圆环未渲染"
     plt.close(fig)
 
 
 def test_polar_field_labels_track_a_non_zero_inner_radius():
-    """`polar_field` 是公开 API。`linspace(0, rmax, 6)` 无视 rmin：
-    r∈[100,101] 时四个标签全部落在 20–81，读者会把半径读错两个数量级。"""
+    """`polar_field` 是公开 API。手写 `linspace(0, rmax, 6)` 无视 rmin：
+    r∈[100,101] 时四个标签落在 20–81（低于 rmin、在轴外），读者会把半径
+    读错两个数量级。"""
     import sys as _sys
     import pathlib as _pl
-    _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]
-                            / "recipes"))
+    _rp = str(_pl.Path(__file__).resolve().parents[1] / "recipes")
+    if _rp not in _sys.path:
+        _sys.path.append(_rp)
     from contour_field import polar_field
     th = np.linspace(0, 2 * np.pi, 40)
     rr = np.linspace(100, 101, 20)
@@ -1391,3 +1413,20 @@ def test_polar_field_labels_track_a_non_zero_inner_radius():
             pass
     assert [v for v in vals if lo <= v <= hi],         f"没有径向标注落在轴内 {lo:.4g}–{hi:.4g}：{vals}"
     plt.close(fig)
+
+
+def test_opaque_halo_with_translucent_foreground_is_exempt():
+    """mpl 的 alpha 语义是**覆盖**不是相乘：`set_alpha` 会置 `_forced_alpha`
+    并重刷 `_rgb`，所以 `foreground=(1,1,1,0.06) + alpha=1.0` 画出的是
+    **纯白**光晕（像素实测 1920 个白点）。写成相乘会把它当成 6% 而误报。
+
+    这是第 9 轮 commit 自己点名、却没写进测试的那个判别用例。
+    """
+    import matplotlib.patheffects as _pe
+    fig, ax = new_figure("onehalf")
+    ax.imshow(np.zeros((6, 6)), cmap="gray", vmin=0, vmax=1)
+    t = ax.text(2.5, 2.5, "压在黑场上", color="black", fontsize=8, ha="center")
+    t.set_path_effects([_pe.withStroke(linewidth=3,
+                                       foreground=(1, 1, 1, 0.06),
+                                       alpha=1.0)])
+    assert not hit(fig, "对比度")
