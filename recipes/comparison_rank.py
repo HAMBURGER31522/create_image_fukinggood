@@ -11,11 +11,11 @@
 - 结论：方案 C 的综合得分领先第二名 18%。
 - 证据链：按值排序 → 条端直标 → 领先差距引线。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 
-from core import (ink, apply_style, new_figure, save_figure, run_qa,
+from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, panel_label, smart_legend,
                   slope_lines, PALETTE, semantic)
 
@@ -39,18 +39,18 @@ def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
     y = np.arange(len(values))
     for i, (yi, v) in enumerate(zip(y, values)):
         c = semantic("highlight") if i == hi else PALETTE[0]
-        ax.hlines(yi, 0, v, color=c, linewidth=1.6 if i == hi else 1.1,
+        ax.hlines(yi, 0, v, color=c, linewidth=ptx(1.6, "lw") if i == hi else 1.1,
                   alpha=1.0 if i == hi else 0.75)
         ax.plot([v], [yi], "o", color=c, markersize=5.5,
-                markeredgecolor="white", markeredgewidth=0.8)
+                markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
         ax.annotate(f"{v:g}{unit}", xy=(v, yi), xytext=(5, 0),
-                    textcoords="offset points", va="center", fontsize=7.5,
-                    fontweight="bold" if i == hi else "normal", color=ink(c))
+                    textcoords="offset points", va="center", fontsize=ptx(7.5),
+                    fontweight="bold" if i == hi else "normal", color=text_color(c))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
     ax.margins(x=0.15)
-    ax.set_title(title, fontsize=9.5)
+    ax.set_title(title, fontsize=ptx(9.5))
     return fig, ax
 
 
@@ -64,17 +64,17 @@ def dumbbell(labels, before, after, cond_names=("前", "后"), unit="",
     y = np.arange(len(labels))
     c0, c1 = PALETTE[0], semantic("fit")
     for yi, b, a in zip(y, before, after):
-        ax.plot([b, a], [yi, yi], color="0.78", linewidth=1.3, zorder=2)
+        ax.plot([b, a], [yi, yi], color="0.78", linewidth=ptx(1.3, "lw"), zorder=2)
         ax.plot([b], [yi], "o", color=c0, markersize=5.5, zorder=3,
-                markeredgecolor="white", markeredgewidth=0.8)
+                markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
         ax.plot([a], [yi], "o", color=c1, markersize=5.5, zorder=3,
-                markeredgecolor="white", markeredgewidth=0.8)
+                markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
         d = a - b
         good = (d >= 0) == higher_is_better
         ax.annotate(f"{'+' if d >= 0 else ''}{d:g}{unit}",
                     xy=(max(a, b), yi), xytext=(6, 0),
-                    textcoords="offset points", va="center", fontsize=7,
-                    color=ink(semantic("good") if good
+                    textcoords="offset points", va="center", fontsize=ptx(7),
+                    color=text_color(semantic("good") if good
                               else semantic("bad")))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
@@ -117,11 +117,11 @@ def butterfly(labels, left, right, left_name, right_name, unit=""):
     for yi, lv, rv in zip(y, left, right):
         ax.annotate(f"{lv:g}", xy=(-lv, yi), xytext=(-4, 0),
                     textcoords="offset points", ha="right", va="center",
-                    fontsize=7, color=ink(cl))
+                    fontsize=ptx(7), color=text_color(cl))
         ax.annotate(f"{rv:g}", xy=(rv, yi), xytext=(4, 0),
                     textcoords="offset points", ha="left", va="center",
-                    fontsize=7, color=ink(cr))
-    ax.axvline(0, color="0.2", linewidth=0.8)
+                    fontsize=ptx(7), color=text_color(cr))
+    ax.axvline(0, color="0.2", linewidth=ptx(0.8, "lw"))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
@@ -154,16 +154,16 @@ def facet_metrics(cat_labels, metrics, width="double"):
         if scale == "log":
             ax.set_xscale("log")
             title = f"{title}（log 轴）"
-        ax.plot(vals, y, color="0.78", linewidth=1.3, zorder=2)
+        ax.plot(vals, y, color="0.78", linewidth=ptx(1.3, "lw"), zorder=2)
         for v, yi, c in zip(vals, y, PALETTE):
             ax.plot([v], [yi], "o", color=c, markersize=6.5, zorder=3,
-                    markeredgecolor="white", markeredgewidth=1.0)
+                    markeredgecolor="white", markeredgewidth=ptx(1.0, "lw"))
             ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, 8),
                         textcoords="offset points", ha="center",
-                        fontsize=7.5, fontweight="bold", color=ink(c))
+                        fontsize=ptx(7.5), fontweight="bold", color=text_color(c))
         ax.set_yticks(y)
         ax.set_yticklabels(cat_labels if k == 0 else [""] * len(cat_labels))
-        ax.set_title(title, fontsize=8.5)
+        ax.set_title(title, fontsize=ptx(8.5))
         ax.grid(axis="y", visible=False)
         ax.margins(x=0.22, y=0.3)
         # 标签统一贴各自面板左缘：首格的 y 刻度标签占位更宽，按实测
@@ -177,7 +177,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(0)
 
     vals = [72.1, 65.8, 88.4, 59.2, 74.9]
@@ -201,10 +201,10 @@ if __name__ == "__main__":
         cond_names=("优化前", "优化后"), unit=" h",
         xlabel="平均耗时（h）", higher_is_better=False)
     ax.set_title(f"优化后 {n_down}/{len(before)} 城市平均耗时下降",
-                 fontsize=9.5)
+                 fontsize=ptx(9.5))
     stat_box(ax, [f"n = {len(before)} 城市",
                   f"平均变化 {d_mean:+.2f} h"], loc="lower left",
-             fontsize=6.5)
+             fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "comparison_dumbbell"))
 
@@ -216,12 +216,12 @@ if __name__ == "__main__":
         highlight=(1, 4),
         verdict="连线颜色 = 变化方向；粗线 = 本文关注的两个方案")
     ax.set_title(f"政策后方案B 反超 A（{s_before[1]:g} → {s_after[1]:g} 分），"
-                 f"方案E 下滑最多", fontsize=9)
+                 f"方案E 下滑最多", fontsize=ptx(9))
     # 计数直接用 slope_lines 的返回值：另起一套 comprehension 重算会
     # 产生第二个真值源，两边迟早漂移。
     stat_box(ax, [f"n = {len(s_before)} 方案",
                   f"上升 {cnt['up']} 个 / 下降 {cnt['down']} 个"],
-             loc="lower left", fontsize=6.5)
+             loc="lower left", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "comparison_slopegraph"))
 
@@ -240,11 +240,11 @@ if __name__ == "__main__":
         highlight=watch, mode="cohort", ratio=0.95,
         verdict="灰线为全体站点，彩色为增幅极值两站")
     ax.set_title(f"改造后 {cu}/{n_c} 站点通行效率上升，"
-                 f"最大增幅 {np.max(c_after - c_before):.1f}", fontsize=9)
+                 f"最大增幅 {np.max(c_after - c_before):.1f}", fontsize=ptx(9))
     stat_box(ax, [f"n = {n_c} 站点",
                   f"均值 {c_before.mean():.1f} → {c_after.mean():.1f}",
                   f"改善 {cu} / 恶化 {n_c - cu}"],
-             loc="lower left", fontsize=6.5)
+             loc="lower left", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "comparison_slope_cohort"))
 
@@ -258,14 +258,14 @@ if __name__ == "__main__":
         left_name="行程越界节点数", right_name="间距越界主索数",
         unit="数量（根）")
     ax.set_title(f"间距越界随 D0 增大总体下降，"
-                 f"行程越界仅见于 D0 ≤ {d0_last:.2f} m", fontsize=9.5)
+                 f"行程越界仅见于 D0 ≤ {d0_last:.2f} m", fontsize=ptx(9.5))
     ax.annotate(f"D0 ≥ {d0s[np.searchsorted(d0s, d0_last) + 1]:.2f} m "
                 "后行程越界均为 0", xy=(0.98, 0.68),
-                xycoords="axes fraction", ha="right", fontsize=7,
+                xycoords="axes fraction", ha="right", fontsize=ptx(7),
                 color="#4C9A82", style="italic")
     stat_box(ax, [f"D0 扫描 {len(d0s)} 档（步长 {d0s[1]-d0s[0]:.2f} m）",
                   f"行程越界合计 {sum(left_cnt)} 节点"],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "comparison_butterfly"))
 
@@ -287,10 +287,10 @@ if __name__ == "__main__":
     # 改写它没说的：量纲不可通约、三个面板各自独立轴。
     stat_box(axes[0], [f"{len(t_solve)} 个算法 × 3 项不可通约指标",
                        "每面板独立轴与单位，不共用 y"],
-             loc="center left", fontsize=6.5)
+             loc="center left", fontsize=ptx(6.5))
     fig.suptitle(f"贪心以 {gaps[ig]:g}% gap 换 {t_solve[0]/t_solve[ig]:.0f}× 提速"
                  f"与 {mem[0]/mem[ig]:.0f}× 省存：大规模场景可用",
-                 fontsize=10, fontweight="bold")
+                 fontsize=ptx(10), fontweight="bold")
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "comparison_facet_metrics"))
     print("comparison_rank: 5 figures OK")

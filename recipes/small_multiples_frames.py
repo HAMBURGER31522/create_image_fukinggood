@@ -8,12 +8,12 @@
 参考：skills/photo 图 19/20（求解过程四帧快照）。
 替代：多张独立图、色标漂移（平庸，无法比演化）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 
-from core import (apply_style, save_figure, run_qa, small_multiples,
+from core import (ptx, apply_style, save_figure, run_qa, small_multiples,
                   cmap_for)
 
 
@@ -31,28 +31,28 @@ def frame_snapshots(frames, titles, stats, xy=None, R=None,
         if R is not None:
             th = np.linspace(0, 2 * np.pi, 100)
             ax.plot(R * np.cos(th), R * np.sin(th), color="0.3",
-                    linewidth=0.7, linestyle="--")
-        ax.set_title(t, fontsize=7.5)
+                    linewidth=ptx(0.7, "lw"), linestyle="--")
+        ax.set_title(t, fontsize=ptx(7.5))
         ax.set_aspect("equal")
         ax.set_xticks([])
         ax.set_yticks([])
         ax.grid(False)
         # 无刻度就别留 L 形残脊线，虚线口径圆即面板边界
         ax.set_frame_on(False)
-        ax.text(0.03, 0.03, s, transform=ax.transAxes, fontsize=6.5,
+        ax.text(0.03, 0.03, s, transform=ax.transAxes, fontsize=ptx(6.5),
                 va="bottom",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-                          edgecolor="0.75", alpha=0.85, linewidth=0.5))
+                          edgecolor="0.75", alpha=0.85, linewidth=ptx(0.5, "lw")))
     fig.subplots_adjust(right=0.86, hspace=0.18, wspace=0.06)
     cax = fig.add_axes([0.885, 0.15, 0.025, 0.7])
     cb = fig.colorbar(plt.cm.ScalarMappable(norm=norm, cmap=cmap), cax=cax)
-    cb.set_label(zlabel, fontsize=7.5)
-    cb.ax.tick_params(labelsize=6.5)
+    cb.set_label(zlabel, fontsize=ptx(7.5))
+    cb.ax.tick_params(labelsize=ptx(6.5))
     return fig, axes
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(9)
     n = 700
     r = 150 * np.sqrt(rng.uniform(0, 1, n))
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     fig.suptitle(f"迭代 {frame_ids[-1]} 帧收敛："
                  f"RMS {rms_list[0]:.1f} → {rms_list[-1]:.2f} cm，"
                  "环带残差逐帧消退",
-                 fontsize=9.5, fontweight="bold", x=0.45)
+                 fontsize=ptx(9.5), fontweight="bold", x=0.45)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "small_multiples_frames"))
     print("small_multiples_frames: OK")

@@ -5,12 +5,12 @@
 - 证据链：边用 LineCollection 灰色底层 → 贯穿簇亮色高 zorder → 角标给边数/占比。
 对照：A 题「三组介质网络拓扑」（有论点但轴限不一致、缺统计框）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 
-from core import (apply_style, save_figure, run_qa, small_multiples,
+from core import (ptx, apply_style, save_figure, run_qa, small_multiples,
                   semantic)
 
 
@@ -32,7 +32,7 @@ def spatial_networks(nets, titles, xlim, ylim, ncols=3, width="double",
                                   linewidths=0.9, zorder=3)
             ax.add_collection(span)
         ax.plot(nodes[:, 0], nodes[:, 1], "o", color="0.45", markersize=1.2,
-                markeredgewidth=0, zorder=4)
+                markeredgewidth=ptx(0, "lw"), zorder=4)
         # 两侧电极带
         wband = (xlim[1] - xlim[0]) * boundary_frac
         ax.axvspan(xlim[0], xlim[0] + wband, color="#E8D8A0", alpha=0.5,
@@ -45,18 +45,18 @@ def spatial_networks(nets, titles, xlim, ylim, ncols=3, width="double",
         ax.set_xticks([])
         ax.set_yticks([])
         ax.grid(False)
-        ax.set_title(t, fontsize=8)
+        ax.set_title(t, fontsize=ptx(8))
         n_span = int(span_mask.sum())
         # 网络铺满整个面板，轴内没有真空位——角标压在轴内必然遮住贯穿簇
         # 本身（正是这张图要展示的东西），只能移到坐标区下方
         ax.text(0.0, -0.02,
                 f"边数：{len(edges)}　贯穿簇边：{n_span}"
                 f"（{n_span/max(len(edges),1):.0%}）",
-                transform=ax.transAxes, fontsize=6.5, va="top", ha="left",
+                transform=ax.transAxes, fontsize=ptx(6.5), va="top", ha="left",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-                          edgecolor="0.75", alpha=0.85, linewidth=0.5))
+                          edgecolor="0.75", alpha=0.85, linewidth=ptx(0.5, "lw")))
     fig.text(0.5, 0.015, "注：两侧米黄色竖带为电极接触带；橙色边属于贯穿簇",
-             ha="center", fontsize=7, color="0.35")
+             ha="center", fontsize=ptx(7), color="0.35")
     return fig, axes
 
 
@@ -75,7 +75,7 @@ def _demo_net(rng, n, radius, span=False):
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(6)
     nets = [_demo_net(rng, 260, 8.0),
             _demo_net(rng, 420, 8.5, span=True),
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         nets, ["组1（φ = 0.55%）", "组2（φ = 0.83%）", "组3（φ = 0.62%）"],
         xlim=(0, 100), ylim=(0, 100))
     fig.suptitle("仅组2 形成贯穿簇（橙）：三组同轴限下密度差异直接可比",
-                 fontsize=10, fontweight="bold")
+                 fontsize=ptx(10), fontweight="bold")
     fig.subplots_adjust(top=0.82, bottom=0.1)
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "network_percolation"))

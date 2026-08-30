@@ -9,10 +9,10 @@
 
 适用：灰色预测 / ARIMA / LSTM / 指数平滑等一切预测类题目的主图。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, semantic)
 
 
@@ -32,28 +32,28 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
     for level, (lo, hi) in sorted(bands.items(), reverse=True):
         alpha = 0.18 + 0.22 * level
         ax.fill_between(t_fore, lo, hi, color=semantic("band"),
-                        alpha=alpha, lw=0)
+                        alpha=alpha, lw=ptx(0, "lw"))
         end_label(ax, t_fore[-1], hi[-1], f"{level:.0%}", "#6D93B5",
-                  fontsize=6.5, fontweight="normal")
+                  fontsize=ptx(6.5), fontweight="normal")
     ax.plot(t_hist, y_hist, "o-", color=c_data, markersize=3,
-            linewidth=1.1, label="历史观测")
-    ax.plot(t_fore, y_fore, "--", color=c_fit, linewidth=1.5,
+            linewidth=ptx(1.1, "lw"), label="历史观测")
+    ax.plot(t_fore, y_fore, "--", color=c_fit, linewidth=ptx(1.5, "lw"),
             label=model_label)
     if split is not None:
-        ax.axvline(split, color="0.4", linewidth=0.8, linestyle=(0, (4, 3)))
+        ax.axvline(split, color="0.4", linewidth=ptx(0.8, "lw"), linestyle=(0, (4, 3)))
         # 放轴内顶部，避免与图题相压；垫白底避免与虚线相压
         ax.text(split, 0.975, " 预测起点", transform=ax.get_xaxis_transform(),
-                fontsize=6.5, color="0.4", ha="left", va="top",
+                fontsize=ptx(6.5), color="0.4", ha="left", va="top",
                 bbox=dict(facecolor="white", edgecolor="none", alpha=0.8,
                           boxstyle="square,pad=0.1"))
     if y_test is not None:
         ax.plot(t_fore[: len(y_test)], y_test, "o", color="0.25",
                 markersize=3.5, markerfacecolor="white",
-                markeredgewidth=1.0, label="回测观测", zorder=5)
+                markeredgewidth=ptx(1.0, "lw"), label="回测观测", zorder=5)
     end_label(ax, t_fore[-1], y_fore[-1], f" {y_fore[-1]:.3g}", c_fit)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper left", fontsize=6.5)
+    ax.legend(loc="upper left", fontsize=ptx(6.5))
     ax.margins(x=0.02)
 
     # 指标在函数内计算，图题引用 info——保证同源
@@ -74,7 +74,7 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
         lines += [f"留出回测 {k} 期，MAPE = {info['mape']:.1f}%",
                   f"回测点 {info['coverage']:.0%} 落在 {top:.0%} 扇内"]
     lines.append(f"末期 {top:.0%} 半宽 ±{info['half_w_last']:.0%}")
-    stat_box(ax, lines, loc="lower right", fontsize=6.5)
+    stat_box(ax, lines, loc="lower right", fontsize=ptx(6.5))
     info = dict(info, n_hist=len(y_hist), n_future=len(y_fore),
                 n_test=(len(y_test) if y_test is not None else 0))
     fig._ff_stats = info
@@ -82,7 +82,7 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(9)
     t = np.arange(2010, 2024)
     y = 120 * 1.06 ** (t - 2010) * (1 + rng.normal(0, 0.02, len(t)))
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # 硬规则：图题数字来自 forecast_fan 返回的 info，与统计框同源
     ax.set_title(f"回测 MAPE {info['mape']:.1f}%：预测可信，"
                  f"至 {t_f[-1]} 年 95% 区间半宽 ±{info['half_w_last']:.0%}",
-                 fontsize=9.5)
+                 fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "timeseries_forecast"))
     print("timeseries_forecast: OK")

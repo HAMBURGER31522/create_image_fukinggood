@@ -7,11 +7,11 @@
 - 证据链：着色散点显示分离 → 协方差椭圆量化簇形状 → 轮廓系数给全局质量。
 替代：默认 tab10 散点无簇心无质量指标（平庸，无法评价聚类好坏）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 from matplotlib.patches import Ellipse
 
-from core import (smart_legend, apply_style, new_figure, save_figure, run_qa, stat_box,
+from core import (ptx, smart_legend, apply_style, new_figure, save_figure, run_qa, stat_box,
                   PALETTE, semantic)
 
 
@@ -51,7 +51,7 @@ def _cov_ellipse(ax, pts, color, n_std=2.0):
     ang = np.degrees(np.arctan2(vecs[1, -1], vecs[0, -1]))
     w, h = 2 * n_std * np.sqrt(np.maximum(vals[::-1], 0))
     ax.add_patch(Ellipse(pts.mean(axis=0), w, h, angle=ang, fill=False,
-                         color=color, linewidth=1.0, linestyle="--",
+                         color=color, linewidth=ptx(1.0, "lw"), linestyle="--",
                          alpha=0.8))
 
 
@@ -76,12 +76,12 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
         c = PALETTE[idx % len(PALETTE)]
         name = cluster_names[idx] if cluster_names else f"簇{k}"
         ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=3.6,
-                alpha=0.75, markeredgecolor="white", markeredgewidth=0.3,
+                alpha=0.75, markeredgecolor="white", markeredgewidth=ptx(0.3, "lw"),
                 label=f"{name}（n={len(pts)}）")
         _cov_ellipse(ax, pts, c, n_std=n_std)
         cx, cy = pts.mean(axis=0)
         ax.plot(cx, cy, "*", color=c, markersize=13,
-                markeredgecolor="white", markeredgewidth=0.8, zorder=5)
+                markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"), zorder=5)
     info = dict(silhouette=_silhouette(X, labels), n_clusters=len(ks),
                 sizes=sizes)
     ax.set_xlabel(xlabel)
@@ -93,14 +93,14 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
     stat_box(ax, [f"k = {len(ks)} 簇，n = {int((labels >= 0).sum())}",
                   sil_line,
                   f"星标 = 簇心，虚线 = {n_std:g}σ 协方差椭圆"],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     info = dict(info, n=int((labels >= 0).sum()), k=len(ks))
     fig._ff_stats = info
     return fig, ax, info
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(17)
     c1 = rng.normal([2.0, 6.0], [0.7, 0.5], (140, 2))
     c2 = rng.normal([6.5, 4.0], [0.9, 0.7], (170, 2))
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         cluster_names=["高频低消", "低频高消", "低频低消"])
     ax.set_title(f"客群分 {info['n_clusters']} 簇结构清晰"
                  f"（轮廓系数 {info['silhouette']:.2f}），簇间无重叠",
-                 fontsize=9.5)
+                 fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "cluster_scatter"))
     print("cluster_scatter: OK")

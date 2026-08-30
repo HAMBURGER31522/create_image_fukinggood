@@ -7,10 +7,10 @@
 - 证据链：等值线给成本梯度 → 可行域填充给约束 → 前沿点列 → 放大窗消除"平坦区"质疑。
 对照：A 题「成本等值线与可行域」（已接近，此模板补注释层与统一工艺）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
+from core import (text_color, ptx, smart_legend, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, inset_zoom, panel_label, semantic)
 
 
@@ -40,17 +40,18 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
         if d[idx] < 0.25 * step_m:
             manual_m.append((X[idx], Y[idx]))
     if manual_m:
-        ax.clabel(cs, inline=True, fontsize=6.5, fmt=f"%.0f {cost_unit}",
-                  manual=manual_m)
+        ax.clabel(cs, inline=True, fontsize=ptx(6.5),
+                  colors=text_color("#5B8DB8"),
+                  fmt=f"%.0f {cost_unit}", manual=manual_m)
 
     fx, fy = frontier_xy
     # 可行域 = 前沿上方
-    ax.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
+    ax.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=ptx(0, "lw"),
                     zorder=0)
     ax.plot(fx, fy, "-o", color=semantic("fit"), markersize=3.5,
-            linewidth=1.5, label="约束前沿", zorder=4)
+            linewidth=ptx(1.5, "lw"), label="约束前沿", zorder=4)
     ax.plot(*best, "*", color="k", markersize=13, markeredgecolor="white",
-            markeredgewidth=0.6, zorder=5, label="最低成本点")
+            markeredgewidth=ptx(0.6, "lw"), zorder=5, label="最低成本点")
     ax.set_xlim(np.min(X), np.max(X))
     ax.set_ylim(np.min(Y), np.max(Y))
     ax.set_xlabel(xlabel)
@@ -73,19 +74,19 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
         if d[idx] < 0.25 * step:
             manual.append((X[idx], Y[idx]))
     if manual:
-        axins.clabel(csz, inline=True, fontsize=6.5,
+        axins.clabel(csz, inline=True, fontsize=ptx(6.5), colors=text_color("#5B8DB8"),
                      fmt=f"%.1f {cost_unit}", manual=manual)
-    axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=0,
+    axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=ptx(0, "lw"),
                        zorder=0)
     axins.plot(fx, fy, "-o", color=semantic("fit"), markersize=3,
-               linewidth=1.2)
+               linewidth=ptx(1.2, "lw"))
     axins.plot(*best, "*", color="k", markersize=11,
-               markeredgecolor="white", markeredgewidth=0.5)
+               markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"))
     return fig, ax, axins
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     x = np.linspace(0, 1.0, 200)
     y = np.linspace(0, 40, 200)
     X, Y = np.meshgrid(x, y)
@@ -101,9 +102,9 @@ if __name__ == "__main__":
     stat_box(ax, [f"最低成本 = {cost_f[i]:.2f} 元",
                   f"位于 ({fx[i]:.2f}, {fy[i]:.1f})",
                   "切点邻域平坦（见放大）"], outside="top",
-             fontsize=6.5)
+             fontsize=ptx(6.5))
     ax.set_title("等值线—前沿切点给出最低成本解，放大窗排除平坦歧义",
-                 fontsize=9, pad=8)
+                 fontsize=ptx(9), pad=8)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "feasible_zoom"))
     print("feasible_zoom: OK")

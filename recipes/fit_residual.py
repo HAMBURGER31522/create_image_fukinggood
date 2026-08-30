@@ -6,10 +6,10 @@
    这正是 SPEC 2.1 要防的手写常数，只不过 docstring 逃过了 QA）
 - 证据链：左图曲线贴合+交点标注；右图残差围绕零线且 |r| < 抽样带。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (smart_legend, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (ptx, smart_legend, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, callout, ref_line, panel_label, semantic)
 import matplotlib.pyplot as plt
 
@@ -21,17 +21,17 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(w, w * 0.34))
     fig.subplots_adjust(wspace=0.26, bottom=0.17, top=0.86)
 
-    ax1.plot(xfit, yfit, color=semantic("fit"), linewidth=1.6,
+    ax1.plot(xfit, yfit, color=semantic("fit"), linewidth=ptx(1.6, "lw"),
              label=fit_label, zorder=3)
     ax1.plot(x, y, "o", color=semantic("data"), markersize=4.5,
-             markeredgecolor="white", markeredgewidth=0.7,
+             markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"),
              label=data_label, zorder=4)
     if threshold is not None:
         ref_line(ax1, threshold, "h", label=f"{threshold:g}")
         if x_at_threshold is not None:
             ax1.plot([x_at_threshold], [threshold], "*",
                      color=semantic("highlight"), markersize=12,
-                     markeredgecolor="white", markeredgewidth=0.6, zorder=5)
+                     markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=5)
             callout(ax1, xy=(x_at_threshold, threshold),
                     text=f"交点 = {x_at_threshold:.3g}",
                     xytext=(0.72, 0.42), textcoords="axes fraction",
@@ -41,11 +41,11 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
     smart_legend(ax1)
     panel_label(ax1, "a")
 
-    ax2.fill_between(x, -band, band, color="0.85", alpha=0.8, lw=0,
+    ax2.fill_between(x, -band, band, color="0.85", alpha=0.8, lw=ptx(0, "lw"),
                      label="MC 95% 抽样误差带")
-    ax2.axhline(0, color="0.25", linewidth=0.8)
+    ax2.axhline(0, color="0.25", linewidth=ptx(0.8, "lw"))
     ax2.plot(x, resid, "o", color=semantic("data"), markersize=4.5,
-             markeredgecolor="white", markeredgewidth=0.7, label="拟合残差")
+             markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), label="拟合残差")
     ax2.set_xlabel(xlabel)
     ax2.set_ylabel("残差")
     smart_legend(ax2)
@@ -57,7 +57,7 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(3)
     x = np.arange(0.5, 1.25, 0.05)
     logistic = lambda t, k=14, m=0.72: 1 / (1 + np.exp(-k * (t - m)))
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # 硬规则：图题结论与图内统计来自同一计算变量
     desc = "全部" if inside >= 99.5 else f"{inside:.0f}%"
     fig.suptitle(f"Logistic 拟合可信：残差无结构，{desc}落在 95% 抽样误差带内",
-                 fontsize=10, fontweight="bold", y=0.99)
+                 fontsize=ptx(10), fontweight="bold", y=0.99)
     fig.subplots_adjust(top=0.82)
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "fit_residual"))

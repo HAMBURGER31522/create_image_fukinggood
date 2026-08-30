@@ -1656,3 +1656,59 @@ def test_stat_box_expands_limits_instead_of_covering_data():
                         for t in axes[0].texts)
     assert (ny1 - ny0) > (y1 - y0) + 1e-9 or moved_outside, \
         f"轴限未扩（{y0},{y1} → {ny0},{ny1}）且未移到轴外"
+
+
+def test_fill_between_bands_are_visible_to_occupancy_probing():
+    """`fill_between` 在 mpl 3.10 返回 `FillBetweenPolyCollection`，而它的
+    `get_offsets()` 返回退化的 `[[0,0]]`（size=2）——于是 offsets 分支
+    **抢先命中**，整片置信带只产出一个 (0,0) 幽灵点，顶点采样那一支永远
+    走不到。
+
+    后果正是源码注释预言的那句：占用栅格说"这里空"、像素实测说"41% 有
+    内容"，于是 `loc="auto"` 主动把框放到带上、再被自家像素兜底硬拒，
+    而消息只说"该位置不是真空区"，没有可操作的下一步。
+
+    置信带是本库主推构图（convergence_ci / timeseries_forecast /
+    raincloud / joint_marginal 全靠它）。
+    """
+    from core import _probe
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 40)
+    y = np.sin(6 * x)
+    ax.fill_between(x, y - 0.3, y + 0.3, alpha=0.3, color="#AECDE1")
+    ax.plot(x, y, color=PALETTE[0])
+    fig.canvas.draw()
+    band = [(n, p) for n, p in _probe.series_samples(ax) if n != "line0"]
+    assert band, "置信带完全没被采到"
+    n_pts = max(len(p) for _, p in band)
+    assert n_pts > 20, f"置信带只采到 {n_pts} 个点（幽灵点）"
+
+
+def test_auto_placement_does_not_land_on_a_confidence_band():
+    """端到端：宽置信带上 `loc="auto"` 不该把框放上去再被自家硬拒。"""
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 60)
+    y = 0.5 + 0.35 * np.sin(6 * x)
+    ax.fill_between(x, y - 0.32, y + 0.32, alpha=0.35, color="#AECDE1")
+    ax.plot(x, y, color=PALETTE[0])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_ylim(0, 1)
+    fig.suptitle("带宽随 x 收敛")
+    stat_box(ax, ["n = 60", "半宽 0.32"], loc="auto")
+    assert not hit(fig, "真空区")
+
+
+def test_reference_line_focus_colour_follows_semantic_highlight():
+    """`ref_line(level="focus")` 硬编码 `#D55E00`，从不读
+    `semantic("highlight")`——于是换色只改了 `dot_interval` 一处，库里
+    出现两个互不相同的"判据线色"（fit_residual.png 同图内即可见：阈值线
+    橙红、其交点星标粉红）。"""
+    from core import semantic, ref_line as _rl
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1], color=PALETTE[0])
+    _rl(ax, 0.5, orientation="h", label="判据", level="focus")
+    cols = {ln.get_color().upper() for ln in ax.lines
+            if str(ln.get_linestyle()) not in ("-", "None")}
+    assert semantic("highlight").upper() in cols, \
+        f"判据线色 {cols} 未跟随 semantic('highlight')"

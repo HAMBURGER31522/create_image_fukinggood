@@ -140,6 +140,30 @@ _STYLE_APPLIED = False
 _PRESET = "cn"
 
 
+def ptx(v: float, kind: str = "font") -> float:
+    """把**按 cn 档调好的**点值换算到当前档。
+
+    recipe 里遍布 `fontsize=9` / `linewidth=1.6` 这类硬编码——它们是照
+    cn 档（base 9pt、线宽 1.2）调的。切到 nature 档（base 7pt、上限 1pt）
+    后这些值原样生效，于是 25 个模板在 nature 下全部撞"文字 > 7pt"和
+    "线宽 > 1pt"的硬拒；而 SKILL.md 把 nature 与 cn 并列宣传为交付档、
+    工作流又要求"从 recipes 复制模板"，两者合起来 100% 撞墙。
+
+    kind="font" 按 base_size 比例缩放并夹在该档下限之上；
+    kind="lw"   额外按该档线宽上限封顶。
+    """
+    cfg = _PRESETS[_PRESET]
+    if kind == "lw":
+        ref = _PRESETS["cn"]["line_width"]
+        out = float(v) * cfg["line_width"] / ref
+        return min(out, float(cfg["line_width"]))
+    ref = _PRESETS["cn"]["base_size"]
+    out = float(v) * float(plt.rcParams.get("font.size", ref)) / ref
+    lo = 5.0 if _PRESET == "nature" else 6.5
+    hi = 7.0 if _PRESET == "nature" else 1e9
+    return max(lo, min(out, hi))
+
+
 def current_preset() -> str:
     """当前样式档（annotate/layout/qa 按档调整行为）。"""
     return _PRESET

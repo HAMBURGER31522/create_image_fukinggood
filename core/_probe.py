@@ -12,6 +12,7 @@ annotate（自动选注释框位置）与 qa（判定注释框有没有压数据
 from __future__ import annotations
 
 import numpy as np
+from matplotlib.collections import PolyCollection
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 
@@ -87,12 +88,19 @@ def series_samples(ax):
                             ax.transData.transform(np.vstack(segs))))
         else:
             offs = np.asarray(getattr(c, "get_offsets", lambda: [])())
-            if offs.size:
+            # mpl 3.10 的 `FillBetweenPolyCollection.get_offsets()` 返回
+            # 退化的 `[[0, 0]]`（size=2），会**抢先命中** offsets 分支，
+            # 于是整片置信带只产出一个 (0,0) 幽灵点、顶点采样永远走不到。
+            # 判据要排掉"单点零偏移"这种退化值，并用 isinstance 认子类
+            # （精确类名比对在 3.10 上对 FillBetweenPolyCollection 失配）。
+            _degenerate = (offs.size <= 2
+                           and not np.any(np.abs(offs.reshape(-1)) > 1e-12))
+            if offs.size and not _degenerate:
                 out.append((f"pts{j}", ax.transData.transform(offs)))
-            elif c.__class__.__name__ == "PolyCollection":
-                # fill_between / fill 产生的填充带没有 offsets，靠顶点采样。
-                # 漏掉它们的后果是占用栅格说"这里空"、像素实测说"41% 有内容"，
-                # 自动选位就会把图例正正放在置信带上。
+            elif isinstance(c, PolyCollection):
+                # fill_between / fill 产生的填充带没有（有效的）offsets，
+                # 靠顶点采样。漏掉它们的后果是占用栅格说"这里空"、像素
+                # 实测说"41% 有内容"，自动选位就会把图例正正放在置信带上。
                 verts = []
                 for pth in c.get_paths():
                     v = pth.vertices

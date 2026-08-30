@@ -7,10 +7,10 @@
 - 证据链：左图 CI 带收窄 + 终值直标；右图 log-log 斜率 -1/2 参考线贴合。
 替代：多条误差棒折线（平庸）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (ptx, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, end_label, ref_line, panel_label, semantic)
 import matplotlib.pyplot as plt
 
@@ -22,8 +22,8 @@ def convergence_pair(n, est, half, true=None, ylabel="估计值"):
 
     c = semantic("data")
     ax1.fill_between(n, est - half, est + half, color=semantic("band"),
-                     alpha=0.5, lw=0, label="95% 置信带")
-    ax1.plot(n, est, color=c, linewidth=1.4, label="MC 估计")
+                     alpha=0.5, lw=ptx(0, "lw"), label="95% 置信带")
+    ax1.plot(n, est, color=c, linewidth=ptx(1.4, "lw"), label="MC 估计")
     if true is not None:
         ref_line(ax1, true, "h", label=f"参考值 {true:g}", label_loc="left")
     ax1.set_xscale("log")
@@ -33,10 +33,10 @@ def convergence_pair(n, est, half, true=None, ylabel="估计值"):
     ax1.legend(loc="lower right")
     panel_label(ax1, "a")
 
-    ax2.loglog(n, half, "o-", color=c, markersize=3.5, linewidth=1.2,
+    ax2.loglog(n, half, "o-", color=c, markersize=3.5, linewidth=ptx(1.2, "lw"),
                label="CI 半宽")
     ref = half[0] * (n / n[0]) ** -0.5
-    ax2.loglog(n, ref, "--", color="0.5", linewidth=1.0,
+    ax2.loglog(n, ref, "--", color="0.5", linewidth=ptx(1.0, "lw"),
                label="1/√N 理论斜率")
     ax2.set_xlabel("样本量 N")
     ax2.set_ylabel("置信区间半宽")
@@ -49,7 +49,7 @@ def convergence_pair(n, est, half, true=None, ylabel="估计值"):
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(7)
     n = np.unique(np.logspace(1.3, 3.6, 24).astype(int))
     p = 0.62
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     # 硬规则：图题数字来自计算变量
     fig.suptitle(f"导通概率估计收敛：N = {n[-1]} 时 CI 半宽 {half[-1]:.3f}，"
                  "误差按 1/√N 收缩",
-                 fontsize=10, fontweight="bold", y=0.97)
+                 fontsize=ptx(10), fontweight="bold", y=0.97)
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "convergence_ci"))
     print("convergence_ci: OK")

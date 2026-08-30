@@ -5,12 +5,12 @@
 - 证据链：全局扫描曲线单谷 → 谷底星标+同色统计框 → 精搜带 axvspan。
 参考：skills/photo Snipaste_15-27-34（U 形扫描 + 彩色引线框）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
 
-from core import (smart_legend, apply_style, new_figure, save_figure, run_qa,
+from core import (text_color, ptx, smart_legend, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, semantic, PALETTE)
 
 
@@ -38,14 +38,14 @@ def scan_curve(x, curves, xlabel, ylabel, logy=True, refine_span=None,
         ax.axvspan(*refine_span, color="#F3D9DC", alpha=0.5, zorder=1)
         ax.text(np.mean(refine_span), 0.66, "二阶段\n精搜区间",
                 transform=ax.get_xaxis_transform(), ha="center", va="top",
-                fontsize=7, color="#B05661", linespacing=1.4)
+                fontsize=ptx(7), color=text_color("#B05661"), linespacing=1.4)
     # 注释框放曲线下方空白区（U 形曲线的左下/中下）
     box_pos = [(0.16, 0.28), (0.48, 0.18)]
     for k, (name, y, c) in enumerate(curves):
-        ax.plot(x, y, color=c, linewidth=1.6, label=name, zorder=3)
+        ax.plot(x, y, color=c, linewidth=ptx(1.6, "lw"), label=name, zorder=3)
         i = int(np.argmin(y))
         ax.plot(x[i], y[i], "*", color=c, markersize=11,
-                markeredgecolor="white", markeredgewidth=0.6, zorder=4)
+                markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=4)
         callout(ax, xy=(x[i], y[i]),
                 text=f"{name}\nx* = {x[i]:.3g}, min = {y[i]:.4g}",
                 xytext=box_pos[k % len(box_pos)],
@@ -57,7 +57,7 @@ def scan_curve(x, curves, xlabel, ylabel, logy=True, refine_span=None,
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     x = np.linspace(-0.6, 0.6, 61)
     y1 = 4.7 + 60 * (x - 0.398) ** 2 + 3 * np.abs(x - 0.398)
     y2 = 5.2 + 55 * (x - 0.390) ** 2 + 2.5 * np.abs(x - 0.390)
@@ -70,7 +70,7 @@ if __name__ == "__main__":
                   "两工况均单谷，一维精搜可行"], outside="top")
     ax.set_title(f"目标函数沿 D₀ 单谷：二阶段精搜区间 "
                  f"[{span[0]:.2f}, {span[1]:.2f}] 充分",
-                 fontsize=9.5)
+                 fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "scan_curve"))
     print("scan_curve: OK")

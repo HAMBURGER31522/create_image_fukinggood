@@ -9,11 +9,11 @@ archetype 2: corr_matrix      —— 下三角掩膜 + 发散色 + 数值直标 
    这正是 SPEC 2.1 要防的手写常数，只不过 docstring 逃过了 QA）
 - 证据链：对角块深色 → 非对角唯一深块引导视线 → 统计框给宏平均。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 from matplotlib.patches import Rectangle
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, cmap_for, truncate_cmap, semantic)
 
 
@@ -27,18 +27,18 @@ def confusion_matrix(M, class_names, xlabel="预测类别", ylabel="真实类别
     im = ax.imshow(share, cmap=truncate_cmap(cmap_for("sequential2"), 0.0, 0.85),
                    vmin=0, vmax=1)
     cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    cb.set_label("行占比", fontsize=7)
-    cb.ax.tick_params(labelsize=6.5)
+    cb.set_label("行占比", fontsize=ptx(7))
+    cb.ax.tick_params(labelsize=ptx(6.5))
     for i in range(n):
         for j in range(n):
             dark = share[i, j] > 0.45
             ax.text(j, i, f"{M[i, j]:g}\n{share[i, j]:.0%}",
-                    ha="center", va="center", fontsize=7.5, linespacing=1.4,
+                    ha="center", va="center", fontsize=ptx(7.5), linespacing=1.4,
                     color="white" if dark else "0.25",
                     fontweight="bold" if i == j else "normal")
         # 对角强调框
         ax.add_patch(Rectangle((i - 0.5, i - 0.5), 1, 1, fill=False,
-                               edgecolor="0.2", linewidth=1.2))
+                               edgecolor="0.2", linewidth=ptx(1.2, "lw")))
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
     ax.set_xticklabels(class_names)
@@ -55,9 +55,9 @@ def confusion_matrix(M, class_names, xlabel="预测类别", ylabel="真实类别
     fig.text(0.02, 0.02,
              f"n = {int(M.sum())} 样本 · 总体准确率 {acc:.0%} · "
              f"宏平均召回 {recalls.mean():.0%}",
-             fontsize=6.5, ha="left", va="bottom", color="0.3",
+             fontsize=ptx(6.5), ha="left", va="bottom", color="0.3",
              bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-                       edgecolor="0.75", alpha=0.85, linewidth=0.5))
+                       edgecolor="0.75", alpha=0.85, linewidth=ptx(0.5, "lw")))
     fig.subplots_adjust(bottom=0.24)
     info = dict(acc=acc, macro_recall=recalls.mean(), share=share,
                 n_samples=int(M.sum()))
@@ -74,22 +74,22 @@ def corr_matrix(R, names, width="single", emph_thresh=0.7):
     fig, ax = new_figure(width, ratio=0.9)
     im = ax.imshow(Rm, cmap=cmap_for("diverging"), vmin=-1, vmax=1)
     cb = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.03)
-    cb.set_label("Pearson r", fontsize=7)
-    cb.ax.tick_params(labelsize=6.5)
+    cb.set_label("Pearson r", fontsize=ptx(7))
+    cb.ax.tick_params(labelsize=ptx(6.5))
     n_strong = 0
     for i in range(n):
-        ax.text(i, i, "1", ha="center", va="center", fontsize=6.5,
+        ax.text(i, i, "1", ha="center", va="center", fontsize=ptx(6.5),
                 color="white")
         for j in range(i):
             strong = abs(R[i, j]) >= emph_thresh
             n_strong += strong
             ax.text(j, i, f"{R[i, j]:+.2f}", ha="center", va="center",
-                    fontsize=7, color="0.15",
+                    fontsize=ptx(7), color="0.15",
                     fontweight="bold" if strong else "normal")
             if strong:
                 ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False,
                                        edgecolor=semantic("highlight"),
-                                       linewidth=1.2))
+                                       linewidth=ptx(1.2, "lw")))
     ax.set_xticks(range(n))
     ax.set_yticks(range(n))
     ax.set_xticklabels(names, rotation=35, ha="right")
@@ -106,7 +106,7 @@ def corr_matrix(R, names, width="single", emph_thresh=0.7):
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     M = [[112, 6, 2], [9, 87, 12], [3, 5, 96]]
     names = ["类1", "类2", "类3"]
     fig, ax, info = confusion_matrix(M, names)
@@ -114,7 +114,7 @@ if __name__ == "__main__":
         np.argmax(info["share"] - 2 * np.eye(len(names))), info["share"].shape)
     ax.set_title(f"总体准确率 {info['acc']:.0%}，"
                  f"主要混淆为{names[worst[0]]}→{names[worst[1]]}"
-                 f"（{info['share'][worst]:.0%}）", fontsize=9)
+                 f"（{info['share'][worst]:.0%}）", fontsize=ptx(9))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "confusion_matrix"))
 
@@ -128,9 +128,9 @@ if __name__ == "__main__":
     info["n_obs"] = len(A)
     fig._ff_stats = info
     ax.set_title(f"{info['n_strong']} 对强相关（|r| ≥ 0.7）：需在回归前处理共线性",
-                 fontsize=9)
+                 fontsize=ptx(9))
     stat_box(ax, [f"n = {len(A)} 观测", "Pearson r，下三角"],
-             loc="upper right", fontsize=6.5)
+             loc="upper right", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "corr_matrix"))
     print("annotated_heatmap: 2 figures OK")

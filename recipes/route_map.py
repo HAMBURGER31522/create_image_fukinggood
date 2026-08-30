@@ -7,11 +7,11 @@
 - 证据链：路线不交叉（分区合理）→ 序号可复现回路 → 统计框给分车里程。
 替代：无序号无里程的散点连线（平庸，无法验证解）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 from matplotlib.collections import LineCollection
 
-from core import (ink, apply_style, new_figure, save_figure, run_qa, stat_box,
+from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa, stat_box,
                   PALETTE, semantic)
 
 
@@ -40,29 +40,29 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
                                          alpha=0.85, zorder=2,
                                          label=f"{name}（{d:.0f} km）"))
         ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=3.5,
-                markeredgecolor="white", markeredgewidth=0.5, zorder=3)
+                markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"), zorder=3)
         if show_order:
             import matplotlib.patheffects as pe
             # 按"是否仓库"过滤：位置切片会漏掉不以仓库开头的路线首客户
             for i, idx in enumerate((k for k in r if k != depot), 1):
                 ax.annotate(str(i), nodes[idx], xytext=(3, 3),
-                            textcoords="offset points", fontsize=6.5,
-                            color=ink(c), zorder=6,
+                            textcoords="offset points", fontsize=ptx(6.5),
+                            color=text_color(c), zorder=6,
                             path_effects=[pe.withStroke(
-                                linewidth=1.8, foreground="white")])
+                                linewidth=ptx(1.8, "lw"), foreground="white")])
     ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=13,
-            markeredgecolor="white", markeredgewidth=0.7, zorder=5)
+            markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), zorder=5)
     import matplotlib.patheffects as pe
     ax.annotate("仓库", nodes[depot], xytext=(8, -14),
-                textcoords="offset points", fontsize=7, zorder=7,
+                textcoords="offset points", fontsize=ptx(7), zorder=7,
                 color=semantic("highlight"), fontweight="bold",
-                path_effects=[pe.withStroke(linewidth=2.0,
+                path_effects=[pe.withStroke(linewidth=ptx(2.0, "lw"),
                                             foreground="white")])
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     # 空间图内寸土寸金：图例横排放到轴下方，不压任何路线
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.12),
-              ncol=min(len(routes), 3), fontsize=6.5, frameon=False)
+              ncol=min(len(routes), 3), fontsize=ptx(6.5), frameon=False)
     d_max = max(dists)
     info = dict(dists=dists, total=float(sum(dists)),
                 imbalance=float((d_max - min(dists)) / d_max)
@@ -70,13 +70,13 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     stat_box(ax, [f"{len(routes)} 条路线，总里程 {info['total']:.0f} km",
                   f"负载不均衡度 {info['imbalance']:.0%}"
                   "＝(最长−最短)/最长"],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     fig._ff_stats = info
     return fig, ax, info
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(5)
     pts = np.vstack([[50, 50], rng.uniform(5, 95, (18, 2))])
     # 角度分区 + 扇区内按极角排序串联：回路天然不自交，
@@ -90,7 +90,7 @@ if __name__ == "__main__":
         routes.append([0] + list(order) + [0])
     fig, ax, info = route_map(pts, routes, depot=0)
     ax.set_title(f"3 车分区配送总里程 {info['total']:.0f} km，"
-                 f"负载不均衡 {info['imbalance']:.0%}", fontsize=9.5)
+                 f"负载不均衡 {info['imbalance']:.0%}", fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "route_map"))
     print("route_map: OK")

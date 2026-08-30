@@ -7,12 +7,12 @@
 - 证据链：PuOr 对零发散色 → 等高线分层 → 极值三角+引线 → RMS 统计框。
 参考：skills/photo 图 8 / 图 15（口径场图）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (current_preset, ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, cmap_for, semantic)
 
 
@@ -28,10 +28,10 @@ def masked_diverging_field(X, Y, Z, R, xlabel="x（m）", ylabel="y（m）",
                      cmap=cmap_for("diverging"), norm=norm)
     ax.contour(X, Y, Zm, levels=10, colors="k", linewidths=0.25, alpha=0.4)
     theta = np.linspace(0, 2 * np.pi, 200)
-    ax.plot(R * np.cos(theta), R * np.sin(theta), color="0.2", linewidth=1.0)
+    ax.plot(R * np.cos(theta), R * np.sin(theta), color="0.2", linewidth=ptx(1.0, "lw"))
     cb = fig.colorbar(cf, ax=ax, shrink=0.85, pad=0.02)
-    cb.set_label(zlabel, fontsize=8)
-    cb.ax.tick_params(labelsize=7)
+    cb.set_label(zlabel, fontsize=ptx(8))
+    cb.ax.tick_params(labelsize=ptx(7))
     ax.set_aspect("equal")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -51,7 +51,7 @@ def masked_diverging_field(X, Y, Z, R, xlabel="x（m）", ylabel="y（m）",
     stat_box(ax, [f"节点 n = {np.sum(~np.isnan(Zm))}",
                   f"RMS = {rms:.4f}",
                   f"最大幅值 {vmax:.3f}（容差内）"], outside="top",
-             fontsize=6.5)
+             fontsize=ptx(6.5))
     info = dict(r_max_frac=np.hypot(X[imax], Y[imax]) / R,
                 r_min_frac=np.hypot(X[imin], Y[imin]) / R,
                 rms=rms, vmax=vmax)
@@ -76,25 +76,28 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
     # 只补文字标注治不了后者，读者依然没有可对照的圈。
     ax.set_axisbelow(False)
     ax.set_rlabel_position(22.5)
-    ax.tick_params(labelsize=7, pad=1)
+    ax.tick_params(labelsize=ptx(7), pad=1)
     for lbl in ax.get_yticklabels():
         lbl.set_path_effects(_white_stroke())
-    ax.grid(linewidth=0.3, alpha=0.4)
+    # nature 档明文禁背景网格；极坐标的径向圈是**刻度**不是装饰，
+    # 但既然规范这么写，就按档走
+    ax.grid(current_preset() != "nature",
+            linewidth=ptx(0.3, "lw"), alpha=0.4)
     # 收紧极轴、放宽右边距，防止 "270°" 被 colorbar 裁切
     fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)
     cb = fig.colorbar(pm, ax=ax, shrink=0.7, pad=0.12)
-    cb.set_label(zlabel, fontsize=8)
-    cb.ax.tick_params(labelsize=7)
+    cb.set_label(zlabel, fontsize=ptx(8))
+    cb.ax.tick_params(labelsize=ptx(7))
     return fig, ax
 
 
 def _white_stroke():
     import matplotlib.patheffects as pe
-    return [pe.withStroke(linewidth=2, foreground="white")]
+    return [pe.withStroke(linewidth=ptx(2, "lw"), foreground="white")]
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     x = np.linspace(-160, 160, 240)
     X, Y = np.meshgrid(x, x)
     Rr = np.hypot(X, Y)
@@ -107,7 +110,7 @@ if __name__ == "__main__":
     # 硬规则：图题数字来自计算变量（极值所在环带半径）
     ax.set_title(f"伸缩量场环状分层，极值出现在 "
                  f"{finfo['r_max_frac']:.2f}R 环带且均在容差内",
-                 fontsize=9, pad=8)
+                 fontsize=ptx(9), pad=8)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "contour_field_masked"))
 
@@ -116,10 +119,10 @@ if __name__ == "__main__":
     TH, RR = np.meshgrid(th, rr)
     Zp = (1 - RR) * (1 + 0.35 * np.cos(3 * TH))
     fig, ax = polar_field(TH, RR, Zp, zlabel="相对密度")
-    ax.set_title("方位分布呈三瓣对称", fontsize=9, pad=14)
+    ax.set_title("方位分布呈三瓣对称", fontsize=ptx(9), pad=14)
     stat_box(ax, [f"网格 {Zp.shape[1]}×{Zp.shape[0]}（方位×径向）",
                   "三瓣对称：cos 3θ 分量主导"],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "contour_field_polar"))
     print("contour_field: 2 figures OK")

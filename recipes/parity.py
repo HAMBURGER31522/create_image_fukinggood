@@ -7,10 +7,10 @@
 - 证据链：点云贴 1:1 线 → ±band 覆盖率直标 → 最大偏差点引线。
 替代：只报 R² 数字不画图，或散点无参考线（平庸）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, semantic)
 
 
@@ -44,19 +44,19 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
         band_lo, band_hi = xs - bval, xs + bval
         band_label = f"±{bval:g} 带"
         tol = np.full_like(y_true, bval)
-    ax.fill_between(xs, band_lo, band_hi, color="0.88", alpha=0.7, lw=0,
+    ax.fill_between(xs, band_lo, band_hi, color="0.88", alpha=0.7, lw=ptx(0, "lw"),
                     label=band_label)
-    ax.plot([lo, hi], [lo, hi], "--", color="0.35", linewidth=0.9,
+    ax.plot([lo, hi], [lo, hi], "--", color="0.35", linewidth=ptx(0.9, "lw"),
             label="y = x")
     ax.plot(y_true, y_pred, "o", color=semantic("data"), markersize=4,
-            markeredgecolor="white", markeredgewidth=0.6, zorder=4,
+            markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=4,
             label="样本")
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
     ax.set_aspect("equal")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.legend(loc="upper left", fontsize=6.5)
+    ax.legend(loc="upper left", fontsize=ptx(6.5))
 
     resid = y_pred - y_true
     ss_tot = np.sum((y_true - y_true.mean()) ** 2)
@@ -76,7 +76,7 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
     stat_box(ax, [f"n = {len(y_true)}",
                   f"{r2_line}，RMSE = {info['rmse']:.3g}",
                   f"{err_line}，带内 {info['inside']:.0%}"],
-             loc="lower right", fontsize=6.5)
+             loc="lower right", fontsize=ptx(6.5))
     dev = np.abs(resid) / np.where(nz, np.abs(y_true), np.inf) \
         if mode == "relative" else np.abs(resid)
     iw = int(np.argmax(dev))
@@ -90,7 +90,7 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(13)
     y = rng.uniform(20, 180, 60)
     yp = y * (1 + rng.normal(0, 0.05, 60))
@@ -99,7 +99,7 @@ if __name__ == "__main__":
                            ylabel="预测径流量（m³/s）")
     ax.set_title(f"预测可信：R² = {info['r2']:.2f}，"
                  f"{info['inside']:.0%} 样本落于 ±10% 带内",
-                 fontsize=9)
+                 fontsize=ptx(9))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "parity"))
     print("parity: OK")

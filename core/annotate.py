@@ -16,7 +16,7 @@ import matplotlib.colors as mcolors
 from matplotlib.transforms import blended_transform_factory
 
 from .style import current_preset, preset_cfg
-from .colors import emphasis
+from .colors import emphasis, semantic
 
 
 def _ann_size(explicit: float | None = None) -> float:
@@ -26,8 +26,12 @@ def _ann_size(explicit: float | None = None) -> float:
     return max(5.0, plt.rcParams["font.size"] - 1.0)
 
 
-def ink(color, min_ratio: float = 3.0):
-    """把用作**文字**的语义色压暗到对白底 ≥3:1。
+def ink(color, min_ratio: float = 3.3):
+    """把用作**文字**的语义色压暗到对白底 ≥3.3:1。
+
+    目标比 QA 的 3.0 门槛**留一点余量**：按 3.0 压的话，一个刚好 3.06 的
+    颜色（如判据色 #CC79A7）落在任何浅色带上就跌到 2.98——ink 的目标与
+    检查阈值相等，等于按构造就没有余量。
 
     Okabe-Ito 的橙 #e69f00 对白底只有 2.25:1，用它写端点直标在屏幕上
     已经发虚、印刷后更糟。线条可以靠粗细补偿，文字不行——所以只压
@@ -42,7 +46,7 @@ def ink(color, min_ratio: float = 3.0):
     return mcolors.to_hex((r, g, b))
 
 
-def _text_color(color: str) -> str:
+def text_color(color: str) -> str:
     """nature 档强制黑字（语义色留给边框/标记）；cn 档允许彩色文字，
     但压暗到对白底 ≥3:1。
 
@@ -248,7 +252,7 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
             _forced_box = True
     ann = ax.annotate(
         text, xy=xy, xytext=xytext, textcoords=textcoords,
-        fontsize=_ann_size(fontsize), color=_text_color(color),
+        fontsize=_ann_size(fontsize), color=text_color(color),
         ha="center", va="center",
         bbox=(dict(boxstyle="round,pad=0.3", facecolor="white",
                    edgecolor=color, alpha=0.92, linewidth=0.6)
@@ -302,7 +306,7 @@ def end_label(ax, x, y, text, color, dx_pt: float = 4.0,
     """
     return _halo(ax.annotate(
         text, xy=(x, y), xytext=(dx_pt, 0), textcoords="offset points",
-        color=_text_color(color), fontsize=_ann_size(fontsize),
+        color=text_color(color), fontsize=_ann_size(fontsize),
         fontweight=fontweight, ha="left", va="center", zorder=10,
         annotation_clip=False,
     ))
@@ -346,7 +350,7 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
         dy_pt = (adj[k] - ys_disp[k]) * 72.0 / ax.figure.dpi
         out[i] = _halo(ax.annotate(
             text, xy=(x, yv), xytext=(dx_pt, dy_pt),
-            textcoords="offset points", color=_text_color(color),
+            textcoords="offset points", color=text_color(color),
             fontsize=size, fontweight=fontweight, ha="left", va="center",
             zorder=10, annotation_clip=False))
     return out
@@ -469,14 +473,14 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
         left = threshold > (x0 + x1) / 2   # 标签放线的**空侧**
         txt = thr_label or f"判据 {threshold:g}"
         ax.text(threshold, len(est) - 0.30,
-                (txt + " ") if left else (" " + txt), color=_text_color(hl),
+                (txt + " ") if left else (" " + txt), color=text_color(hl),
                 fontsize=size, va="center", ha="right" if left else "left")
         lo_t, hi_t = ("未达标 ←", "→ 达标") if better == "high" \
             else ("→ 达标", "未达标 ←")
         ax.text(threshold, -0.60, lo_t + " ", ha="right", va="center",
                 fontsize=size, color="0.45")
         ax.text(threshold, -0.60, " " + hi_t, ha="left", va="center",
-                fontsize=size, color=_text_color(hl))
+                fontsize=size, color=text_color(hl))
 
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
@@ -534,7 +538,7 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                         xytext=(-6 if flip else 6, 0),
                         textcoords="offset points",
                         va="center", ha="right" if flip else "left",
-                        fontsize=size, color=_text_color(focus if ok[i] else "0.35"),
+                        fontsize=size, color=text_color(focus if ok[i] else "0.35"),
                         fontweight="bold" if ok[i] else "normal")
         ax.set_xlim(x0, x1)
     elif value_col:
@@ -552,7 +556,7 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
                         f"[{_num(lo[i])}, {_num(hi[i])}]",
                         xy=(1.06, y[i]), xycoords=("axes fraction", "data"),
                         va="center", ha="left", fontsize=size,
-                        color=_text_color(focus if ok[i] else "0.35"),
+                        color=text_color(focus if ok[i] else "0.35"),
                         fontweight="bold" if ok[i] else "normal",
                         annotation_clip=False)
         ax.annotate("估计 [95% 区间]", xy=(1.06, len(est) - 0.32),
@@ -745,7 +749,7 @@ def slope_lines(ax, labels, before, after, cond_names=("前", "后"), unit="",
                         xytext=(-6 if side == 0 else 6, 0),
                         textcoords="offset points",
                         ha="right" if side == 0 else "left", va="center",
-                        fontsize=fs, color=_text_color(c), fontweight=w,
+                        fontsize=fs, color=text_color(c), fontweight=w,
                         annotation_clip=False)
             if abs(py - yv) > gap * 0.35:   # 挪动明显时补一条细引线
                 ax.annotate("", xy=(side, yv), xytext=(side, py),
@@ -757,7 +761,7 @@ def slope_lines(ax, labels, before, after, cond_names=("前", "后"), unit="",
         # 放轴外 y>1 必然和调用方的 set_title / suptitle 打架。
         ax.text(0.5, 0.99, verdict, transform=ax.transAxes, ha="center",
                 va="top", fontsize=size + 0.5, fontweight="bold",
-                color=_text_color("0.25"), zorder=6)
+                color=text_color("0.25"), zorder=6)
     return counts
 
 def ref_line(ax, value, orientation: str = "h", label: str | None = None,
@@ -773,13 +777,16 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
 
     label_loc: left/right。
     """
+    # 走 semantic()，不要硬编码：换判据色时这里不跟着改，库里就会出现
+    # 两个互不相同的"判据线色"（dot_interval 用 semantic("highlight")、
+    # ref_line 用写死的值），同一张图里阈值线与其交点标记会是两种颜色。
     base = color if color is not None else (
-        "#D55E00" if level == "focus" else "#8C8C8C")
+        semantic("highlight") if level == "focus" else semantic("baseline"))
     c = base if level == "focus" else emphasis(base, level)
     lw = linewidth if linewidth is not None else (
         1.0 if level == "focus" else 0.7)
     size = _ann_size(fontsize)
-    tcol = _text_color(c)
+    tcol = text_color(c)   # 内含 ink() 压暗；判据色做文字时正好卡在 3:1 线上
     if orientation == "h":
         ax.axhline(value, color=c, linewidth=lw, linestyle=(0, (4, 3)),
                    zorder=2)

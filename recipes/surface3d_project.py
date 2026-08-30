@@ -6,11 +6,11 @@
 参考：skills/photo 图 12（双参数响应曲面）。
 替代：默认 plot_surface 彩虹面无投影（平庸）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 
-from core import (apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (ptx, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   cmap_for)
 
 
@@ -21,7 +21,7 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
     fig = plt.figure(figsize=(w, w * 0.85))
     ax = fig.add_subplot(projection="3d")
     fig.subplots_adjust(left=0.0, right=0.86, bottom=0.06, top=0.92)
-    ax.plot_surface(X, Y, Z, cmap=cmap_for("surface"), linewidth=0,
+    ax.plot_surface(X, Y, Z, cmap=cmap_for("surface"), linewidth=ptx(0, "lw"),
                     antialiased=True, alpha=0.9, rstride=2, cstride=2)
     zmin = np.min(Z) - 0.35 * (np.max(Z) - np.min(Z))
     ax.contour(X, Y, Z, levels=12, zdir="z", offset=zmin,
@@ -33,28 +33,28 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
                               Z.shape)
         bz = Z[ib]
         ax.plot([bx], [by], [zmin], "*", color="#D55E00", markersize=12,
-                markeredgecolor="white", markeredgewidth=0.5, zorder=10)
+                markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"), zorder=10)
         ax.plot([bx, bx], [by, by], [zmin, bz], ":", color="#D55E00",
-                linewidth=0.9)
+                linewidth=ptx(0.9, "lw"))
     ax.set_zlim(zmin, np.max(Z))
-    ax.set_xlabel(xlabel, fontsize=8, labelpad=2)
-    ax.set_ylabel(ylabel, fontsize=8, labelpad=2)
-    ax.set_zlabel(zlabel, fontsize=8, labelpad=8, rotation=90)
-    ax.tick_params(labelsize=6.5, pad=1)
+    ax.set_xlabel(xlabel, fontsize=ptx(8), labelpad=2)
+    ax.set_ylabel(ylabel, fontsize=ptx(8), labelpad=2)
+    ax.set_zlabel(zlabel, fontsize=ptx(8), labelpad=8, rotation=90)
+    ax.tick_params(labelsize=ptx(6.5), pad=1)
     ax.view_init(elev=elev, azim=azim)
     ax.xaxis.pane.set_alpha(0.05)
     ax.yaxis.pane.set_alpha(0.05)
     ax.zaxis.pane.set_alpha(0.05)
     if stat_lines:
         ax.text2D(0.02, 0.98, "\n".join(stat_lines), transform=ax.transAxes,
-                  fontsize=6.5, va="top", linespacing=1.5,
+                  fontsize=ptx(6.5), va="top", linespacing=1.5,
                   bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                            edgecolor="0.7", alpha=0.85, linewidth=0.6))
+                            edgecolor="0.7", alpha=0.85, linewidth=ptx(0.6, "lw")))
     return fig, ax
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     d0 = np.linspace(0.34, 0.46, 60)
     eps = np.linspace(4, 10, 60)
     X, Y = np.meshgrid(d0, eps)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
                     f"最优 D₀ = {d0_best:.2f}，ε = {eps_best:.0f}×10⁻⁴",
                     f"RMS = {z_best:.3f} cm，谷底沿 ε 平坦"])
     ax.set_title("双参数响应曲面单谷：精度对 D₀ 敏感、对 ε 平坦",
-                 fontsize=9, pad=-2)
+                 fontsize=ptx(9), pad=-2)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "surface3d_project"), tight=False)
     print("surface3d_project: OK")

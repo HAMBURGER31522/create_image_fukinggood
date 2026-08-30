@@ -7,12 +7,12 @@ archetype 4: parallel_coords  —— 平行坐标（3+ 指标轮廓，替代雷�
 
 硬拒绝：饼图（>3 类或需精确比较）、3D 饼、雷达图做排名。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 
-from core import (apply_style, new_figure, save_figure, run_qa,
+from core import (ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, PALETTE, OKABE_ITO, semantic)
 
 
@@ -30,7 +30,7 @@ def share_bars(labels, counts, unit="", width="single", highlight=None):
     for yi, v in zip(y, counts):
         ax.annotate(f"{v/total:.1%}（{v:g}{unit}）", xy=(v, yi),
                     xytext=(5, 0), textcoords="offset points",
-                    va="center", fontsize=7.2)
+                    va="center", fontsize=ptx(7.2))
     ax.set_yticks(y)
     ax.set_yticklabels(labels)
     ax.grid(axis="y", visible=False)
@@ -52,7 +52,7 @@ def waffle(labels, counts, width="single", n=10):
         for j in range(n):
             ax.add_patch(plt.Rectangle((j, n - 1 - i), 0.9, 0.9,
                                        facecolor=colors[grid[i, j]],
-                                       edgecolor="white", linewidth=1.2))
+                                       edgecolor="white", linewidth=ptx(1.2, "lw")))
     ax.set_xlim(-0.2, n + 0.1)
     ax.set_ylim(-0.2, n + 0.1)
     ax.set_aspect("equal")
@@ -62,13 +62,13 @@ def waffle(labels, counts, width="single", n=10):
     ii, jj = np.where(grid == k_major)
     ax.text(jj.mean() + 0.45, n - 1 - ii.mean() + 0.45,
             f"{counts[k_major]/total:.0%}", ha="center", va="center",
-            fontsize=12.5, fontweight="bold", color="white",
-            path_effects=[pe.withStroke(linewidth=2.2, foreground="0.4")])
+            fontsize=ptx(12.5), fontweight="bold", color="white",
+            path_effects=[pe.withStroke(linewidth=ptx(2.2, "lw"), foreground="0.4")])
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=colors[k])
                for k in range(len(labels))]
     ax.legend(handles,
               [f"{lb} {c/total:.0%}" for lb, c in zip(labels, counts)],
-              loc="center left", bbox_to_anchor=(1.0, 0.5), fontsize=7.5,
+              loc="center left", bbox_to_anchor=(1.0, 0.5), fontsize=ptx(7.5),
               frameon=False)
     return fig, ax
 
@@ -90,7 +90,7 @@ def stacked_share(group_labels, cat_labels, matrix, width="onehalf",
                 color=PALETTE[c % len(PALETTE)], label=cat_labels[c],
                 alpha=1.0 if (is_emph or emphasize is None) else 0.6,
                 edgecolor="0.25" if is_emph else "none",
-                linewidth=0.9 if is_emph else 0)
+                linewidth=ptx(0.9, "lw") if is_emph else 0)
         # 段色深浅不一，白字一律写死会在浅色段上掉到 1.6:1。按底色亮度
         # 选黑/白——annotated_heatmap.py 早就是这个写法。
         from core.colors import luminance
@@ -104,7 +104,7 @@ def stacked_share(group_labels, cat_labels, matrix, width="onehalf",
         for yi, s, l in zip(y, shares[:, c], left):
             if s > 0.07:
                 ax.text(l + s / 2, yi, f"{s:.0%}", ha="center", va="center",
-                        fontsize=6.8, color=_txt, fontweight="bold")
+                        fontsize=ptx(6.8), color=_txt, fontweight="bold")
         left += shares[:, c]
     ax.set_yticks(y)
     ax.set_yticklabels(group_labels)
@@ -113,7 +113,7 @@ def stacked_share(group_labels, cat_labels, matrix, width="onehalf",
     ax.set_xticklabels(["0%", "25%", "50%", "75%", "100%"])
     ax.grid(axis="y", visible=False)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18),
-              ncols=len(cat_labels), fontsize=7)
+              ncols=len(cat_labels), fontsize=ptx(7))
     return fig, ax
 
 
@@ -132,40 +132,40 @@ def parallel_coords(names, data, dims, highlight_idx=(), better=None,
     for i in range(len(data)):
         if i in highlight_idx:
             continue
-        ax.plot(x, norm[i], color="#CCCCCC", linewidth=0.8, alpha=0.6,
+        ax.plot(x, norm[i], color="#CCCCCC", linewidth=ptx(0.8, "lw"), alpha=0.6,
                 zorder=2)
         n_bg += 1
     for j, i in enumerate(highlight_idx):
-        ax.plot(x, norm[i], color=PALETTE[j % len(PALETTE)], linewidth=1.8,
+        ax.plot(x, norm[i], color=PALETTE[j % len(PALETTE)], linewidth=ptx(1.8, "lw"),
                 zorder=3, label=names[i])
-    ax.plot([], [], color="#CCCCCC", linewidth=0.8,
+    ax.plot([], [], color="#CCCCCC", linewidth=ptx(0.8, "lw"),
             label=f"其余候选方案（n = {n_bg}）")
     fmt = lambda v: np.format_float_positional(
         v, precision=3, unique=False, fractional=False, trim="-")
     for xi, d in zip(x, dims):
-        ax.axvline(xi, color="0.55", linewidth=0.6)
+        ax.axvline(xi, color="0.55", linewidth=ptx(0.6, "lw"))
         ax.text(xi, 1.04, fmt(data[:, xi].max()), ha="center",
-                fontsize=6.5, color="0.4")
+                fontsize=ptx(6.5), color="0.4")
         ax.text(xi, -0.08, fmt(data[:, xi].min()), ha="center",
-                fontsize=6.5, color="0.4")
+                fontsize=ptx(6.5), color="0.4")
     ax.set_xticks(x)
     if better is not None:
         labels = [f"{d}\n（{b}优）" for d, b in zip(dims, better)]
     else:
         labels = dims
-    ax.set_xticklabels(labels, fontsize=7.5, linespacing=1.3)
+    ax.set_xticklabels(labels, fontsize=ptx(7.5), linespacing=1.3)
     ax.set_yticks([])
     ax.grid(False)
     # 图例放图外底部，避免遮住轴顶数值与折线
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.24),
-              ncols=2, fontsize=7, frameon=False)
+              ncols=2, fontsize=ptx(7), frameon=False)
     fig.subplots_adjust(bottom=0.3)
     ax.set_ylim(-0.14, 1.14)
     return fig, ax
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     seg_labels = ["短段贴边界面", "内部完整段", "跨界截断段", "孤立段"]
     seg_counts = [1240, 3105, 462, 89]
     tot = sum(seg_counts)
@@ -173,19 +173,19 @@ if __name__ == "__main__":
                          highlight="短段贴边界面")
     ax.set_title(f"内部完整段占 {seg_counts[1]/tot:.0%}；"
                  f"贴边界面短段占 {seg_counts[0]/tot:.0%} 为截断证据",
-                 fontsize=9)
+                 fontsize=ptx(9))
     stat_box(ax, [f"总计 n = {tot} 根（单次 MC 实现）"],
-             loc="lower right", fontsize=6.5)
+             loc="lower right", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "composition_share_bars"))
 
     wf_counts = [12, 27, 61]
     fig, ax = waffle(["介质A", "介质B", "基体"], wf_counts)
     ax.set_title(f"成本构成：基体占 {wf_counts[2]/sum(wf_counts):.0%}，"
-                 "介质B 为主要增量", fontsize=9)
+                 "介质B 为主要增量", fontsize=ptx(9))
     stat_box(ax, ["每格 = 总成本 1%",
                   f"介质合计 {wf_counts[0]+wf_counts[1]}%（可压缩项）"],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "composition_waffle"))
 
@@ -195,9 +195,9 @@ if __name__ == "__main__":
     fig, ax = stacked_share(
         ["组1", "组2", "组3"], ["孤立", "小簇（2–10）", "大簇（>10）"],
         mat, emphasize="大簇（>10）")
-    ax.set_title(f"组2 大簇占比约 {ratio:.0f} 倍于其余组均值", fontsize=9)
+    ax.set_title(f"组2 大簇占比约 {ratio:.0f} 倍于其余组均值", fontsize=ptx(9))
     stat_box(ax, [f"组2 大簇 {big[1]:.0%} vs 其余均值 {big[[0, 2]].mean():.0%}"],
-             loc="upper right", fontsize=6.5)
+             loc="upper right", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "composition_stacked"))
 
@@ -208,10 +208,10 @@ if __name__ == "__main__":
         [f"方案{i}" for i in range(24)], data,
         ["成本", "时间", "覆盖率", "风险", "稳健性"], highlight_idx=(5,),
         better=["↓", "↓", "↑", "↓", "↑"])
-    ax.set_title("方案5 以低成本高覆盖进入 Pareto 集", fontsize=9)
+    ax.set_title("方案5 以低成本高覆盖进入 Pareto 集", fontsize=ptx(9))
     stat_box(ax, [f"候选方案 n = {len(data)}，5 维独立归一",
                   "方案5 在成本/覆盖率两维同时占优"],
-             loc="lower right", fontsize=6.5)
+             loc="lower right", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "parallel_coords"))
     print("composition: 4 figures OK")

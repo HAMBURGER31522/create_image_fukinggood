@@ -7,12 +7,12 @@
 
 用法：boxes 按泳道给文本（可含换行公式），flows/feedbacks 用 (泳道i,格j) 索引。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
 
-from core import apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa, PALETTE
+from core import ptx, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa, PALETTE
 
 _LANE_BG = ["#F4F6F8", "#FFFFFF"]
 
@@ -36,18 +36,18 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
         y0 = 1 - (i + 1) * lane_h
         yc = y0 + lane_h / 2
         ax.axhspan(y0, y0 + lane_h, color=_LANE_BG[i % 2], zorder=0)
-        ax.text(0.012, yc, lane_name, ha="left", va="center", fontsize=8,
+        ax.text(0.012, yc, lane_name, ha="left", va="center", fontsize=ptx(8),
                 fontweight="bold", color="0.35", rotation=90)
         n_box = len(boxes)
         row = []
         for j, text in enumerate(boxes):
             xc = 0.08 + (j + 0.5) * 0.92 / n_box
             c = lane_colors[i % len(lane_colors)]
-            t = ax.text(xc, yc, text, ha="center", va="center", fontsize=7.5,
+            t = ax.text(xc, yc, text, ha="center", va="center", fontsize=ptx(7.5),
                         linespacing=1.5, zorder=3,
                         bbox=dict(boxstyle="round,pad=0.55",
                                   facecolor="white",
-                                  edgecolor=c, linewidth=1.1))
+                                  edgecolor=c, linewidth=ptx(1.1, "lw")))
             row.append((xc, yc, t))
         centers.append(row)
 
@@ -78,7 +78,7 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
             shrink = 26          # 同泳道水平箭头维持原行为
         arrow = FancyArrowPatch(
             p0, p1, arrowstyle="-|>", mutation_scale=9, color=color,
-            linewidth=0.9, linestyle=(0, (4, 3)) if dashed else "-",
+            linewidth=ptx(0.9, "lw"), linestyle=(0, (4, 3)) if dashed else "-",
             shrinkA=shrink, shrinkB=shrink,
             connectionstyle="arc3,rad=0.16" if dashed else "arc3,rad=0.0",
             zorder=2)
@@ -86,7 +86,7 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
             # 反馈线加白描边 + 大弧度，斜穿模块框边缘时不相压
             import matplotlib.patheffects as pe
             arrow.set_path_effects(
-                [pe.withStroke(linewidth=2.6, foreground="white")])
+                [pe.withStroke(linewidth=ptx(2.6, "lw"), foreground="white")])
         ax.add_patch(arrow)
 
     for src, dst in flows:
@@ -96,17 +96,17 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
     if feedbacks:
-        ax.plot([], [], color="0.35", linewidth=0.9, label="数据流")
+        ax.plot([], [], color="0.35", linewidth=ptx(0.9, "lw"), label="数据流")
         ax.plot([], [], color="#C44E52", linestyle=(0, (4, 3)),
-                linewidth=0.9, label="反馈/迭代")
+                linewidth=ptx(0.9, "lw"), label="反馈/迭代")
         # 放首泳道左侧空白，避免压住任何模块框
         ax.legend(loc="upper left", bbox_to_anchor=(0.035, 0.99),
-                  fontsize=6.5, frameon=True)
+                  fontsize=ptx(6.5), frameon=True)
     return fig, ax, centers
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     lanes = [
         ("数据层", ["附件数据清洗\n（缺失/异常处理）", "几何建模\n抛物面基准态"]),
         ("模型层", ["问题一：单参数扫描\nmin RMS(D₀)",
@@ -125,7 +125,7 @@ if __name__ == "__main__":
     feedbacks = [((3, 2), (1, 0))]
     fig, ax, _ = pipeline(lanes, flows, feedbacks)
     fig.suptitle("技术路线：四层管线，灵敏度检验反馈修正问题一参数",
-                 fontsize=10, fontweight="bold", y=0.99)
+                 fontsize=ptx(10), fontweight="bold", y=0.99)
     run_qa(fig, expect_width=("double",))
     save_figure(fig, str(GALLERY / "pipeline_diagram"))
     print("pipeline_diagram: OK")

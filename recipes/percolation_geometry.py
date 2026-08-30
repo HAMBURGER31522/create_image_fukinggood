@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Line3DCollection
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from core import (apply_style, save_figure, run_qa, stat_box, panel_label,
+from core import (ptx, apply_style, save_figure, run_qa, stat_box, panel_label,
                   semantic, emphasis, MM, COLUMN_WIDTHS)
 
 
@@ -126,16 +126,16 @@ def spanning_cluster_3d(seg, gap, radius: float = 0.0, axis=0, span_lim=None,
         coords[axis] = np.full_like(G1, pv)
         coords[other[0]], coords[other[1]] = G1, G2
         ax.plot_surface(*coords, color="#E8C35A", alpha=0.16, shade=False,
-                        linewidth=0)
+                        linewidth=ptx(0, "lw"))
     ax.set_xlim(seg[:, :, 0].min(), seg[:, :, 0].max())
     ax.set_ylim(seg[:, :, 1].min(), seg[:, :, 1].max())
     ax.set_zlim(seg[:, :, 2].min(), seg[:, :, 2].max())
     span = [np.ptp(seg[:, :, k]) for k in range(3)]
     ax.set_box_aspect([s / max(span) * 2 + 0.6 for s in span])
     ax.view_init(elev=elev, azim=azim)
-    ax.set_xlabel(f"X / {unit}", fontsize=6.5, labelpad=-2)
-    ax.set_ylabel(f"Y / {unit}", fontsize=6.5, labelpad=-3)
-    ax.tick_params(labelsize=6.5, pad=-2)
+    ax.set_xlabel(f"X / {unit}", fontsize=ptx(6.5), labelpad=-2)
+    ax.set_ylabel(f"Y / {unit}", fontsize=ptx(6.5), labelpad=-3)
+    ax.tick_params(labelsize=ptx(6.5), pad=-2)
     ax.set_zticklabels([])
     for pane in (ax.xaxis, ax.yaxis, ax.zaxis):
         pane.pane.set_alpha(0.03)
@@ -149,9 +149,9 @@ def spanning_cluster_3d(seg, gap, radius: float = 0.0, axis=0, span_lim=None,
     axm.set_xscale("log")
     axm.invert_yaxis()
     axm.set_yticks([])
-    axm.set_xlabel("簇内根数（对数轴）", fontsize=6.5)
-    axm.set_title(f"簇尺寸谱（{len(vals)} 簇）", fontsize=7)
-    axm.tick_params(labelsize=6.5)
+    axm.set_xlabel("簇内根数（对数轴）", fontsize=ptx(6.5))
+    axm.set_title(f"簇尺寸谱（{len(vals)} 簇）", fontsize=ptx(7))
+    axm.tick_params(labelsize=ptx(6.5))
     axm.spines[["top", "right"]].set_visible(False)
 
     info = dict(n=len(seg), n_cluster=len(sizes), biggest=sizes[big_id],
@@ -164,9 +164,9 @@ def spanning_cluster_3d(seg, gap, radius: float = 0.0, axis=0, span_lim=None,
                   f"触左 {info['touch_lo']} / 触右 {info['touch_hi']} 根",
                   ("判定：贯通（高亮簇同时咬住两侧电极面）"
                    if info["spanning"] else "判定：不贯通")],
-             outside="top", fontsize=6.5)
+             outside="top", fontsize=ptx(6.5))
     if title:
-        fig.suptitle(title, y=0.99, fontsize=9.5)
+        fig.suptitle(title, y=0.99, fontsize=ptx(9.5))
     fig._ff_stats = info
     return fig, ax, axm, info
 
@@ -190,7 +190,7 @@ if __name__ == "__main__":
     fig.suptitle(f"{info['n']} 根介质结成 {info['n_cluster']} 簇，"
                  f"最大簇 {info['biggest']} 根"
                  f"{'并贯通两侧电极面' if info['spanning'] else '未贯通'}",
-                 y=0.99, fontsize=9.5)
+                 y=0.99, fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "percolation_geometry"))
     print("percolation_geometry: 1 figure OK")

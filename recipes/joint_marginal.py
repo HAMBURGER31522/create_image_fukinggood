@@ -8,12 +8,12 @@
 参考：skills/photo 图 25（焦面落点联合分布）。
 替代：普通散点墨团（平庸）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 
-from core import (apply_style, save_figure, run_qa, marginal_grid,
+from core import (ptx, apply_style, save_figure, run_qa, marginal_grid,
                   stat_box, cmap_for, semantic)
 
 
@@ -61,11 +61,11 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
         rq = np.quantile(r, q)
         stats[q] = rq
         ax.add_patch(Circle(center, rq, fill=False, color="0.25",
-                            linestyle=ls, linewidth=0.9))
+                            linestyle=ls, linewidth=ptx(0.9, "lw")))
         lines.append(f"{q:.0%} 落点半径 = {rq:.2f}{unit}（{ls_name(ls)}圆）")
     if effective_r is not None:
         ax.add_patch(Circle(center, effective_r, fill=False,
-                            color=semantic("good"), linewidth=1.2))
+                            color=semantic("good"), linewidth=ptx(1.2, "lw")))
         n_in = int(np.sum(r <= effective_r))
         stats["eff_frac"] = n_in / len(r)
         stats["n_in"] = n_in
@@ -73,23 +73,23 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
         lines += [f"有效接收区 r ≤ {effective_r:g}{unit}",
                   f"落入 {n_in} / {len(r)} 条（{n_in/len(r):.1%}）"]
     lines.append(f"最远落点 {r.max():.1f}{unit}")
-    stat_box(ax, lines, loc="lower right", fontsize=6.5)
+    stat_box(ax, lines, loc="lower right", fontsize=ptx(6.5))
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
 
     # 边缘分布与主轴共享同一坐标（标准 jointplot 结构）
     bins = 60
     ax_top.hist(x, bins=bins, range=(xc - half, xc + half),
-                color="#8FBFA8", edgecolor="white", linewidth=0.2)
+                color="#8FBFA8", edgecolor="white", linewidth=ptx(0.2, "lw"))
     ax_right.hist(y, bins=bins, range=(yc - half, yc + half),
                   color="#8FBFA8", edgecolor="white",
-                  linewidth=0.2, orientation="horizontal")
+                  linewidth=ptx(0.2, "lw"), orientation="horizontal")
     fig._ff_stats = stats
     return fig, ax, stats
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(11)
     n = 40000
     # 各向异性高斯核 + t 分布重尾散射，模拟真实光斑（而非规整几何）
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     # 硬规则：图题中的数字必须来自计算变量
     fig.suptitle(f"落点向中心强汇聚：50% 落点半径 {jstats[0.5]:.1f} m，"
                  f"有效接收 {jstats['eff_frac']:.1%}",
-                 fontsize=10, fontweight="bold", y=0.99)
+                 fontsize=ptx(10), fontweight="bold", y=0.99)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "joint_marginal"))
     print("joint_marginal: OK")

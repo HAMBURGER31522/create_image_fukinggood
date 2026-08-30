@@ -5,10 +5,10 @@
 - 证据链：按 |Δ输出| 排序 → 低/高端分色 → 基准竖线 → 端点直标。
 禁止：雷达图做灵敏度/排名。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (ink, apply_style, new_figure, save_figure, run_qa,
+from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, semantic, PALETTE)
 
 
@@ -31,13 +31,13 @@ def tornado(factors, low, high, baseline, xlabel="输出", width="onehalf"):
         ax.annotate(f"{lo:g}", xy=(lo, yi), xytext=(-4 if lo < hi else 4, 0),
                     textcoords="offset points",
                     ha="right" if lo < hi else "left", va="center",
-                    fontsize=6.5, color=ink(c_lo))
+                    fontsize=ptx(6.5), color=text_color(c_lo))
         ax.annotate(f"{hi:g}", xy=(hi, yi), xytext=(4 if hi > lo else -4, 0),
                     textcoords="offset points",
                     ha="left" if hi > lo else "right", va="center",
-                    fontsize=6.5, color=ink(c_hi))
-    ax.axvline(baseline, color="0.2", linewidth=0.9)
-    ax.text(baseline, 0.99, f" 基准 {baseline:g}", fontsize=7, color="0.2",
+                    fontsize=ptx(6.5), color=text_color(c_hi))
+    ax.axvline(baseline, color="0.2", linewidth=ptx(0.9, "lw"))
+    ax.text(baseline, 0.99, f" 基准 {baseline:g}", fontsize=ptx(7), color="0.2",
             va="top", ha="left", transform=ax.get_xaxis_transform())
     ax.set_yticks(y)
     ax.set_yticklabels(factors)
@@ -58,16 +58,16 @@ def spider_cartesian(pct, outputs, names, ylabel="输出", width="single"):
     fig, ax = new_figure(width, ratio=0.75)
     styles = ["-", "--", "-.", ":"]
     for (name, out), c, ls in zip(zip(names, outputs), PALETTE, styles):
-        ax.plot(pct, out, color=c, linestyle=ls, linewidth=1.3, label=name)
-    ax.axvline(0, color="0.6", linewidth=0.7)
+        ax.plot(pct, out, color=c, linestyle=ls, linewidth=ptx(1.3, "lw"), label=name)
+    ax.axvline(0, color="0.6", linewidth=ptx(0.7, "lw"))
     ax.set_xlabel("输入相对扰动（%）")
     ax.set_ylabel(ylabel)
-    ax.legend(loc="best", fontsize=6.5)
+    ax.legend(loc="best", fontsize=ptx(6.5))
     return fig, ax
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     factors = ["价格比 pB/pA", "导通阈值判定", "口径容差", "圆柱长径比",
                "边界处理方式"]
     base = 9.18
@@ -82,8 +82,8 @@ if __name__ == "__main__":
     stat_box(ax, [f"输入扰动 ±{perturb:.0%}（5 因素）",
                   f"价格比 → 成本 ±{p_max:.1%}",
                   f"几何参数影响 ≈ {geo_max:.1%}"],
-             loc="upper left", fontsize=6.5)
-    ax.set_title("结论由价格比主导，对几何建模细节稳健", fontsize=9.5)
+             loc="upper left", fontsize=ptx(6.5))
+    ax.set_title("结论由价格比主导，对几何建模细节稳健", fontsize=ptx(9.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "tornado"))
 
@@ -94,16 +94,16 @@ if __name__ == "__main__":
             base * (1 + 0.0008 * pct)]
     fig, ax = spider_cartesian(pct, outs, factors[:4], ylabel="最低总成本（元）")
     ax.plot([0], [base], "o", color="0.25", markersize=4.5,
-            markeredgecolor="white", markeredgewidth=0.7, zorder=5)
+            markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), zorder=5)
     ax.annotate(f"基准 {base:g} 元", xy=(0, base), xytext=(6, -10),
-                textcoords="offset points", fontsize=7, color="0.25")
+                textcoords="offset points", fontsize=ptx(7), color="0.25")
     # 斜率比来自计算：正扰动端 vs 负扰动端的平均斜率
     k_pos = (outs[1][-1] - outs[1][len(pct)//2]) / (pct[-1] - 0)
     k_neg = (outs[1][len(pct)//2] - outs[1][0]) / (0 - pct[0])
     stat_box(ax, [f"扰动范围 ±{int(abs(pct[0]))}%",
                   f"阈值判定右端斜率为左端 {abs(k_pos/k_neg):.1f} 倍"],
-             loc="lower right", fontsize=6.5)
-    ax.set_title("价格比近线性；阈值判定右端显著超线性", fontsize=9.5)
+             loc="lower right", fontsize=ptx(6.5))
+    ax.set_title("价格比近线性；阈值判定右端显著超线性", fontsize=ptx(9.5))
     run_qa(fig, expect_width=("single",))
     save_figure(fig, str(GALLERY / "spider_cartesian"))
     print("tornado: 2 figures OK")

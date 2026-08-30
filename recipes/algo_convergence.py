@@ -6,10 +6,10 @@
 - 证据链：best-so-far 单调线 → 收敛代竖标 → 末端直标终值 → 统计框给设置。
 替代：把每代种群均值画成杂乱多折线（平庸）。
 """
-from _common import GALLERY
+from _common import GALLERY, PRESET
 import numpy as np
 
-from core import (ink, apply_style, new_figure, save_figure, run_qa,
+from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, PALETTE)
 
 
@@ -40,17 +40,17 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     for k, (name, y, c) in enumerate(curves):
         y = np.asarray(y, dtype=float)
         it = np.arange(len(y))
-        ax.plot(it, y, color=c, linewidth=1.4, zorder=3)
+        ax.plot(it, y, color=c, linewidth=ptx(1.4, "lw"), zorder=3)
         # 收敛代：此后所有值都在终值 (1±tol) 内的最早代
         final = y[-1]
         ok = np.abs(y - final) <= conv_tol * abs(final)
         i_conv = int(np.argmax(np.cumprod(ok[::-1])[::-1] > 0))
         info[name] = (i_conv, float(final))
         ax.plot([i_conv], [y[i_conv]], "o", color=c, markersize=5,
-                markeredgecolor="white", markeredgewidth=0.8, zorder=4)
+                markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"), zorder=4)
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
                     xytext=(0, 9 + 9 * k), textcoords="offset points",
-                    ha="center", fontsize=6.5, color=ink(c))
+                    ha="center", fontsize=ptx(6.5), color=text_color(c))
         lab = end_label(ax, it[-1], final, f" {name} {final:.4g}", c)
         lab.set_va(va_of[k])
     ax.set_xlim(-0.02 * n_max, 1.2 * n_max)   # 右侧留线端标签位，左不出负代
@@ -62,7 +62,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
 
 
 if __name__ == "__main__":
-    apply_style()
+    apply_style(PRESET)
     rng = np.random.default_rng(14)
     it = np.arange(120)
     raw1 = 5.2 + 8 * np.exp(-it / 18) + rng.normal(0, 0.06, len(it))
@@ -73,11 +73,11 @@ if __name__ == "__main__":
         ylabel="总成本（万元）")
     gain = (info["标准 GA"][1] - info["改进 GA"][1]) / info["标准 GA"][1]
     ax.set_title(f"改进 GA 提前 {info['标准 GA'][0] - info['改进 GA'][0]} 代收敛，"
-                 f"终值优 {gain:.1%}", fontsize=9.5)
+                 f"终值优 {gain:.1%}", fontsize=ptx(9.5))
     stat_box(ax, ["种群 100，交叉 0.8 / 变异 0.05",
                   f"收敛判据：相对变化 < 0.1%",
                   f"终值 {info['标准 GA'][1]:.3f} vs {info['改进 GA'][1]:.3f}"],
-             loc="upper right", fontsize=6.5)
+             loc="upper right", fontsize=ptx(6.5))
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "algo_convergence"))
     print("algo_convergence: OK")
