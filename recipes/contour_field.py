@@ -65,20 +65,17 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
     pm = ax.pcolormesh(theta, r, Z, cmap=cmap_for("sequential"),
                        shading="auto", rasterized=True)
     ax.set_theta_zero_location("N")
-    # 径向刻度：**不能用 set_yticks + get_yticklabels**。实测在极坐标轴上
-    # 这条路径的标签一个像素都画不出来（有刻度与无刻度的图逐像素相同），
-    # 而 get_yticklabels() 返回的又不是真正参与绘制的那批对象，所以连
-    # "标签是否可见"都探不出来——gallery 里这张图一直缺整条径向刻度，
-    # 读者无法把任何一圈映射到半径值。改用显式文字标注，确定会渲染。
+    # 径向刻度与网格必须显式抬到场图之上。根因是本库样式的
+    # `axes.axisbelow=True`（core/style.py）把极轴 zorder 压到 0.5，被
+    # zorder=1 的 pcolormesh 整块盖住——**裸 matplotlib 下同样的代码是
+    # 正常渲染的**（实测 4539px vs 0px），所以这不是极坐标或 mpl 的性质，
+    # 是本库样式与不透明场图的组合。它同时吃掉径向刻度**和网格圆环**，
+    # 只补文字标注治不了后者，读者依然没有可对照的圈。
+    ax.set_axisbelow(False)
     ax.set_rlabel_position(22.5)
-    rmax = float(np.max(r))
-    ax.set_yticks([])
     ax.tick_params(labelsize=7, pad=1)
-    _rt = [v for v in np.linspace(0, rmax, 6)[1:-1]]
-    for v in _rt:
-        ax.text(np.deg2rad(22.5), v, f"{v:.2g}", fontsize=7,
-                ha="center", va="center", color="0.15", zorder=6,
-                path_effects=_white_stroke())
+    for lbl in ax.get_yticklabels():
+        lbl.set_path_effects(_white_stroke())
     ax.grid(linewidth=0.3, alpha=0.4)
     # 收紧极轴、放宽右边距，防止 "270°" 被 colorbar 裁切
     fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)

@@ -1328,31 +1328,66 @@ def test_soft_halo_still_grants_exemption():
     assert not hit(fig, "对比度")
 
 
-def test_polar_radial_labels_actually_render():
-    """极坐标轴上 `set_yticks` + `get_yticklabels` 的径向标签一个像素都
-    画不出来（有刻度与无刻度的图逐像素相同），而 `get_yticklabels()`
-    返回的又不是真正参与绘制的对象——连"是否可见"都探不出来。
-    gallery 的 contour_field_polar 因此一直缺整条径向刻度。"""
-    import matplotlib.pyplot as _plt
-    from core import cmap_for
+def test_polar_field_renders_radial_ticks_and_grid():
+    """直接测 `polar_field` 本身，不另起炉灶。
+
+    上一版测试在函数体内重搭了一个 mini 极坐标图、从不 import recipe，
+    于是把 recipe 退回缺陷版后整套测试仍然全绿——它钉住的是"mpl 的
+    ax.text 会渲染"，不是 recipe 的行为。
+
+    根因是本库样式的 `axes.axisbelow=True` 把极轴 zorder 压到 0.5，被
+    zorder=1 的场图整块盖住（裸 mpl 下同样代码渲染 4539px）。所以径向
+    刻度**与网格圆环**一起消失——只补文字标注治不了后者。
+    """
+    import sys as _sys
+    import pathlib as _pl
+    _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]
+                            / "recipes"))
+    from contour_field import polar_field
     th = np.linspace(0, 2 * np.pi, 60)
     rr = np.linspace(0, 1, 30)
     T, R = np.meshgrid(th, rr)
 
-    def _render(use_text):
-        fig = _plt.figure(figsize=(4, 3.6))
-        ax = fig.add_subplot(projection="polar")
-        ax.pcolormesh(T, R, np.cos(3 * T) * R, cmap=cmap_for("sequential"),
-                      shading="auto")
-        ax.set_rlabel_position(22.5)
-        ax.set_yticks([])
-        if use_text:
-            for v in (0.25, 0.5, 0.75):
-                ax.text(np.deg2rad(22.5), v, f"{v:g}", fontsize=7,
-                        ha="center", va="center", color="0.15", zorder=6)
-        fig.canvas.draw()
-        out = np.asarray(fig.canvas.buffer_rgba()).copy()
-        _plt.close(fig)
-        return out
+    fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
+    fig.canvas.draw()
+    base = np.asarray(fig.canvas.buffer_rgba()).copy()
+    ax.set_yticks([])
+    for t in list(ax.texts):
+        t.set_visible(False)
+    fig.canvas.draw()
+    assert int((base != np.asarray(fig.canvas.buffer_rgba())
+                ).any(axis=2).sum()) > 100, "径向刻度未渲染"
+    plt.close(fig)
 
-    assert int((_render(True) != _render(False)).any(axis=2).sum()) > 100
+    fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
+    fig.canvas.draw()
+    b2 = np.asarray(fig.canvas.buffer_rgba()).copy()
+    ax.grid(False)
+    fig.canvas.draw()
+    assert int((b2 != np.asarray(fig.canvas.buffer_rgba())
+                ).any(axis=2).sum()) > 100, "极坐标网格未渲染（ax.grid 空转）"
+    plt.close(fig)
+
+
+def test_polar_field_labels_track_a_non_zero_inner_radius():
+    """`polar_field` 是公开 API。`linspace(0, rmax, 6)` 无视 rmin：
+    r∈[100,101] 时四个标签全部落在 20–81，读者会把半径读错两个数量级。"""
+    import sys as _sys
+    import pathlib as _pl
+    _sys.path.insert(0, str(_pl.Path(__file__).resolve().parents[1]
+                            / "recipes"))
+    from contour_field import polar_field
+    th = np.linspace(0, 2 * np.pi, 40)
+    rr = np.linspace(100, 101, 20)
+    T, R = np.meshgrid(th, rr)
+    fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
+    fig.canvas.draw()
+    lo, hi = ax.get_ylim()
+    vals = list(ax.get_yticks())
+    for t in ax.texts:
+        try:
+            vals.append(float(t.get_text()))
+        except ValueError:
+            pass
+    assert [v for v in vals if lo <= v <= hi],         f"没有径向标注落在轴内 {lo:.4g}–{hi:.4g}：{vals}"
+    plt.close(fig)

@@ -74,7 +74,9 @@ def _all_texts(fig):
         texts += [ax.title, ax.xaxis.label, ax.yaxis.label]
         texts += ax.get_xticklabels() + ax.get_yticklabels()
         # 次刻度**是带负载的**：线性轴默认装 NullFormatter 所以为空，但
-        # log 轴与显式 minor formatter 下有内容（且 get_minorticklabels()
+        # 显式 minor formatter 下有内容，log 轴则要跨度 ≤1 个数量级才有
+        # （多数量级恒为 0，而那正是用 log 轴的典型理由）；且
+        # get_minorticklabels()
         # 内部会 _update_ticks() 现填，不必先 draw）。实测一张显式 minor
         # formatter 的图，字号检查在这一支上当场命中 22 处。
         texts += ax.get_xticklabels(minor=True)
@@ -1308,8 +1310,14 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 # 就把 alpha 丢掉，于是 6% 不透明的描边按满不透明算；而
                 # `_gc` 里的 alpha 键根本没读——`alpha=0.0` 时一个白像素
                 # 都没画（像素实测 0），却仍能整块关掉这条硬拒检查。
+                # mpl 的语义是**覆盖**不是相乘：`GraphicsContextBase
+                # .set_alpha` 会置 _forced_alpha 并重刷 _rgb，所以给了
+                # alpha= 就以它为准。写成相乘只会更保守（不会放行），
+                # 但会把 foreground=(1,1,1,0.06)+alpha=1.0 这种**全不透明**
+                # 的光晕当成 6%。
                 _ga = _gc.get("alpha")
-                _al = _rgba[3] * (1.0 if _ga is None else float(_ga))
+                _al = _rgba[3] if _ga is None else float(_ga)
+                _al = min(1.0, max(0.0, _al))
                 if _al <= 0.05:
                     continue                  # 近乎全透明的描边等于没有
                 _lw = float(_gc.get("linewidth", 0.0) or 0.0)
