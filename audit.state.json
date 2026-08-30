@@ -1,0 +1,18 @@
+{
+  "round": 14,
+  "head": "b438806",
+  "target": "F:/mathematical modeling/skills/figure-forge",
+  "gate": "交付给用户的东西（产物 + 公开 API + 文档）有没有会让用户拿到错误结果、或在正确用法上被无理由硬拒的缺陷。不看内部整洁度。",
+  "verdict_last": "未达标",
+  "changed": "core/style.py（apply_style 认 FF_PRESET、ptx lw 在 cn 恒等）、recipes/*（回到 apply_style()、grid 按档、光晕改 kind=pt）、AUDIT-RUNBOOK.md + audit.py + audit.state.json",
+  "fixed_last_round": [
+    "N-1 照 SKILL.md 复制模板会 NameError：档位选择移进 apply_style（读 FF_PRESET），recipe 回到 apply_style()",
+    "N-3 contour_field 的 ax.grid(False, **线属性) 反向打开网格（matplotlib 当场警告过）",
+    "N-4 ptx(v,'lw') 把 cn 默认线宽当上限；comparison_rank 三元尾巴致 nature 层次反转；4 处文字光晕改走 kind='pt'"
+  ],
+  "pending": [
+    "N-2 SKILL.md/api.md 未记 ptx / text_color / FF_PRESET；§5 教的 ink() 在 nature 档会硬拒",
+    "N-5 run_qa 放行图题渲染成 nan / 数组 repr；NaN 坐标的 callout 静默消失而 QA 说 PASS",
+    "nature 档 5/25 仍失败：algo_convergence comparison_rank fit_residual phase_transition route_map"
+  ]
+}
