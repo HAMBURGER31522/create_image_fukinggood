@@ -48,7 +48,7 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
                     label=band_label)
     ax.plot([lo, hi], [lo, hi], "--", color="0.35", linewidth=ptx(0.9, "lw"),
             label="y = x")
-    ax.plot(y_true, y_pred, "o", color=semantic("data"), markersize=4,
+    ax.plot(y_true, y_pred, "o", color=semantic("data"), markersize=ptx(4, "pt"),
             markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=4,
             label="样本")
     ax.set_xlim(lo, hi)

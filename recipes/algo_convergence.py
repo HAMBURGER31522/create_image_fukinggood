@@ -46,7 +46,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         ok = np.abs(y - final) <= conv_tol * abs(final)
         i_conv = int(np.argmax(np.cumprod(ok[::-1])[::-1] > 0))
         info[name] = (i_conv, float(final))
-        ax.plot([i_conv], [y[i_conv]], "o", color=c, markersize=5,
+        ax.plot([i_conv], [y[i_conv]], "o", color=c, markersize=ptx(5, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"), zorder=4)
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
                     xytext=(0, 9 + 9 * k), textcoords="offset points",

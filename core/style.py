@@ -149,9 +149,14 @@ def ptx(v: float, kind: str = "font") -> float:
     "线宽 > 1pt"的硬拒；而 SKILL.md 把 nature 与 cn 并列宣传为交付档、
     工作流又要求"从 recipes 复制模板"，两者合起来 100% 撞墙。
 
-    kind="font" 按 base_size 比例缩放并夹在该档下限之上；
-    kind="lw"   额外按该档线宽上限封顶。
+    kind="font" 按 base_size 比例缩放并夹在该档字号包线内；
+    kind="lw"   按该档线宽上限封顶；
+    kind="pt"   纯比例缩放、不加任何钳制——用于 markersize 这类"是点值、
+                但既不受字号下限也不受线宽上限约束"的量。不缩放它们的话，
+                nature 档（base 7 vs cn 9）下标记会相对文字明显偏大。
     """
+    if not v:
+        return 0.0          # lw=0（无边框填充）与"不画文字"都是合法输入
     cfg = _PRESETS[_PRESET]
     if kind == "lw":
         ref = _PRESETS["cn"]["line_width"]
@@ -159,6 +164,8 @@ def ptx(v: float, kind: str = "font") -> float:
         return min(out, float(cfg["line_width"]))
     ref = _PRESETS["cn"]["base_size"]
     out = float(v) * float(plt.rcParams.get("font.size", ref)) / ref
+    if kind == "pt":
+        return out
     lo = 5.0 if _PRESET == "nature" else 6.5
     hi = 7.0 if _PRESET == "nature" else 1e9
     return max(lo, min(out, hi))

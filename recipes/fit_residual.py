@@ -23,14 +23,14 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
 
     ax1.plot(xfit, yfit, color=semantic("fit"), linewidth=ptx(1.6, "lw"),
              label=fit_label, zorder=3)
-    ax1.plot(x, y, "o", color=semantic("data"), markersize=4.5,
+    ax1.plot(x, y, "o", color=semantic("data"), markersize=ptx(4.5, "pt"),
              markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"),
              label=data_label, zorder=4)
     if threshold is not None:
         ref_line(ax1, threshold, "h", label=f"{threshold:g}")
         if x_at_threshold is not None:
             ax1.plot([x_at_threshold], [threshold], "*",
-                     color=semantic("highlight"), markersize=12,
+                     color=semantic("highlight"), markersize=ptx(12, "pt"),
                      markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=5)
             callout(ax1, xy=(x_at_threshold, threshold),
                     text=f"交点 = {x_at_threshold:.3g}",
@@ -44,7 +44,7 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
     ax2.fill_between(x, -band, band, color="0.85", alpha=0.8, lw=ptx(0, "lw"),
                      label="MC 95% 抽样误差带")
     ax2.axhline(0, color="0.25", linewidth=ptx(0.8, "lw"))
-    ax2.plot(x, resid, "o", color=semantic("data"), markersize=4.5,
+    ax2.plot(x, resid, "o", color=semantic("data"), markersize=ptx(4.5, "pt"),
              markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), label="拟合残差")
     ax2.set_xlabel(xlabel)
     ax2.set_ylabel("残差")

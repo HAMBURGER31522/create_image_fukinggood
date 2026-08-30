@@ -48,7 +48,7 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
 
 
     # 下：序参量
-    ax2.plot(phi, order_param, "o-", color=semantic("data"), markersize=3,
+    ax2.plot(phi, order_param, "o-", color=semantic("data"), markersize=ptx(3, "pt"),
              linewidth=ptx(1.2, "lw"))
     ax2.axhline(0.5, color="0.6", linewidth=ptx(0.7, "lw"), linestyle=":")
     ax2.set_ylabel(y2label)

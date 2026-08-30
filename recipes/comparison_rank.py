@@ -41,7 +41,7 @@ def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
         c = semantic("highlight") if i == hi else PALETTE[0]
         ax.hlines(yi, 0, v, color=c, linewidth=ptx(1.6, "lw") if i == hi else 1.1,
                   alpha=1.0 if i == hi else 0.75)
-        ax.plot([v], [yi], "o", color=c, markersize=5.5,
+        ax.plot([v], [yi], "o", color=c, markersize=ptx(5.5, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
         ax.annotate(f"{v:g}{unit}", xy=(v, yi), xytext=(5, 0),
                     textcoords="offset points", va="center", fontsize=ptx(7.5),
@@ -65,9 +65,9 @@ def dumbbell(labels, before, after, cond_names=("前", "后"), unit="",
     c0, c1 = PALETTE[0], semantic("fit")
     for yi, b, a in zip(y, before, after):
         ax.plot([b, a], [yi, yi], color="0.78", linewidth=ptx(1.3, "lw"), zorder=2)
-        ax.plot([b], [yi], "o", color=c0, markersize=5.5, zorder=3,
+        ax.plot([b], [yi], "o", color=c0, markersize=ptx(5.5, "pt"), zorder=3,
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
-        ax.plot([a], [yi], "o", color=c1, markersize=5.5, zorder=3,
+        ax.plot([a], [yi], "o", color=c1, markersize=ptx(5.5, "pt"), zorder=3,
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
         d = a - b
         good = (d >= 0) == higher_is_better
@@ -156,7 +156,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
             title = f"{title}（log 轴）"
         ax.plot(vals, y, color="0.78", linewidth=ptx(1.3, "lw"), zorder=2)
         for v, yi, c in zip(vals, y, PALETTE):
-            ax.plot([v], [yi], "o", color=c, markersize=6.5, zorder=3,
+            ax.plot([v], [yi], "o", color=c, markersize=ptx(6.5, "pt"), zorder=3,
                     markeredgecolor="white", markeredgewidth=ptx(1.0, "lw"))
             ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, 8),
                         textcoords="offset points", ha="center",

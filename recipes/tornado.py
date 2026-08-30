@@ -93,7 +93,7 @@ if __name__ == "__main__":
             base * (1 + 0.0015 * pct),
             base * (1 + 0.0008 * pct)]
     fig, ax = spider_cartesian(pct, outs, factors[:4], ylabel="最低总成本（元）")
-    ax.plot([0], [base], "o", color="0.25", markersize=4.5,
+    ax.plot([0], [base], "o", color="0.25", markersize=ptx(4.5, "pt"),
             markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), zorder=5)
     ax.annotate(f"基准 {base:g} 元", xy=(0, base), xytext=(6, -10),
                 textcoords="offset points", fontsize=ptx(7), color="0.25")

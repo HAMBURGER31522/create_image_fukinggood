@@ -33,7 +33,7 @@ def convergence_pair(n, est, half, true=None, ylabel="估计值"):
     ax1.legend(loc="lower right")
     panel_label(ax1, "a")
 
-    ax2.loglog(n, half, "o-", color=c, markersize=3.5, linewidth=ptx(1.2, "lw"),
+    ax2.loglog(n, half, "o-", color=c, markersize=ptx(3.5, "pt"), linewidth=ptx(1.2, "lw"),
                label="CI 半宽")
     ref = half[0] * (n / n[0]) ** -0.5
     ax2.loglog(n, ref, "--", color="0.5", linewidth=ptx(1.0, "lw"),

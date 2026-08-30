@@ -67,7 +67,7 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
     fig, ax = new_figure(width, ratio=0.72)
     if (labels == -1).any():
         noise = X[labels == -1]
-        ax.plot(noise[:, 0], noise[:, 1], "o", color="0.75", markersize=3,
+        ax.plot(noise[:, 0], noise[:, 1], "o", color="0.75", markersize=ptx(3, "pt"),
                 alpha=0.6, label=f"噪声（{len(noise)}）")
     sizes = {}
     for idx, k in enumerate(ks):
@@ -75,12 +75,12 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
         sizes[k] = len(pts)
         c = PALETTE[idx % len(PALETTE)]
         name = cluster_names[idx] if cluster_names else f"簇{k}"
-        ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=3.6,
+        ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=ptx(3.6, "pt"),
                 alpha=0.75, markeredgecolor="white", markeredgewidth=ptx(0.3, "lw"),
                 label=f"{name}（n={len(pts)}）")
         _cov_ellipse(ax, pts, c, n_std=n_std)
         cx, cy = pts.mean(axis=0)
-        ax.plot(cx, cy, "*", color=c, markersize=13,
+        ax.plot(cx, cy, "*", color=c, markersize=ptx(13, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"), zorder=5)
     info = dict(silhouette=_silhouette(X, labels), n_clusters=len(ks),
                 sizes=sizes)

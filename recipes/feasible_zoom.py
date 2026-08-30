@@ -48,9 +48,9 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
     # 可行域 = 前沿上方
     ax.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=ptx(0, "lw"),
                     zorder=0)
-    ax.plot(fx, fy, "-o", color=semantic("fit"), markersize=3.5,
+    ax.plot(fx, fy, "-o", color=semantic("fit"), markersize=ptx(3.5, "pt"),
             linewidth=ptx(1.5, "lw"), label="约束前沿", zorder=4)
-    ax.plot(*best, "*", color="k", markersize=13, markeredgecolor="white",
+    ax.plot(*best, "*", color="k", markersize=ptx(13, "pt"), markeredgecolor="white",
             markeredgewidth=ptx(0.6, "lw"), zorder=5, label="最低成本点")
     ax.set_xlim(np.min(X), np.max(X))
     ax.set_ylim(np.min(Y), np.max(Y))
@@ -78,9 +78,9 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
                      fmt=f"%.1f {cost_unit}", manual=manual)
     axins.fill_between(fx, fy, np.max(Y), color="#DDEEDD", alpha=0.6, lw=ptx(0, "lw"),
                        zorder=0)
-    axins.plot(fx, fy, "-o", color=semantic("fit"), markersize=3,
+    axins.plot(fx, fy, "-o", color=semantic("fit"), markersize=ptx(3, "pt"),
                linewidth=ptx(1.2, "lw"))
-    axins.plot(*best, "*", color="k", markersize=11,
+    axins.plot(*best, "*", color="k", markersize=ptx(11, "pt"),
                markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"))
     return fig, ax, axins
 

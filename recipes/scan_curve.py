@@ -44,7 +44,7 @@ def scan_curve(x, curves, xlabel, ylabel, logy=True, refine_span=None,
     for k, (name, y, c) in enumerate(curves):
         ax.plot(x, y, color=c, linewidth=ptx(1.6, "lw"), label=name, zorder=3)
         i = int(np.argmin(y))
-        ax.plot(x[i], y[i], "*", color=c, markersize=11,
+        ax.plot(x[i], y[i], "*", color=c, markersize=ptx(11, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"), zorder=4)
         callout(ax, xy=(x[i], y[i]),
                 text=f"{name}\nx* = {x[i]:.3g}, min = {y[i]:.4g}",

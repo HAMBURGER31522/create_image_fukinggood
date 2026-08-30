@@ -32,7 +32,7 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
         ib = np.unravel_index(np.argmin((X - bx) ** 2 + (Y - by) ** 2),
                               Z.shape)
         bz = Z[ib]
-        ax.plot([bx], [by], [zmin], "*", color="#D55E00", markersize=12,
+        ax.plot([bx], [by], [zmin], "*", color="#D55E00", markersize=ptx(12, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"), zorder=10)
         ax.plot([bx, bx], [by, by], [zmin, bz], ":", color="#D55E00",
                 linewidth=ptx(0.9, "lw"))

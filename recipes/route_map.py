@@ -39,7 +39,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
         ax.add_collection(LineCollection(segs, colors=c, linewidths=1.2,
                                          alpha=0.85, zorder=2,
                                          label=f"{name}（{d:.0f} km）"))
-        ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=3.5,
+        ax.plot(pts[:, 0], pts[:, 1], "o", color=c, markersize=ptx(3.5, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.5, "lw"), zorder=3)
         if show_order:
             import matplotlib.patheffects as pe
@@ -50,7 +50,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
                             color=text_color(c), zorder=6,
                             path_effects=[pe.withStroke(
                                 linewidth=ptx(1.8, "lw"), foreground="white")])
-    ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=13,
+    ax.plot(*nodes[depot], "*", color=semantic("highlight"), markersize=ptx(13, "pt"),
             markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"), zorder=5)
     import matplotlib.patheffects as pe
     ax.annotate("仓库", nodes[depot], xytext=(8, -14),

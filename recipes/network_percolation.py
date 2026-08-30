@@ -31,7 +31,7 @@ def spatial_networks(nets, titles, xlim, ylim, ncols=3, width="double",
             span = LineCollection(segs[span_mask], colors=semantic("bad"),
                                   linewidths=0.9, zorder=3)
             ax.add_collection(span)
-        ax.plot(nodes[:, 0], nodes[:, 1], "o", color="0.45", markersize=1.2,
+        ax.plot(nodes[:, 0], nodes[:, 1], "o", color="0.45", markersize=ptx(1.2, "pt"),
                 markeredgewidth=ptx(0, "lw"), zorder=4)
         # 两侧电极带
         wband = (xlim[1] - xlim[0]) * boundary_frac

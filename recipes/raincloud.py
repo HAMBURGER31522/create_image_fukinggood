@@ -39,7 +39,7 @@ def raincloud(groups, labels, ylabel="值", width="onehalf"):
                         capprops=dict(color=c, linewidth=ptx(0.9, "lw")),
                         medianprops=dict(color=c, linewidth=ptx(1.4, "lw")))
         jitter = rng.uniform(-0.05, 0.05, len(g)) - 0.22
-        ax.plot(g, i + jitter, "o", color=c, markersize=2.2, alpha=0.45,
+        ax.plot(g, i + jitter, "o", color=c, markersize=ptx(2.2, "pt"), alpha=0.45,
                 markeredgewidth=ptx(0, "lw"), zorder=2)
     ax.set_yticks(range(len(groups)))
     ax.set_yticklabels(labels)
@@ -68,7 +68,7 @@ def ridgeline(groups, labels, xlabel="值", width="single", cmap_colors=None):
         ax.plot(xs, base + dens, color="white", linewidth=ptx(0.7, "lw"),
                 zorder=len(groups) - i)
         med = np.median(g)
-        ax.plot([med], [base], "|", color="0.2", markersize=8, zorder=99)
+        ax.plot([med], [base], "|", color="0.2", markersize=ptx(8, "pt"), zorder=99)
     ax.set_yticks(range(len(groups)))
     ax.set_yticklabels(labels[::-1])
     ax.set_xlabel(xlabel)

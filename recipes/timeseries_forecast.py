@@ -35,7 +35,7 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
                         alpha=alpha, lw=ptx(0, "lw"))
         end_label(ax, t_fore[-1], hi[-1], f"{level:.0%}", "#6D93B5",
                   fontsize=ptx(6.5), fontweight="normal")
-    ax.plot(t_hist, y_hist, "o-", color=c_data, markersize=3,
+    ax.plot(t_hist, y_hist, "o-", color=c_data, markersize=ptx(3, "pt"),
             linewidth=ptx(1.1, "lw"), label="历史观测")
     ax.plot(t_fore, y_fore, "--", color=c_fit, linewidth=ptx(1.5, "lw"),
             label=model_label)
@@ -48,7 +48,7 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
                           boxstyle="square,pad=0.1"))
     if y_test is not None:
         ax.plot(t_fore[: len(y_test)], y_test, "o", color="0.25",
-                markersize=3.5, markerfacecolor="white",
+                markersize=ptx(3.5, "pt"), markerfacecolor="white",
                 markeredgewidth=ptx(1.0, "lw"), label="回测观测", zorder=5)
     end_label(ax, t_fore[-1], y_fore[-1], f" {y_fore[-1]:.3g}", c_fit)
     ax.set_xlabel(xlabel)

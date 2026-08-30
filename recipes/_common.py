@@ -10,7 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-GALLERY = ROOT / "gallery"
+import os as _o2
+GALLERY = Path(_o2.environ.get("FF_GALLERY") or (ROOT / "gallery"))
 GALLERY.mkdir(exist_ok=True)
 
 

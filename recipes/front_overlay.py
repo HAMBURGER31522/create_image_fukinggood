@@ -33,7 +33,7 @@ def response_overlay(X, Y, P, fronts, best=None, levels=(0.5, 0.9),
         ax.plot(fx, fy, label=name, zorder=4, **st)
     if best is not None:
         ax.plot(*best, "*", color="#FFD24C", markeredgecolor="k",
-                markersize=13, markeredgewidth=ptx(0.8, "lw"), zorder=6,
+                markersize=ptx(13, "pt"), markeredgewidth=ptx(0.8, "lw"), zorder=6,
                 clip_on=False, label="最低成本点")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -58,12 +58,12 @@ def pareto_front(f1, f2, labels=("目标1", "目标2"), knee=None,
 
     fig, ax = new_figure(width, ratio=0.8)
     ax.plot(np.asarray(f1)[dom], np.asarray(f2)[dom], "o", color="0.78",
-            markersize=3.5, label="被支配解", zorder=2)
+            markersize=ptx(3.5, "pt"), label="被支配解", zorder=2)
     fx = np.asarray(f1)[nd]
     fy = np.asarray(f2)[nd]
     ax.step(fx, fy, where="post", color=semantic("data"), linewidth=ptx(1.3, "lw"),
             zorder=3)
-    ax.plot(fx, fy, "o", color=semantic("data"), markersize=4.5,
+    ax.plot(fx, fy, "o", color=semantic("data"), markersize=ptx(4.5, "pt"),
             markeredgecolor="white", markeredgewidth=ptx(0.7, "lw"),
             label="Pareto 前沿", zorder=4)
     if knee is None and len(nd) > 2:
@@ -73,7 +73,7 @@ def pareto_front(f1, f2, labels=("目标1", "目标2"), knee=None,
         knee = int(np.argmin(np.hypot(nx, ny)))
     if knee is not None:
         ax.plot(fx[knee], fy[knee], "*", color=semantic("highlight"),
-                markersize=14, markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"),
+                markersize=ptx(14, "pt"), markeredgecolor="white", markeredgewidth=ptx(0.6, "lw"),
                 zorder=5)
         callout(ax, xy=(fx[knee], fy[knee]),
                 text=f"膝点\n({fx[knee]:.3g}, {fy[knee]:.3g})",
@@ -98,9 +98,9 @@ if __name__ == "__main__":
     fy = 36.3 * (1 - (fx / 0.9) ** 0.55)
     fronts = [
         ("剖面法约束前沿", fx, fy,
-         dict(color="k", marker="o", markersize=3.5, linewidth=ptx(1.3, "lw"))),
+         dict(color="k", marker="o", markersize=ptx(3.5, "pt"), linewidth=ptx(1.3, "lw"))),
         ("增量法整数前沿", fx[6:], fy[6:] * 0.96,
-         dict(color="#2E5E8C", marker="s", markersize=3.5, linewidth=ptx(1.2, "lw"),
+         dict(color="#2E5E8C", marker="s", markersize=ptx(3.5, "pt"), linewidth=ptx(1.2, "lw"),
               linestyle="--")),
     ]
     fig, ax = response_overlay(

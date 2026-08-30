@@ -1712,3 +1712,31 @@ def test_reference_line_focus_colour_follows_semantic_highlight():
             if str(ln.get_linestyle()) not in ("-", "None")}
     assert semantic("highlight").upper() in cols, \
         f"判据线色 {cols} 未跟随 semantic('highlight')"
+
+
+def test_ptx_is_identity_under_cn_and_passes_zero_through():
+    """`ptx` 在 cn 档必须恒等（否则 245 处机械替换会悄悄改变既有版面），
+    且 0 要原样透传——`lw=0`（无边框填充）与"不画文字"都是合法输入，
+    把它钳到字号下限是错的。"""
+    from core import apply_style as _as, ptx
+    _as("cn")
+    for v in (6.5, 7, 7.5, 8, 9, 10.5):
+        assert ptx(v) == v, f"cn 档 ptx({v}) = {ptx(v)}"
+    for v in (0.3, 0.6, 0.8, 1.0, 1.2):
+        assert abs(ptx(v, "lw") - v) < 1e-9, f"cn 档 ptx({v},'lw') = {ptx(v,'lw')}"
+    assert ptx(0) == 0, f"ptx(0) = {ptx(0)}，0 应原样透传"
+    assert ptx(0, "lw") == 0
+
+
+def test_ptx_scales_into_the_nature_envelope():
+    """nature 档：cn 调好的值要落进该档的字号/线宽包线内。"""
+    from core import apply_style as _as, ptx
+    _as("nature")
+    try:
+        for v in (9, 10.5, 12):
+            assert 5.0 <= ptx(v) <= 7.0, f"ptx({v}) = {ptx(v)} 超出 nature 包线"
+        for v in (1.2, 1.6, 2.4):
+            assert ptx(v, "lw") <= 1.0, f"ptx({v},'lw') = {ptx(v,'lw')} > 1pt"
+        assert ptx(0) == 0
+    finally:
+        _as("cn")
