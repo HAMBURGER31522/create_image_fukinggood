@@ -17,7 +17,13 @@ from matplotlib.transforms import Bbox
 
 # 场类 artist：这类东西按"面积占比"判，不按采样点判
 FIELD_CLASSES = ("AxesImage", "QuadMesh", "PcolorImage", "NonUniformImage",
-                 "TriMesh", "Poly3DCollection", "Line3DCollection")
+                 "TriMesh", "Poly3DCollection", "Line3DCollection",
+                 # contourf / tricontourf 在 mpl≥3.8 的产物。漏掉它们会让
+                 # 同一张图 pcolormesh 过、contourf 被判"面板是一维构图"
+                 # 硬拒，并被指向 contour_field.py——而那正是唯一用
+                 # contourf 的 recipe；stat_box(loc="auto") 的"满铺场图
+                 # 自动降级到 outside" 也会因此对 contourf 失效。
+                 "QuadContourSet", "TriContourSet")
 
 
 def densify(xy, per_seg: int = 8):

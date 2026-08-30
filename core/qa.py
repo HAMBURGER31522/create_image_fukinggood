@@ -844,13 +844,23 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 try:
                     fb = fa.get_window_extent(rd)
                 except Exception:
+                    fb = None
+                # ContourSet / Poly3D 的 window extent 是退化的
+                # Bbox(inf, inf, -inf, -inf)，而 `Bbox.intersection` 与
+                # 退化框求交会**返回原框本身** → cover 恒为 100%，任何
+                # 位置的注释框都会被判成"压在场图上"（包括已经放到坐标区
+                # 外的）。退化时回退到坐标区本身。
+                if fb is None or not (np.all(np.isfinite(
+                        [fb.x0, fb.y0, fb.x1, fb.y1]))
+                        and fb.x1 > fb.x0 and fb.y1 > fb.y0):
                     fb = ax.get_window_extent()
                 inter = Bbox.intersection(bb, fb)
                 if inter is None:
                     continue
                 cover = (inter.width * inter.height) / \
                     max(1e-9, bb.width * bb.height)
-                if cover > FIELD_COVER_MAX:
+                if cover > FIELD_COVER_MAX and not getattr(
+                        art, "_ff_intentional_box", False):
                     _hit(f"{name} 压在场图上（框底 {cover:.0%} 是色块），"
                          f"改 stat_box(outside='top') 放到坐标区外")
                     break

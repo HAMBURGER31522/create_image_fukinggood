@@ -227,6 +227,7 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
         if not box and _probe.bg_luminance(ax, xy) < 0.62:
             # 但深色/高饱和底上白描边同样读不清，这时还是要半透明白底
             box = True
+            _forced_box = True
     ann = ax.annotate(
         text, xy=xy, xytext=xytext, textcoords=textcoords,
         fontsize=_ann_size(fontsize), color=_text_color(color),
@@ -241,6 +242,11 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
     )
     if not box:
         _halo(ann, lw=2.4)
+    elif locals().get("_forced_box"):
+        # 深色场上的半透明白底框是**主动选择**（白描边在深底上读不清），
+        # 不是"忘了避让"。打标记让 QA 的场覆盖检查放行——引线注释必须
+        # 锚在数据点上，没有"挪到坐标区外"这个选项。
+        ann._ff_intentional_box = True
     return ann
 
 

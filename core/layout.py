@@ -82,8 +82,11 @@ def figure(rows, width="double", height=None, row_heights=None,
     # 默认值在双栏 183mm 画布上就是十几毫米白边——实测坐标区只占画布
     # 41%–45%，一半以上版面是空的，整图墨迹指标直接被腰斩。
     # 期刊图的边距只需容下轴标签与刻度，约 12–14mm。
-    # 右边距要容得下色标（colorbar 挂在最右面板外侧，约 8mm）
-    lm, rm = 13.0 / w_mm, 1.0 - 9.0 / w_mm
+    # 右边距要容得下色标**整体**：色标条 + gap 约 9mm 之外，还有它的刻度
+    # 标签与轴标题（约 11mm）。只留 9mm 时 share_colorbar(loc="right",
+    # label=…) 会把交付宽顶到 190mm、超出 183 档 7mm 而被硬拒——而
+    # figure() + share_colorbar 正是 SKILL.md §4b 主推的组合。
+    lm, rm = 13.0 / w_mm, 1.0 - 20.0 / w_mm
     bm, tm = 11.0 / h_mm, 1.0 - 6.0 / h_mm
     outer = GridSpec(nrows, 1, figure=fig, height_ratios=row_heights,
                      hspace=hspace, left=lm, right=rm, bottom=bm, top=tm)

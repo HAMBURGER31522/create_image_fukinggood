@@ -1430,3 +1430,51 @@ def test_opaque_halo_with_translucent_foreground_is_exempt():
                                        foreground=(1, 1, 1, 0.06),
                                        alpha=1.0)])
     assert not hit(fig, "对比度")
+
+
+# --- 第 11 轮：用户在正确用法上撞墙 -----------------------------------
+
+def test_contourf_counts_as_a_field_not_a_one_dimensional_panel():
+    """`FIELD_CLASSES` 漏了 `QuadContourSet`（contourf 在 mpl≥3.8 的产物），
+    于是同一张图 pcolormesh 过、contourf 被判"4/4 面板是一维构图"硬拒，
+    并被指向 contour_field.py——正是唯一用 contourf 的那个 recipe。"""
+    from core import cmap_for
+    from core import _probe
+    X, Y = np.meshgrid(np.linspace(0, 1, 30), np.linspace(0, 1, 30))
+    Z = np.sin(3 * X) * np.cos(3 * Y)
+    fig, ax = new_figure("onehalf")
+    ax.contourf(X, Y, Z, levels=10, cmap=cmap_for("sequential"))
+    assert _probe.has_field(ax), "contourf 未被识别为场图"
+    assert not hit(fig, "一维构图")
+
+
+def test_stat_box_auto_falls_back_outside_on_a_contourf_field():
+    """`stat_box` 的 docstring 与 api.md 都承诺"满铺场图（imshow /
+    pcolormesh / **contourf**）…loc='auto' 会自动降级到 outside='top'"。
+    降级条件是 `_probe.has_field(ax)`，contourf 不在其列 → 承诺落空、
+    框照压场图，随即被遮挡检查硬拒。"""
+    from core import cmap_for
+    X, Y = np.meshgrid(np.linspace(0, 1, 30), np.linspace(0, 1, 30))
+    fig, ax = new_figure("onehalf")
+    ax.contourf(X, Y, np.sin(3 * X) * np.cos(3 * Y), levels=10,
+                cmap=cmap_for("sequential"))
+    stat_box(ax, ["n = 900", "RMS = 0.41"], loc="auto")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("场在 x=0.5 处达峰")
+    assert not hit(fig, "压在场图上")
+
+
+def test_share_colorbar_keeps_the_declared_column_width():
+    """`share_colorbar(loc="right", label=…)` 使交付宽 190mm（目标 183），
+    无论传不传 expect_width 都硬拒——而 `figure()` + `share_colorbar`
+    正是 SKILL.md §4b 主推的两个 API。"""
+    from core import figure, share_colorbar, cmap_for
+    from core.style import delivered_width_in
+    X, Y = np.meshgrid(np.linspace(0, 1, 20), np.linspace(0, 1, 20))
+    fig, axd = figure([[("a", 1), ("b", 1)]], width="double", height=100)
+    im = axd["a"].pcolormesh(X, Y, np.sin(3 * X), cmap=cmap_for("sequential"),
+                             shading="auto")
+    share_colorbar(fig, im, list(axd.values()), label="相对密度")
+    w = delivered_width_in(fig) * 25.4
+    assert abs(w - 183) <= 3.0, f"交付宽 {w:.1f}mm 不在 183±3"

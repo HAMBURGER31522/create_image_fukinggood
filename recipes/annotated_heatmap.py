@@ -4,7 +4,9 @@ archetype 1: confusion_matrix —— 行归一色阶 + 计数/行占比双标注
 archetype 2: corr_matrix      —— 下三角掩膜 + 发散色 + 数值直标 + 强相关强调
 
 论点合同示例（confusion）：
-- 结论：总体准确率 91%，主要混淆发生在类2→类3（12%）。
+- 结论：总体准确率，主要混淆发生在类2→类3（12%）。
+  （具体数字由数据算出、经 f-string 进图题——写死在这里必然与图漂移，
+   这正是 SPEC 2.1 要防的手写常数，只不过 docstring 逃过了 QA）
 - 证据链：对角块深色 → 非对角唯一深块引导视线 → 统计框给宏平均。
 """
 from _common import GALLERY

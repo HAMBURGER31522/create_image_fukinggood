@@ -185,7 +185,7 @@ stat_box(ax, [f"n = {len(x)}", f"RMS = {rms:.3f} cm"], loc="upper left")
 callout(ax, xy=(x0, y0), text="最优点", xytext=(0.7, 0.6),
         textcoords="axes fraction", color=semantic("highlight"))
 run_qa(fig, expect_width=("onehalf",))   # 先 QA：不过直接抛错，坏图不落盘
-save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+svg
+save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+svg+pdf
 ```
 
 ### 4b. 一张 Figure = 一次多面板装配，不是一个 chart
@@ -197,6 +197,9 @@ save_figure(fig, "输出路径不带扩展名")     # 过了再出 png(300dpi)+s
 fig, ax = figure([[("field", 1.2), ("hist", 1)],      # 主面板宽，辅面板窄
                   [("curve", 1), ("resid", 1)]],
                  width="double", height=132, row_heights=[1, 0.9])
+# figure() 顶部只留 6mm，而 panel_label 默认 dy=1.04：双列布局下居中的
+# suptitle 会和 (b) 的标签撞在一起。给图题留位（或 figure(..., label=False)）
+fig.suptitle("结论句", y=1.06)
 ax["field"].contourf(...)                 # a/b/c/d 已自动编号
 share_colorbar(fig, im, [ax["field"], ax["hist"]], label="导通概率 P")
 ```

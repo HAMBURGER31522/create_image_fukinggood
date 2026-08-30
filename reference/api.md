@@ -6,9 +6,9 @@
 
 | 函数 | 签名要点 | 返回 |
 |---|---|---|
-| `apply_style` | `(base_size=9.0, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
+| `apply_style` | `(preset="cn"\|"nature", base_size=None, draft=False)`；必须最先调用；draft 降 dpi 只出 PNG | None |
 | `new_figure` | `(width="onehalf", ratio=0.62, **subplots_kw)` | `fig, ax` |
-| `save_figure` | `(fig, path_no_ext, formats=("png","svg"), tight=True, exact_width=True)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
+| `save_figure` | `(fig, path_no_ext, formats=("png","svg","pdf"), tight=True, exact_width=True, force=False)`；tight bbox 补白回声明栏宽（交付宽度=声明宽度）；3D 图传 `tight=False`；自动建目录；草稿档文件名加 `_DRAFT` | 输出文件列表 |
 | `run_qa` | `(fig, expect_width=None, strict=True, sourced=None, allow=())`；`expect_width` 可传单个档名/mm 数值或元组；先 QA 再 save，坏图不落盘。查：字号/色图/硬拒绝构图（分组竖柱、饼、双 Y 轴）/注释层/豆腐块/遮挡（图例·注释框·直标·标题两两互压）/交付宽度与图高/面板数/墨迹密度/轴限利用率/比例轴越界/数值溯源与图题-注释数值矛盾/跨面板重复系列/小倍数色标一致/可达性/稀疏离散点连折线/文字对比度（实测像素背景）/同轴不可通约量。`allow` 码：`grouped_bars` `unsourced` `overlap` `accessibility` `unexplained_band` `number_conflict` `duplicate_series` `clim_mismatch` `axis_slack` `sparse_line` `unit_axis_range` `incommensurable` `text_contrast`；**未知码直接抛错**（拼错静默无效比报错更伤） | 问题列表 |
 | `load_table` | `(path, sheet=0)`；xlsx/CSV 读表，CSV 自动试 utf-8-sig/gbk/utf-8 | DataFrame |
 | `as_1d` | `(x, col=None)`；DataFrame 取列 / 任意序列 → 一维 float ndarray，非数值转 NaN | ndarray |
@@ -30,6 +30,12 @@
 | `PALETTE` / `OKABE_ITO` | 低饱和序列（主用）/ 色盲安全 8 色 | — |
 | `semantic` | `("data"/"fit"/"baseline"/"highlight"/"band"/"good"/"bad")` | 色号 |
 | `cmap_for` | `("diverging"/"sequential"/"sequential2"/"surface"/"heatmap")` | cmap |
+| `categorical` | `(n, muted=False)`；返回 n 组「颜色 + 配套 marker + 线型」，>4 类时冗余编码必备 | `cols, marks, lss` |
+| `emphasis` | `(color, level="focus"\|"context"\|"background")`；按重要性压饱和度 | 色号 |
+| `check_accessibility` | `(colors, min_dist=0.12, min_grey_gap=0.10, redundant=False)`；三类色盲 + 灰度复查 | 问题列表 |
+| `simulate_cvd` | `(color, kind="deuteranopia"\|"protanopia"\|"tritanopia")` | 色号 |
+| `PALETTE_MUTED` / `MARKERS` / `LINESTYLES` | 低饱和序列 / 配套标记 / 配套线型 | — |
+| `MAX_PANELS` / `MAX_HEIGHT_MM` / `COLUMN_WIDTHS` | 6 / 170mm / 栏宽表 | — |
 | `truncate_cmap` | `(cmap, lo=0.12, hi=0.88)`；大面积铺色前截断高饱和两端 | cmap |
 
 ## recipes（复制构图用；`info` 字典用于图题 f-string）
