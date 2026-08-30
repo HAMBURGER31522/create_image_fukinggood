@@ -9,7 +9,7 @@ archetype 2: corr_matrix      —— 下三角掩膜 + 发散色 + 数值直标 
    这正是 SPEC 2.1 要防的手写常数，只不过 docstring 逃过了 QA）
 - 证据链：对角块深色 → 非对角唯一深块引导视线 → 统计框给宏平均。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 from matplotlib.patches import Rectangle
 
@@ -106,7 +106,7 @@ def corr_matrix(R, names, width="single", emph_thresh=0.7):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     M = [[112, 6, 2], [9, 87, 12], [3, 5, 96]]
     names = ["类1", "类2", "类3"]
     fig, ax, info = confusion_matrix(M, names)

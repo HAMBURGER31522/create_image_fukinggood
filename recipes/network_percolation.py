@@ -5,7 +5,7 @@
 - 证据链：边用 LineCollection 灰色底层 → 贯穿簇亮色高 zorder → 角标给边数/占比。
 对照：A 题「三组介质网络拓扑」（有论点但轴限不一致、缺统计框）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
@@ -75,7 +75,7 @@ def _demo_net(rng, n, radius, span=False):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(6)
     nets = [_demo_net(rng, 260, 8.0),
             _demo_net(rng, 420, 8.5, span=True),

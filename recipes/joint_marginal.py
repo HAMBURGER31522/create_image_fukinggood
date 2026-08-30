@@ -8,7 +8,7 @@
 参考：skills/photo 图 25（焦面落点联合分布）。
 替代：普通散点墨团（平庸）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
@@ -89,7 +89,7 @@ def joint_hexbin(x, y, xlabel="x", ylabel="y", effective_r=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(11)
     n = 40000
     # 各向异性高斯核 + t 分布重尾散射，模拟真实光斑（而非规整几何）

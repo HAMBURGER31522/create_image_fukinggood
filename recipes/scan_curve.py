@@ -5,7 +5,7 @@
 - 证据链：全局扫描曲线单谷 → 谷底星标+同色统计框 → 精搜带 axvspan。
 参考：skills/photo Snipaste_15-27-34（U 形扫描 + 彩色引线框）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 from matplotlib.colors import to_rgb
 from matplotlib.ticker import FixedLocator, NullFormatter, ScalarFormatter
@@ -57,7 +57,7 @@ def scan_curve(x, curves, xlabel, ylabel, logy=True, refine_span=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     x = np.linspace(-0.6, 0.6, 61)
     y1 = 4.7 + 60 * (x - 0.398) ** 2 + 3 * np.abs(x - 0.398)
     y2 = 5.2 + 55 * (x - 0.390) ** 2 + 2.5 * np.abs(x - 0.390)

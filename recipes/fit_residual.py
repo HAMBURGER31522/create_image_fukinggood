@@ -6,7 +6,7 @@
    这正是 SPEC 2.1 要防的手写常数，只不过 docstring 逃过了 QA）
 - 证据链：左图曲线贴合+交点标注；右图残差围绕零线且 |r| < 抽样带。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, smart_legend, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
@@ -57,7 +57,7 @@ def fit_residual_pair(x, y, xfit, yfit, resid, band, threshold=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(3)
     x = np.arange(0.5, 1.25, 0.05)
     logistic = lambda t, k=14, m=0.72: 1 / (1 + np.exp(-k * (t - m)))

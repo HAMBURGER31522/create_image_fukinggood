@@ -7,7 +7,7 @@
 - 证据链：ROC 越过对角线基线 → PR 在低正例率下不虚高 → 统计框给 n 与阈值。
 替代：只报混淆矩阵单点指标（平庸，丢失阈值全貌）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (text_color, ptx, ink, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
@@ -101,7 +101,7 @@ def roc_pr(models, width="double"):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(21)
     n = 600
     y = (rng.uniform(size=n) < 0.3).astype(int)

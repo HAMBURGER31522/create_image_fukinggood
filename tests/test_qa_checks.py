@@ -1740,3 +1740,84 @@ def test_ptx_scales_into_the_nature_envelope():
         assert ptx(0) == 0
     finally:
         _as("cn")
+
+
+def test_ptx_lw_is_identity_under_cn():
+    """`min(out, cfg["line_width"])` 把 cn 的**默认**线宽 1.2 当成了**上限**，
+    于是 22 处调用点在 cn 下被白白压细——而 cn 档根本没有线宽 QA 检查。
+
+    更要紧的是它与库内既有的 `_mark_lw` 直接打架：后者明确写着"森林图的
+    粗横棒、斜率图的高亮线在 cn 档下本该有分量"，在 cn 恒等。同一个库里
+    两套互相矛盾的线宽政策。
+    """
+    from core import apply_style as _as, ptx
+    from core.annotate import _mark_lw
+    _as("cn")
+    for v in (1.3, 1.6, 2.0, 2.4, 3.0):
+        assert abs(ptx(v, "lw") - v) < 1e-9, f"cn 档 ptx({v},'lw') = {ptx(v,'lw')}"
+        assert abs(ptx(v, "lw") - _mark_lw(v)) < 1e-9, "与 _mark_lw 政策不一致"
+
+
+def test_ptx_lw_respects_the_nature_ceiling():
+    from core import apply_style as _as, ptx
+    _as("nature")
+    try:
+        for v in (1.3, 1.6, 2.0, 3.0):
+            assert ptx(v, "lw") <= 1.0 + 1e-9
+    finally:
+        _as("cn")
+
+
+def test_grid_off_by_preset_actually_turns_the_grid_off():
+    """`ax.grid(False, linewidth=…, alpha=…)` 在 matplotlib 里会**反向生效**
+    ——它当场警告 "First parameter to grid() is false, but line properties
+    are supplied. The grid will be enabled."，网格反而被打开。"""
+    import sys as _s
+    import pathlib as _pl
+    _rp = str(_pl.Path(__file__).resolve().parents[1] / "recipes")
+    if _rp not in _s.path:
+        _s.path.append(_rp)
+    from core import apply_style as _as
+    from contour_field import polar_field
+    _as("nature")
+    try:
+        th = np.linspace(0, 2 * np.pi, 40)
+        rr = np.linspace(0, 1, 20)
+        T, R = np.meshgrid(th, rr)
+        fig, ax = polar_field(T, R, np.cos(3 * T) * R, zlabel="密度")
+        fig.canvas.draw()
+        on = [t.gridline.get_visible() for t in ax.yaxis.get_major_ticks()]
+        assert not any(on), "nature 档下极坐标网格仍开着"
+        plt.close(fig)
+    finally:
+        _as("cn")
+
+
+def test_a_copied_recipe_runs_after_deleting_the_common_import():
+    """SKILL.md 工作流第 5 步是"从 recipes 复制模板"，并明确指示"复制到
+    自己的脚本时删掉 `from _common import …` 这一行"。
+
+    而 recipe 顶部一度是 `from _common import GALLERY, PRESET` +
+    `apply_style(PRESET)`——照文档删掉那行就 `NameError: PRESET`，
+    24/24 个模板全中。档位选择应该在库里（apply_style 认 FF_PRESET），
+    不该寄生在 demo 专用的路径工具上。
+    """
+    import subprocess
+    import sys as _s
+    import pathlib as _pl
+    import tempfile
+    import os
+    root = _pl.Path(__file__).resolve().parents[1]
+    src = (root / "recipes" / "scan_curve.py").read_text(encoding="utf-8")
+    body = "\n".join(l for l in src.split("\n")
+                     if not l.startswith("from _common import"))
+    with tempfile.TemporaryDirectory() as d:
+        out = _pl.Path(d) / "copied.py"
+        head = (f"import sys; sys.path.insert(0, r'{root}')\n"
+                f"import pathlib; GALLERY = pathlib.Path(r'{d}')\n")
+        out.write_text(head + body, encoding="utf-8")
+        env = dict(os.environ, PYTHONIOENCODING="utf-8")
+        r = subprocess.run([_s.executable, str(out)], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace",
+                           env=env, cwd=d)
+    assert r.returncode == 0, f"复制后的脚本跑不起来：\n{r.stderr[-600:]}"

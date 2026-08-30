@@ -7,7 +7,7 @@ archetype 4: parallel_coords  —— 平行坐标（3+ 指标轮廓，替代雷�
 
 硬拒绝：饼图（>3 类或需精确比较）、3D 饼、雷达图做排名。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
@@ -63,7 +63,7 @@ def waffle(labels, counts, width="single", n=10):
     ax.text(jj.mean() + 0.45, n - 1 - ii.mean() + 0.45,
             f"{counts[k_major]/total:.0%}", ha="center", va="center",
             fontsize=ptx(12.5), fontweight="bold", color="white",
-            path_effects=[pe.withStroke(linewidth=ptx(2.2, "lw"), foreground="0.4")])
+            path_effects=[pe.withStroke(linewidth=ptx(2.2, "pt"), foreground="0.4")])
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=colors[k])
                for k in range(len(labels))]
     ax.legend(handles,
@@ -165,7 +165,7 @@ def parallel_coords(names, data, dims, highlight_idx=(), better=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     seg_labels = ["短段贴边界面", "内部完整段", "跨界截断段", "孤立段"]
     seg_counts = [1240, 3105, 462, 89]
     tot = sum(seg_counts)

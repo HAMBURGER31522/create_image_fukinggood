@@ -6,7 +6,7 @@
 参考：skills/photo 图 12（双参数响应曲面）。
 替代：默认 plot_surface 彩虹面无投影（平庸）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -54,7 +54,7 @@ def surface_with_projection(X, Y, Z, best=None, xlabel="x", ylabel="y",
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     d0 = np.linspace(0.34, 0.46, 60)
     eps = np.linspace(4, 10, 60)
     X, Y = np.meshgrid(d0, eps)

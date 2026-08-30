@@ -5,7 +5,7 @@
 - 证据链：按 |Δ输出| 排序 → 低/高端分色 → 基准竖线 → 端点直标。
 禁止：雷达图做灵敏度/排名。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
@@ -67,7 +67,7 @@ def spider_cartesian(pct, outputs, names, ylabel="输出", width="single"):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     factors = ["价格比 pB/pA", "导通阈值判定", "口径容差", "圆柱长径比",
                "边界处理方式"]
     base = 9.18

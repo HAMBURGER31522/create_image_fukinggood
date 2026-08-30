@@ -7,7 +7,7 @@
 - 证据链：等值线给成本梯度 → 可行域填充给约束 → 前沿点列 → 放大窗消除"平坦区"质疑。
 对照：A 题「成本等值线与可行域」（已接近，此模板补注释层与统一工艺）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (text_color, ptx, smart_legend, apply_style, new_figure, save_figure, run_qa,
@@ -86,7 +86,7 @@ def feasible_contour_zoom(X, Y, cost, frontier_xy, best, zoom_xlim, zoom_ylim,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     x = np.linspace(0, 1.0, 200)
     y = np.linspace(0, 40, 200)
     X, Y = np.meshgrid(x, y)

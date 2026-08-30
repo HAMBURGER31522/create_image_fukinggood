@@ -7,7 +7,7 @@
 - 证据链：左图 CI 带收窄 + 终值直标；右图 log-log 斜率 -1/2 参考线贴合。
 替代：多条误差棒折线（平庸）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
@@ -49,7 +49,7 @@ def convergence_pair(n, est, half, true=None, ylabel="估计值"):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(7)
     n = np.unique(np.logspace(1.3, 3.6, 24).astype(int))
     p = 0.62

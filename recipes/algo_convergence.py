@@ -6,7 +6,7 @@
 - 证据链：best-so-far 单调线 → 收敛代竖标 → 末端直标终值 → 统计框给设置。
 替代：把每代种群均值画成杂乱多折线（平庸）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
@@ -62,7 +62,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(14)
     it = np.arange(120)
     raw1 = 5.2 + 8 * np.exp(-it / 18) + rng.normal(0, 0.06, len(it))

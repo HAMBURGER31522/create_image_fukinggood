@@ -9,7 +9,7 @@
 
 适用：灰色预测 / ARIMA / LSTM / 指数平滑等一切预测类题目的主图。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, apply_style, new_figure, save_figure, run_qa,
@@ -82,7 +82,7 @@ def forecast_fan(t_hist, y_hist, t_fore, y_fore, bands, split=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(9)
     t = np.arange(2010, 2024)
     y = 120 * 1.06 ** (t - 2010) * (1 + rng.normal(0, 0.02, len(t)))

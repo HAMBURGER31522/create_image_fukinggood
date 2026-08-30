@@ -11,7 +11,7 @@
 - 结论：方案 C 的综合得分领先第二名 18%。
 - 证据链：按值排序 → 条端直标 → 领先差距引线。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -39,7 +39,7 @@ def sorted_lollipop(labels, values, unit="", highlight=None, title=""):
     y = np.arange(len(values))
     for i, (yi, v) in enumerate(zip(y, values)):
         c = semantic("highlight") if i == hi else PALETTE[0]
-        ax.hlines(yi, 0, v, color=c, linewidth=ptx(1.6, "lw") if i == hi else 1.1,
+        ax.hlines(yi, 0, v, color=c, linewidth=ptx(1.6 if i == hi else 1.1, "lw"),
                   alpha=1.0 if i == hi else 0.75)
         ax.plot([v], [yi], "o", color=c, markersize=ptx(5.5, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"))
@@ -177,7 +177,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(0)
 
     vals = [72.1, 65.8, 88.4, 59.2, 74.9]

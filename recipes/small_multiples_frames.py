@@ -8,7 +8,7 @@
 参考：skills/photo 图 19/20（求解过程四帧快照）。
 替代：多张独立图、色标漂移（平庸，无法比演化）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
@@ -52,7 +52,7 @@ def frame_snapshots(frames, titles, stats, xy=None, R=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(9)
     n = 700
     r = 150 * np.sqrt(rng.uniform(0, 1, n))

@@ -7,7 +7,7 @@
 - 证据链：PuOr 对零发散色 → 等高线分层 → 极值三角+引线 → RMS 统计框。
 参考：skills/photo 图 8 / 图 15（口径场图）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import TwoSlopeNorm
@@ -81,8 +81,13 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
         lbl.set_path_effects(_white_stroke())
     # nature 档明文禁背景网格；极坐标的径向圈是**刻度**不是装饰，
     # 但既然规范这么写，就按档走
-    ax.grid(current_preset() != "nature",
-            linewidth=ptx(0.3, "lw"), alpha=0.4)
+    # 不能写 `ax.grid(False, linewidth=…, alpha=…)`——matplotlib 会警告
+    # "First parameter to grid() is false, but line properties are supplied.
+    # The grid will be enabled." 并**反向打开**网格。要关就单独关。
+    if current_preset() == "nature":
+        ax.grid(False)          # Nature 明文禁背景网格
+    else:
+        ax.grid(True, linewidth=ptx(0.3, "lw"), alpha=0.4)
     # 收紧极轴、放宽右边距，防止 "270°" 被 colorbar 裁切
     fig.subplots_adjust(left=0.02, right=0.98, top=0.88, bottom=0.06)
     cb = fig.colorbar(pm, ax=ax, shrink=0.7, pad=0.12)
@@ -93,11 +98,11 @@ def polar_field(theta, r, Z, zlabel="幅值", width="single"):
 
 def _white_stroke():
     import matplotlib.patheffects as pe
-    return [pe.withStroke(linewidth=ptx(2, "lw"), foreground="white")]
+    return [pe.withStroke(linewidth=ptx(2, "pt"), foreground="white")]
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     x = np.linspace(-160, 160, 240)
     X, Y = np.meshgrid(x, x)
     Rr = np.hypot(X, Y)

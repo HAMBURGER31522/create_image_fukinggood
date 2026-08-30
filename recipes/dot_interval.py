@@ -10,7 +10,7 @@
 构图本体在 `core.dot_interval(ax, ...)`，本文件只演示怎么用。
 参考范例与五条硬默认见 resource/ref/_INDEX.md 第二批聚合。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, apply_style, new_figure, save_figure, run_qa, stat_box,
@@ -32,7 +32,7 @@ def wilson(k, n, z=1.96):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     # 华数杯 A 题问题二的四档：M = 2000 次仿真，判据 P ≥ 0.90
     phi, M = [0.50, 0.60, 0.70, 1.00], 2000
     k = [162, 432, 994, 1987]                 # 各档导通次数

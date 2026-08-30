@@ -7,7 +7,7 @@
 - 证据链：着色散点显示分离 → 协方差椭圆量化簇形状 → 轮廓系数给全局质量。
 替代：默认 tab10 散点无簇心无质量指标（平庸，无法评价聚类好坏）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 from matplotlib.patches import Ellipse
 
@@ -100,7 +100,7 @@ def cluster_scatter(X, labels, xlabel="特征 1", ylabel="特征 2",
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(17)
     c1 = rng.normal([2.0, 6.0], [0.7, 0.5], (140, 2))
     c2 = rng.normal([6.5, 4.0], [0.9, 0.7], (170, 2))

@@ -7,7 +7,7 @@
 - 证据链：路线不交叉（分区合理）→ 序号可复现回路 → 统计框给分车里程。
 替代：无序号无里程的散点连线（平庸，无法验证解）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 from matplotlib.collections import LineCollection
 
@@ -56,7 +56,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     ax.annotate("仓库", nodes[depot], xytext=(8, -14),
                 textcoords="offset points", fontsize=ptx(7), zorder=7,
                 color=semantic("highlight"), fontweight="bold",
-                path_effects=[pe.withStroke(linewidth=ptx(2.0, "lw"),
+                path_effects=[pe.withStroke(linewidth=ptx(2.0, "pt"),
                                             foreground="white")])
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
@@ -76,7 +76,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(5)
     pts = np.vstack([[50, 50], rng.uniform(5, 95, (18, 2))])
     # 角度分区 + 扇区内按极角排序串联：回路天然不自交，

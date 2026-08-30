@@ -7,7 +7,7 @@
 
 用法：boxes 按泳道给文本（可含换行公式），flows/feedbacks 用 (泳道i,格j) 索引。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyArrowPatch
@@ -86,7 +86,7 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
             # 反馈线加白描边 + 大弧度，斜穿模块框边缘时不相压
             import matplotlib.patheffects as pe
             arrow.set_path_effects(
-                [pe.withStroke(linewidth=ptx(2.6, "lw"), foreground="white")])
+                [pe.withStroke(linewidth=ptx(2.6, "pt"), foreground="white")])
         ax.add_patch(arrow)
 
     for src, dst in flows:
@@ -106,7 +106,7 @@ def pipeline(lanes, flows=(), feedbacks=(), width="double", ratio=0.52,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     lanes = [
         ("数据层", ["附件数据清洗\n（缺失/异常处理）", "几何建模\n抛物面基准态"]),
         ("模型层", ["问题一：单参数扫描\nmin RMS(D₀)",

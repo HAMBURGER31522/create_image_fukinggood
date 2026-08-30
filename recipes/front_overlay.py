@@ -7,7 +7,7 @@ archetype 2: pareto_front    —— 目标空间散点 + 非支配前沿连线 +
 - 结论：膝点方案以 +4% 成本换 -31% 误差，是性价比拐点。
 - 证据链：支配点灰化 → 前沿阶梯线 → 膝点星标+双目标值引线框。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, smart_legend, apply_style, new_figure, save_figure, run_qa,
@@ -89,7 +89,7 @@ def pareto_front(f1, f2, labels=("目标1", "目标2"), knee=None,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     x = np.linspace(0, 0.95, 160)
     y = np.linspace(0, 40, 160)
     X, Y = np.meshgrid(x, y)

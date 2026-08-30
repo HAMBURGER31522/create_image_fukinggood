@@ -5,7 +5,7 @@
 - 证据链：上图列归一密度场显示分布劈裂 → 下图序参量曲线 + 临界竖线贯穿两图。
 对照：A 题「最大簇相变跃变」（已接近；此模板拆面板替代双轴并补涨落层）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -69,7 +69,7 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(2)
     phi = np.linspace(0.5, 1.0, 26)
     nrep = 300

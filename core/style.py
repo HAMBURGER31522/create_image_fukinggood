@@ -17,6 +17,7 @@
 """
 from __future__ import annotations
 
+import os as _os
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
@@ -159,6 +160,12 @@ def ptx(v: float, kind: str = "font") -> float:
         return 0.0          # lw=0（无边框填充）与"不画文字"都是合法输入
     cfg = _PRESETS[_PRESET]
     if kind == "lw":
+        # cn 的 `line_width` 是**默认**线宽，不是上限——把它当上限会把森林图
+        # 的粗横棒、斜率图的高亮线一律压到 1.2，而 cn 档根本没有线宽 QA
+        # 检查。这与库内既有的 `_mark_lw`（cn 恒等）直接矛盾，同一个库里
+        # 不能有两套线宽政策。只有 nature 明文限 0.25–1pt，才封顶。
+        if _PRESET != "nature":
+            return float(v)
         ref = _PRESETS["cn"]["line_width"]
         out = float(v) * cfg["line_width"] / ref
         return min(out, float(cfg["line_width"]))
@@ -201,9 +208,14 @@ def is_draft() -> bool:
     return _DRAFT_MODE
 
 
-def apply_style(preset: str = "cn", base_size: float | None = None,
+def apply_style(preset: str | None = None, base_size: float | None = None,
                 draft: bool = False) -> None:
     """应用样式档。preset ∈ {"cn", "nature"}；base_size 覆盖档内默认字号。
+
+    preset=None 时读环境变量 `FF_PRESET`，缺省 "cn"。**档位选择必须在库里**：
+    早先是让 recipe 从 `_common` 拿 PRESET，而 SKILL.md 又指示"复制模板时
+    删掉 `from _common import …` 那一行"——照文档走就 NameError，24/24 个
+    模板全中。
 
     nature 档字号锁在 Nature 上限 7pt（面板标签 8pt 由 panel_label 单独给）；
     cn 档 9pt，适配 A4 中文论文缩放后的可读性。
@@ -211,6 +223,8 @@ def apply_style(preset: str = "cn", base_size: float | None = None,
     交付前必须用默认档重出一遍。
     """
     global _DRAFT_MODE, _STYLE_APPLIED, _PRESET
+    if preset is None:
+        preset = _os.environ.get("FF_PRESET", "cn")
     if preset not in _PRESETS:
         raise ValueError(f"未知样式档 '{preset}'，可选：{sorted(_PRESETS)}")
     _DRAFT_MODE, _STYLE_APPLIED, _PRESET = draft, True, preset

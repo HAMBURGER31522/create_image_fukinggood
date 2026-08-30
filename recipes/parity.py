@@ -7,7 +7,7 @@
 - 证据链：点云贴 1:1 线 → ±band 覆盖率直标 → 最大偏差点引线。
 替代：只报 R² 数字不画图，或散点无参考线（平庸）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 
 from core import (ptx, apply_style, new_figure, save_figure, run_qa,
@@ -90,7 +90,7 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(13)
     y = rng.uniform(20, 180, 60)
     yp = y * (1 + rng.normal(0, 0.05, 60))

@@ -5,7 +5,7 @@
 - 证据链：半小提琴看形状 → 箱看分位 → 原始点看 n 与离群 → 统计框给均值±SD。
 替代：箱线图藏样本（平庸）、均值柱+误差棒（更差）。
 """
-from _common import GALLERY, PRESET
+from _common import GALLERY
 import numpy as np
 from scipy import stats
 
@@ -79,7 +79,7 @@ def ridgeline(groups, labels, xlabel="值", width="single", cmap_colors=None):
 
 
 if __name__ == "__main__":
-    apply_style(PRESET)
+    apply_style()
     rng = np.random.default_rng(5)
     groups = [rng.normal(3.0, 0.5, 160),
               np.concatenate([rng.normal(3.6, 0.6, 130), rng.normal(5.4, 0.4, 40)]),
