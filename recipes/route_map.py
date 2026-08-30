@@ -55,7 +55,7 @@ def route_map(nodes, routes, depot=0, labels=None, xlabel="x（km）",
     import matplotlib.patheffects as pe
     ax.annotate("仓库", nodes[depot], xytext=(8, -14),
                 textcoords="offset points", fontsize=ptx(7), zorder=7,
-                color=semantic("highlight"), fontweight="bold",
+                color=text_color(semantic("highlight")), fontweight="bold",
                 path_effects=[pe.withStroke(linewidth=ptx(2.0, "pt"),
                                             foreground="white")])
     ax.set_xlabel(xlabel)

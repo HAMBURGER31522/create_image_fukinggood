@@ -9,7 +9,7 @@ from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
-from core import (ptx, end_label, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
+from core import (text_color, ptx, end_label, apply_style, MM, COLUMN_WIDTHS, save_figure, run_qa,
                   stat_box, cmap_for, panel_label, semantic)
 
 
@@ -60,7 +60,7 @@ def phase_density_orderparam(phi, samples, order_param, phi_c,
                    linestyle=(0, (5, 3)))
     ax2.annotate(f"φc = {phi_c:g}", xy=(phi_c, 0.5),
                  xytext=(8, 8), textcoords="offset points", fontsize=ptx(7.5),
-                 color=semantic("highlight"), fontweight="bold")
+                 color=text_color(semantic("highlight")), fontweight="bold")
     stat_box(ax2, [f"每点重复 n = {samples.shape[1]}",
                    f"φc = {phi_c:g}（P = 0.5 交点）"],
              loc="lower right", fontsize=ptx(6.5))

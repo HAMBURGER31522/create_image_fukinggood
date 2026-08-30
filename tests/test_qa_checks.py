@@ -1821,3 +1821,52 @@ def test_a_copied_recipe_runs_after_deleting_the_common_import():
                            text=True, encoding="utf-8", errors="replace",
                            env=env, cwd=d)
     assert r.returncode == 0, f"复制后的脚本跑不起来：\n{r.stderr[-600:]}"
+
+
+def test_ref_line_rejects_an_unknown_orientation():
+    """`orientation` 只认字面量 "h"，**任何其他值都静默落进竖线分支**，
+    而 docstring 与 api.md 都只写了默认值 "h"、从没说"v"是唯一另一个合法值。
+
+    `orientation="horizontal"` 是极自然的写法（尤其 LLM 按语义直觉写），
+    结果画成竖线、阈值点错轴，而 run_qa 全部 30 条检查无一命中——这是
+    唯一一条会让用户拿到**几何错误**的图却照常交付的缺陷。
+    """
+    from core import ref_line as _rl
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 10], [0, 10])
+    with pytest.raises(ValueError):
+        _rl(ax, 5, orientation="horizontal", label="阈值")
+
+
+def test_ref_line_h_and_v_still_work():
+    from core import ref_line as _rl
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 10], [0, 10])
+    _rl(ax, 5, orientation="h")
+    _rl(ax, 3, orientation="v")
+    xs = [tuple(np.round(ln.get_xdata()[:2], 6)) for ln in ax.lines[1:]]
+    assert xs[0][0] != xs[0][1], "h 应画横线"
+    assert xs[1][0] == xs[1][1], "v 应画竖线"
+
+
+def test_sparse_panel_ink_check_is_preset_aware():
+    """墨迹密度的两条硬检查既不按 `current_preset()` 分档、也不在
+    `_ALLOW_CODES` 里（直接 `problems.append`，没有 allow 出口）。
+
+    nature 档字号 ≤7pt、线宽 ≤1pt，同一构图墨迹必然更低，而阈值没跟着降：
+    algo_convergence 7.5%→4.2%、fit_residual 8.1%→4.0%，于是 cn 下只是
+    WARN 的图在 nature 下变成不可豁免的硬拒。
+    """
+    from core.qa import _ALLOW_CODES
+    assert "sparse_panel" in _ALLOW_CODES, "墨迹检查没有 allow 出口"
+
+
+def test_sparse_panel_can_be_waived():
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3], color=PALETTE[0])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("结论句")
+    stat_box(ax, ["n = 3"], loc="auto")
+    assert not any("墨迹" in p for p in
+                   run_qa(fig, strict=False, allow=("sparse_panel",)))

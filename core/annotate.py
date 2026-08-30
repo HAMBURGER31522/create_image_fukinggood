@@ -786,6 +786,14 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
     lw = linewidth if linewidth is not None else (
         1.0 if level == "focus" else 0.7)
     size = _ann_size(fontsize)
+    if orientation not in ("h", "v"):
+        # 无校验时任何非 "h" 的值都静默落进竖线分支：`orientation=
+        # "horizontal"` 这种极自然的写法会把阈值点错轴，而 run_qa 全部
+        # 检查无一命中——图照常交付。这是唯一一条会让用户拿到**几何
+        # 错误**的缺陷，必须在入口拦掉。
+        raise ValueError(
+            f"orientation 只能是 'h'（横线）或 'v'（竖线），收到 "
+            f"{orientation!r}")
     tcol = text_color(c)   # 内含 ink() 压暗；判据色做文字时正好卡在 3:1 线上
     if orientation == "h":
         ax.axhline(value, color=c, linewidth=lw, linestyle=(0, (4, 3)),

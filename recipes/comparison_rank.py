@@ -262,7 +262,7 @@ if __name__ == "__main__":
     ax.annotate(f"D0 ≥ {d0s[np.searchsorted(d0s, d0_last) + 1]:.2f} m "
                 "后行程越界均为 0", xy=(0.98, 0.68),
                 xycoords="axes fraction", ha="right", fontsize=ptx(7),
-                color="#4C9A82", style="italic")
+                color=text_color("#4C9A82"), style="italic")
     stat_box(ax, [f"D0 扫描 {len(d0s)} 档（步长 {d0s[1]-d0s[0]:.2f} m）",
                   f"行程越界合计 {sum(left_cnt)} 节点"],
              outside="top", fontsize=ptx(6.5))

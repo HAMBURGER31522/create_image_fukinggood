@@ -99,7 +99,7 @@ _ALLOW_CODES = frozenset({
     "grouped_bars", "unsourced", "overlap", "accessibility",
     "unexplained_band", "number_conflict", "duplicate_series",
     "clim_mismatch", "axis_slack", "sparse_line", "unit_axis_range",
-    "incommensurable", "text_contrast",
+    "incommensurable", "text_contrast", "sparse_panel",
 })
 
 
@@ -1056,10 +1056,16 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # 逐面板只拦"真空图"：parity、哑铃这类构图本就稀疏而正确，
             # 按 12% 卡会把它们全部误杀。信息密度是**构图选择**问题，
             # 该由下面的图级均值与图种构成比来管，不是逐面板打磨。
-            if ink < 0.045 and area_cm2 >= 12:
-                problems.append(
+            # 阈值按档：nature 的字号 ≤7pt、线宽 ≤1pt，同一构图墨迹必然
+            # 更低（实测 algo_convergence 7.5%→4.2%、fit_residual
+            # 8.1%→4.0%），阈值不跟着降就会把 cn 下只是 WARN 的图在
+            # nature 下变成硬拒。
+            _ink_floor = 0.030 if current_preset() == "nature" else 0.045
+            if ink < _ink_floor and area_cm2 >= 12:
+                _hard(
                     f"面板 {area_cm2:.0f} cm² 却只有 {ink:.1%} 墨迹，"
-                    f"接近空白——并入相邻面板，或让数据进正文表格")
+                    f"接近空白——并入相邻面板，或让数据进正文表格",
+                    "sparse_panel")
             elif ink < 0.12:
                 print(f"[QA WARN] 面板墨迹 {ink:.1%} 偏低"
                       f"（参考期刊图 25%–45%）")
@@ -1134,11 +1140,12 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     # 只对多面板图生效：多面板图必须让每一格都配得上它占的版面；
     # 单/双面板的聚焦图（一条收敛曲线、一张 parity）本就可以稀疏。
     _sm = bool(getattr(fig, "_ff_small_multiples", False))
-    if not _sm and len(inks) >= 3 and float(np.mean(inks)) < 0.13:
-        problems.append(
+    _fig_floor = 0.09 if current_preset() == "nature" else 0.13
+    if not _sm and len(inks) >= 3 and float(np.mean(inks)) < _fig_floor:
+        _hard(
             f"{len(inks)} 面板图的平均墨迹仅 {np.mean(inks):.1%} < 13%——"
             f"整张图信息稀薄，合并面板、改二维场/联合分布/三维几何，"
-            f"或让数据进正文表格")
+            f"或让数据进正文表格", "sparse_panel")
     try:
         allax = [a for a in fig.get_axes()
                  if a.get_label() != "<colorbar>" and a.get_visible()
