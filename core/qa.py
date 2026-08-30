@@ -949,8 +949,16 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         if boxes:
             rects = [(n, b) for n, b, _, _, _ in boxes]
             hidden = [a for _, _, _, _, a in boxes]
+            # 主动选择的底框（callout 在深色场上——白描边在深底读不清）
+            # 同样要放行。5c 已认这个标记，5d 不认的话等于没放行：实际
+            # 开火的正是 5d，`callout` 打在深场上必被硬拒，而引线注释必须
+            # 锚在数据点上，没有"挪到轴外"这个选项。
+            _intent = [getattr(a, "_ff_intentional_box", False)
+                       for _, _, _, _, a in boxes]
             inks = _probe.ink_under(fig, rects, hidden)
-            for (n, _), ink in zip(rects, inks):
+            for (n, _), ink, _it in zip(rects, inks, _intent):
+                if _it:
+                    continue
                 if ink > PIXEL_INK_ERR:
                     _hit(f"{n} 底下有 {ink:.0%} 的图面内容（像素实测），"
                          f"该位置不是真空区")

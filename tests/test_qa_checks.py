@@ -406,7 +406,8 @@ def test_same_label_reported_for_two_conditions_is_not_a_conflict():
 # 独立评审提出的缺陷：先钉测试，再改实现
 # ======================================================================
 
-from core import dot_interval, slope_lines, stat_box  # noqa: E402
+from core import (dot_interval, slope_lines, stat_box,  # noqa: E402
+                  callout, ref_line)
 
 
 def _di_fig(**kw):
@@ -1580,3 +1581,78 @@ def test_end_labels_actually_separate_by_the_requested_point_gap():
     end_labels(ax, [(1.0, 0.500, "方案A", PALETTE[0]),
                     (1.0, 0.505, "方案B", PALETTE[1])])
     assert not hit(fig, "直标互相重叠")
+
+
+def test_callout_on_a_dark_field_is_not_rejected():
+    """`callout` 在深色场上主动选择半透明白底框（白描边在深底读不清），
+    上一轮给它打了 `_ff_intentional_box`，但那只挡 5c；实际开火的是 5d
+    像素兜底，它完全不看这个标记 → 照 §4 骨架写 callout 打在深场上必被
+    硬拒，而引线注释必须锚在数据点上，没有"挪到轴外"这个选项。"""
+    X, Y = np.meshgrid(np.linspace(0, 1, 40), np.linspace(0, 1, 40))
+    fig, ax = new_figure("onehalf")
+    ax.pcolormesh(X, Y, X * Y, cmap="viridis", shading="auto")
+    callout(ax, xy=(0.5, 0.5), text="峰值点")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("场在中心达峰")
+    assert not hit(fig, "真空区")
+
+
+def test_focus_reference_line_does_not_share_a_colour_with_series_two():
+    """`ref_line(level="focus")` 默认色 == `semantic("highlight")` ==
+    `PALETTE[1]` == `categorical(n)[1]`：两条系列以上再加一条焦点判据线，
+    判据线必与第二条系列同色，违反"配色语义一致"。"""
+    from core import semantic, categorical
+    cols, _, _ = categorical(3)
+    assert semantic("highlight").upper() != cols[1].upper(), \
+        f"判据线色 {semantic('highlight')} 与第二条系列同色"
+
+
+def test_horizontal_bars_are_sampled_at_full_length():
+    """`series_samples` 对 `ax.containers` 一律按**竖柱**采样
+    `[(x0+x1)/2, y1]`，barh 因此只上报一半条长（实测 0.04/0.07/0.09
+    vs 真值 0.08/0.14/0.18）——而横条正是硬拒绝清单第一条推荐的替代构图，
+    "图例压柱顶"检查对它等于空转。"""
+    from core import _probe
+    vals = [0.08, 0.14, 0.18]
+    fig, ax = new_figure("onehalf")
+    ax.barh([0, 1, 2], vals, color=PALETTE[0])
+    fig.canvas.draw()
+    got = set()
+    for _nm, pts in _probe.series_samples(ax):
+        d = ax.transData.inverted().transform(pts)
+        got.update(np.round(d[:, 0], 3))
+    for v in vals:
+        assert any(abs(g - v) < 0.005 for g in got), \
+            f"条长 {v} 未被采到；采到 {sorted(got)}"
+
+
+def test_expand_axes_is_not_a_dead_parameter():
+    """`expand_axes` 在签名、docstring、api.md 三处登记，函数体里从未读取。
+    api.md 明写"最佳位置仍压数据时，按框高扩一档轴限腾出真空带，而不是
+    压上去"——实测多面板里轴外放不下时会**静默压回轴内**等着被 QA 拦。
+    """
+    import inspect
+    from core import stat_box as _sb
+    src = inspect.getsource(_sb)
+    body = src.split('"""', 2)[-1]
+    assert "expand_axes" in body, "expand_axes 在函数体里从未被读取"
+
+
+def test_stat_box_expands_limits_instead_of_covering_data():
+    """满格数据 + 轴外放不下 → 应扩轴限腾出真空带，而不是压在数据上。"""
+    import matplotlib.pyplot as _plt
+    fig, axes = _plt.subplots(2, 1, figsize=(3.5, 3.0))
+    rng = np.random.default_rng(0)
+    for a in axes:
+        a.scatter(rng.random(400), rng.random(400), s=4, color=PALETTE[0])
+        a.set_xlim(0, 1)
+        a.set_ylim(0, 1)
+    y0, y1 = axes[0].get_ylim()
+    stat_box(axes[0], ["n = 400", "RMS = 0.29"], loc="auto")
+    fig.canvas.draw()
+    ny0, ny1 = axes[0].get_ylim()
+    moved_outside = any(t.get_position()[1] > 1.0 or t.get_position()[1] < 0
+                        for t in axes[0].texts)
+    assert (ny1 - ny0) > (y1 - y0) + 1e-9 or moved_outside, \
+        f"轴限未扩（{y0},{y1} → {ny0},{ny1}）且未移到轴外"

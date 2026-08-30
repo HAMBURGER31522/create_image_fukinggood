@@ -176,6 +176,24 @@ def stat_box(ax, lines, loc: str = "auto", fontsize: float | None = None,
         got = _place_outside(_o[0], size) or _place_outside(_o[1], size)
         if got is not None:
             return got
+        if expand_axes and not _probe.has_field(ax):
+            # 轴外两侧都放不下（多面板里常见）。此前是**静默压回轴内**、
+            # 等着被 QA 的遮挡检查拦下，而 expand_axes 这个参数在签名、
+            # docstring、api.md 三处都登记了"按框高扩一档轴限腾出真空带"，
+            # 函数体却从未读过它。这里把它实现出来：往数据少的那一侧扩。
+            _y0, _y1 = ax.get_ylim()
+            _need = (h_frac + 0.04) * (_y1 - _y0)
+            _occ = _probe.occupancy(ax)
+            _top_busy = float(np.mean(_occ[-max(1, len(_occ) // 5):]))
+            _bot_busy = float(np.mean(_occ[:max(1, len(_occ) // 5)]))
+            if _top_busy <= _bot_busy:
+                ax.set_ylim(_y0, _y1 + _need)
+                pick = "upper left"
+            else:
+                ax.set_ylim(_y0 - _need, _y1)
+                pick = "lower left"
+            ax.figure.canvas.draw()
+            ab = ax.get_window_extent()
         t = draw(*_probe.anchor_pos(pick)[:2], text, transform=ax.transAxes,
                  fontsize=size, color="black", linespacing=1.5, bbox=bbox,
                  zorder=10)
