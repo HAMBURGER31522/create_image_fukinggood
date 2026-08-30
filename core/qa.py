@@ -891,7 +891,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                        else list(ax.images) + list(ax.collections))
             for fa in _fields:
                 if not fa.get_visible() or \
-                        fa.__class__.__name__ not in _probe.FIELD_CLASSES:
+                        not _probe.is_filled_field(fa):
                     continue
                 try:
                     fb = fa.get_window_extent(rd)
@@ -1612,7 +1612,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     if _xy.size:
                         _chunks.append(_xy.reshape(-1, 2))
             for _c in a.collections:
-                if (_c.__class__.__name__ in _probe.FIELD_CLASSES
+                if (_probe.is_filled_field(_c)
                         or not _c.get_visible()):
                     continue
                 _off = np.asarray(getattr(_c, "get_offsets", lambda: [])(),

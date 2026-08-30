@@ -36,6 +36,18 @@ def densify(xy, per_seg: int = 8):
     return np.vstack(segs + [xy[-1:]])
 
 
+def is_filled_field(a) -> bool:
+    """这个 artist 是不是**满铺**的场。
+
+    `contour()` 与 `contourf()` 在 mpl≥3.8 同为 `QuadContourSet`，只能靠
+    `filled` 属性区分：线等值线的轴大部分是白底，把它当满铺场会让"图例
+    压在场图上（框底 100% 是色块）"这类诊断变成与事实相反的硬拒。
+    """
+    if a.__class__.__name__ not in FIELD_CLASSES:
+        return False
+    return bool(getattr(a, "filled", True))
+
+
 def series_samples(ax):
     """返回 [(名称, 显示坐标点集)]：该轴上每条独立数据系列的采样点。
 
@@ -63,7 +75,7 @@ def series_samples(ax):
         pts = np.vstack(chunks)
         out.append((f"cloud{k}", ax.transData.transform(pts)))
     for j, c in enumerate(ax.collections):
-        if c.__class__.__name__ in FIELD_CLASSES or not c.get_visible():
+        if is_filled_field(c) or not c.get_visible():
             continue
         if isinstance(c, LineCollection):
             # 整个 collection 算一条系列，不能按 segment 拆：网络图的
@@ -117,8 +129,7 @@ def series_samples(ax):
 def has_field(ax) -> bool:
     """该轴上是否存在满铺的场类 artist（此时轴内不存在真空位）。"""
     arts = list(ax.images) + list(ax.collections)
-    return any(a.get_visible() and a.__class__.__name__ in FIELD_CLASSES
-               for a in arts)
+    return any(a.get_visible() and is_filled_field(a) for a in arts)
 
 
 def occupancy(ax, nx: int = 40, ny: int = 40):

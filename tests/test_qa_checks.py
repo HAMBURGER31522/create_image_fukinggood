@@ -1526,3 +1526,57 @@ def test_clipped_out_of_view_ticks_do_not_trigger_the_cross_axes_check():
          ("失效率", [0.002, 0.02, 0.2, 2.0, 20.0], "log"),
          ("满意度", [4.6, 4.2, 3.9, 3.1, 2.8], "linear")])
     assert not hit(fig, "跨面板文字重叠")
+
+
+# --- 第 12 轮 ---------------------------------------------------------
+
+def test_line_contours_are_not_treated_as_a_filled_field():
+    """`contour()` 与 `contourf()` 在 mpl≥3.8 同为 `QuadContourSet`，
+    上一轮把整个类塞进 FIELD_CLASSES，于是**线**等值线也被当成满铺场：
+    一张 92% 是白底的合规等值线图，只因放了个图例就被判"图例压在场图上
+    （框底 100% 是色块）"——诊断与事实相反，而补救（改 stat_box
+    outside）对图例根本不适用。两者可用 `filled` 属性区分。
+    """
+    from core import _probe
+    X, Y = np.meshgrid(np.linspace(0, 1, 40), np.linspace(0, 1, 40))
+    Z = np.sin(3 * X) * np.cos(3 * Y)
+    fig, ax = new_figure("onehalf")
+    ax.contour(X, Y, Z, levels=8, colors=PALETTE[0])
+    assert not _probe.has_field(ax), "线等值线不该算满铺场"
+
+    fig2, ax2 = new_figure("onehalf")
+    ax2.contourf(X, Y, Z, levels=8, cmap="YlOrRd")
+    from core import _probe as _p2
+    assert _p2.has_field(ax2), "填充等值线应算场图"
+
+
+def test_a_legend_on_a_line_contour_plot_is_not_rejected():
+    """端到端：合规的线等值线图 + 图例，不该被硬拒。"""
+    X, Y = np.meshgrid(np.linspace(0, 1, 40), np.linspace(0, 1, 40))
+    Z = np.sin(3 * X) * np.cos(3 * Y)
+    fig, ax = new_figure("onehalf")
+    cs = ax.contour(X, Y, Z, levels=8, colors=PALETTE[0])
+    ax.clabel(cs, inline=True, fontsize=6.5)
+    ax.plot([0, 1], [0.2, 0.8], color=PALETTE[1], label="约束前沿")
+    ax.legend(loc="upper left")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("前沿切点给出最低成本解")
+    stat_box(ax, ["n = 1600"], loc="lower right")
+    assert not hit(fig, "压在场图上")
+
+
+def test_end_labels_actually_separate_by_the_requested_point_gap():
+    """`end_labels` 把**显示像素**与**点**混用：`min_gap_pt=9` 在
+    figure.dpi=150 下实际只拉开 9×72/150 = 4.3pt，而标签本身高 7.6pt——
+    末端接近的两条线必然叠字，还会被自家的直标互压检查拦下。
+    而 api.md 承诺的是"一次排完并自动避让"。
+    """
+    from core import end_labels
+    fig, ax = new_figure("onehalf")
+    x = np.linspace(0, 1, 20)
+    ax.plot(x, 0.50 + 0.0 * x, color=PALETTE[0])
+    ax.plot(x, 0.505 + 0.0 * x, color=PALETTE[1])
+    end_labels(ax, [(1.0, 0.500, "方案A", PALETTE[0]),
+                    (1.0, 0.505, "方案B", PALETTE[1])])
+    assert not hit(fig, "直标互相重叠")

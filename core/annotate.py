@@ -309,9 +309,15 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
     order = sorted(range(len(items)), key=lambda i: items[i][1])
     ys_disp = [ax.transData.transform((0, items[i][1]))[1] for i in order]
     adj = list(ys_disp)
+    # ys_disp 是**显示像素**，min_gap_pt 是**点**——直接相比是单位混用。
+    # 本项目 figure.dpi=150，于是 9pt 实际只拉开 9×72/150 = 4.3pt，而标签
+    # 本身就有 7.6pt 高：两条线末端接近时必然叠字，还会被自家的直标互压
+    # 检查拦下，而 api.md 承诺的是"一次排完并自动避让"。
+    _dpi = ax.figure.dpi or 72.0
+    _gap_px = min_gap_pt * _dpi / 72.0
     for k in range(1, len(adj)):
-        if adj[k] - adj[k - 1] < min_gap_pt:
-            adj[k] = adj[k - 1] + min_gap_pt
+        if adj[k] - adj[k - 1] < _gap_px:
+            adj[k] = adj[k - 1] + _gap_px
     # 整体回中，避免全部被顶到上方
     shift = (sum(ys_disp) - sum(adj)) / len(adj)
     adj = [a + shift for a in adj]
