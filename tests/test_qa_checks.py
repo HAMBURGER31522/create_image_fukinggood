@@ -2723,3 +2723,74 @@ def test_end_labels_still_separates_numeric_labels():
     fig.canvas.draw()
     ys = sorted(t.get_window_extent(fig.canvas.get_renderer()).y0 for t in out)
     assert ys[1] - ys[0] > 4.0, f"两个直标没拉开：{ys}"
+
+
+# --- R16k 非数值轴（分类 / 日期）：表驱动，新增入口加进表 --------------
+#
+# zcode 逮到 callout 的默认路径在分类轴/日期轴上炸之后，按同一根因把全库
+# 的 transData.transform 调用点扫了一遍——只有 callout 与 end_labels 两处
+# 中招，其余 10 个公开入口都正常。这张表把结论固化住：以后新增/改动任何
+# 会做坐标换算的入口，漏了单位换算立刻变红。
+
+def _cat_ax():
+    fig, ax = new_figure("onehalf")
+    ax.plot(["A", "B", "C", "D"], [1, 2, 3, 4])
+    return fig, ax
+
+
+def _date_ax():
+    import datetime as _dt
+    fig, ax = new_figure("onehalf")
+    ds = [_dt.date(2026, 1, d) for d in (1, 5, 9, 13)]
+    ax.plot(ds, [1, 2, 3, 4])
+    return fig, ax, ds
+
+
+def _caty_ax():
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3, 4], ["A", "B", "C", "D"])
+    return fig, ax
+
+
+_NONNUM_CASES = {
+    "stat_box 分类x": lambda: stat_box(_cat_ax()[1], ["n = 4"], loc="auto"),
+    "stat_box 日期x": lambda: stat_box(_date_ax()[1], ["n = 4"], loc="auto"),
+    "stat_box 分类y": lambda: stat_box(_caty_ax()[1], ["n = 4"], loc="auto"),
+    "callout 分类x 默认位": lambda: __import__(
+        "core").callout(_cat_ax()[1], ("B", 2), "点"),
+    "callout 日期x 默认位": lambda: (lambda f, a, ds: __import__(
+        "core").callout(a, (ds[1], 2), "点"))(*_date_ax()),
+    "end_labels 分类y": lambda: __import__("core").end_labels(
+        _caty_ax()[1], [(3, "C", "末端", PALETTE[0])]),
+    "end_label 日期x": lambda: (lambda f, a, ds: __import__(
+        "core").end_label(a, ds[-1], 4, "末端", PALETTE[0]))(*_date_ax()),
+    "ref_line 分类x 竖线": lambda: __import__("core").ref_line(
+        _cat_ax()[1], "B", orientation="v", label="阈值"),
+    "smart_legend 日期x": lambda: (lambda f, a, ds: (
+        a.plot(ds, [2, 3, 1, 4], label="系列"),
+        __import__("core").smart_legend(a)))(*_date_ax()),
+    "inset_zoom 日期x": lambda: (lambda f, a, ds: __import__(
+        "core").inset_zoom(a, (0.5, 0.5, 0.3, 0.3), (ds[0], ds[2]), (1, 3))
+    )(*_date_ax()),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_NONNUM_CASES))
+def test_public_entry_points_survive_non_numeric_axes(name):
+    """matplotlib 的分类轴与日期轴是完全合法的用法；库里任何自己做
+    `transData.transform` 的地方都必须先走 `convert_xunits/convert_yunits`。
+    漏了就炸成 `affine_transform(): incompatible function arguments`——
+    一句和坐标毫无关系的话，用户只能去读源码。
+    """
+    _NONNUM_CASES[name]()
+
+
+def test_run_qa_survives_non_numeric_axes():
+    for build, xl, yl in ((_cat_ax, "类别", "值"),
+                          (_caty_ax, "值", "类别")):
+        fig, ax = build()
+        ax.set_xlabel(xl)
+        ax.set_ylabel(yl)
+        fig.suptitle("结论句")
+        stat_box(ax, ["n = 4"], loc="auto")
+        run_qa(fig, strict=False)
