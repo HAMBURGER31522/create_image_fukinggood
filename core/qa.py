@@ -115,7 +115,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     grouped_bars / unsourced / overlap / accessibility /
     unexplained_band / number_conflict / duplicate_series /
     clim_mismatch / axis_slack / sparse_line / unit_axis_range /
-    incommensurable / text_contrast。
+    incommensurable / text_contrast / sparse_panel / nonfinite_text。
     未知的码直接抛错（拼错时静默无效比报错更伤）。
     豁免会记入 fig._ff_qa_waived 并标进文件名。
     """
@@ -1095,9 +1095,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             _ink_floor = 0.030 if current_preset() == "nature" else 0.045
             if ink < _ink_floor and area_cm2 >= 12:
                 _hard(
-                    f"面板 {area_cm2:.0f} cm² 却只有 {ink:.1%} 墨迹，"
-                    f"接近空白——并入相邻面板，或让数据进正文表格",
-                    "sparse_panel")
+                    f"面板 {area_cm2:.0f} cm² 却只有 {ink:.1%} 墨迹"
+                    f"（本档下限 {_ink_floor:.1%}）——并入相邻面板，或让"
+                    f"数据进正文表格；确属稀疏而正确的构图，传 "
+                    f"allow=('sparse_panel',) 豁免", "sparse_panel")
             elif ink < 0.12:
                 print(f"[QA WARN] 面板墨迹 {ink:.1%} 偏低"
                       f"（参考期刊图 25%–45%）")
@@ -1175,9 +1176,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     _fig_floor = 0.09 if current_preset() == "nature" else 0.13
     if not _sm and len(inks) >= 3 and float(np.mean(inks)) < _fig_floor:
         _hard(
-            f"{len(inks)} 面板图的平均墨迹仅 {np.mean(inks):.1%} < 13%——"
-            f"整张图信息稀薄，合并面板、改二维场/联合分布/三维几何，"
-            f"或让数据进正文表格", "sparse_panel")
+            f"{len(inks)} 面板图的平均墨迹仅 {np.mean(inks):.1%} < "
+            f"{_fig_floor:.0%}——整张图信息稀薄，合并面板、改二维场/"
+            f"联合分布/三维几何，或让数据进正文表格；确属稀疏而正确的"
+            f"构图，传 allow=('sparse_panel',) 豁免", "sparse_panel")
     try:
         allax = [a for a in fig.get_axes()
                  if a.get_label() != "<colorbar>" and a.get_visible()

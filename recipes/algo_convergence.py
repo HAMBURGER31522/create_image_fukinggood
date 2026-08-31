@@ -41,6 +41,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
                     key=lambda k: curves[k][1][-1], reverse=True)
     va_of = {idx: ("bottom" if r % 2 == 0 else "top")
              for r, idx in enumerate(finals)}
+    _below: list[bool] = []
     for k, (name, y, c) in enumerate(curves):
         y = np.asarray(y, dtype=float)
         it = np.arange(len(y))
@@ -52,11 +53,29 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         info[name] = (i_conv, float(final))
         ax.plot([i_conv], [y[i_conv]], "o", color=c, markersize=ptx(5, "pt"),
                 markeredgecolor="white", markeredgewidth=ptx(0.8, "lw"), zorder=4)
+        # 偏移方向按**几何**定，不按序号。原写法 xytext=(0, 9 + 9*k) 把
+        # "第二条曲线"的标签一律推得更高——第二条在下方时，它的标签会穿过
+        # 上面那条曲线，落到比上面那条的标签**还高**的位置。cn 档靠彩色
+        # 勉强救回绑定，nature 档 text_color() 返黑字，两串黑字挤进同一条
+        # 视觉带，读者按"标签越高 = 曲线越高"读正好读反——而图题写的正是
+        # 谁比谁早收敛。不要靠"把 k 的顺序倒过来"绕：那只对这组数据成立。
+        _oth = [np.asarray(o[1], dtype=float)[min(i_conv, len(o[1]) - 1)]
+                for j, o in enumerate(curves) if j != k]
+        _dy = 10 if all(y[i_conv] >= v for v in _oth) else -12
+        _below.append(_dy < 0)
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
-                    xytext=(0, 9 + 9 * k), textcoords="offset points",
-                    ha="center", fontsize=ptx(6.5), color=text_color(c))
+                    xytext=(0, _dy), textcoords="offset points",
+                    ha="center", va="bottom" if _dy > 0 else "top",
+                    fontsize=ptx(6.5), color=text_color(c))
         lab = end_label(ax, it[-1], final, f" {name} {final:.4g}", c)
         lab.set_va(va_of[k])
+    if any(_below):
+        # 最低那条曲线的收敛标签放在它下方，而它本来就贴着轴底——不腾地方
+        # 的话标签会压在 x 刻度上（实测「84 代收敛」正好盖住刻度「80」）。
+        # 往下扩一档轴限腾真空带，而不是把标签压上去：这与 stat_box 的
+        # expand_axes 是同一条政策。
+        _lo, _hi = ax.get_ylim()
+        ax.set_ylim(_lo - 0.10 * (_hi - _lo), _hi)
     ax.set_xlim(-0.02 * n_max, 1.2 * n_max)   # 右侧留线端标签位，左不出负代
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

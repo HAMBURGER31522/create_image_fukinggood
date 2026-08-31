@@ -191,13 +191,18 @@ def cmd_check():
     if r.returncode:
         bad += 1
 
-    for i, (label, extra) in enumerate((("cn", {}),
-                                        ("nature", {"FF_PRESET": "nature"})), 2):
+    # nature 先跑、cn **后**跑。此前顺序相反，nature 的产物覆盖掉 cn 的，
+    # 于是「谁最后 commit 谁定档」——入库的 gallery/ 实际是 nature 产物，
+    # 而 README 写的是「python recipes/run_all.py 可复现」（默认 cn 档）：
+    # 照文档跑，39 张里 36 张对不上。第 16 轮 opus 评审逮到的。
+    for i, (label, extra) in enumerate((("nature", {"FF_PRESET": "nature"}),
+                                        ("cn", {})), 2):
         print(f"[{i}/4] 全量出图 · {label}")
         r = _run("python recipes/run_all.py", extra)
         ok = r.stdout.count("[OK ]")
+        total = ok + r.stdout.count("[FAIL]")
         allpass = "ALL PASS" in r.stdout
-        print(f"      {ok}/25 {'ALL PASS' if allpass else ''}")
+        print(f"      {ok}/{total} {'ALL PASS' if allpass else ''}")
         for ln in r.stdout.split("\n"):
             if ln.startswith("- ") or ln.startswith("[FAIL]"):
                 print("      ", ln.strip()[:110])
@@ -206,14 +211,26 @@ def cmd_check():
         # 而这个工具的全部价值就是别让我把部分完成写成完成。
         if not allpass:
             bad += 1
-        summary[label] = f"{ok}/25" + ("" if allpass else "  ★未全过")
+        summary[label] = f"{ok}/{total}" + ("" if allpass else "  ★未全过")
         notes = [l for l in r.stdout.split("\n")
                  if "未执行" in l or "未完成" in l]
         if notes:
             bad += 1
             print("      ★检查被静默跳过：", notes[0][:90])
 
-    print("[4/4] 产物还原 + 干净度")
+    print("[4/4] 入库产物是否与默认档一致 + 干净度")
+    # 必须在 `git checkout -- gallery/` **之前**比对：只还原不比对，
+    # 等于把出图漂移整个抹掉后才报「工作树 干净」，这类漂移在这套流程里
+    # 原理上不可见。上一步刚跑完 cn（默认档），此刻 gallery/ 里就是默认档
+    # 产物，与 HEAD 有差异即说明入库的不是默认档产物。
+    drift = _run("git status --porcelain gallery/").stdout.strip()
+    n_drift = len([l for l in drift.splitlines() if l.strip()])
+    if n_drift:
+        bad += 1
+        print(f"      ★入库产物与默认档不符：{n_drift} 个文件"
+              f"（README 承诺 `python recipes/run_all.py` 可复现）")
+    else:
+        print("      入库产物与默认档一致")
     _run("git checkout -- gallery/")
     print("      工作树", "★不干净" if _dirty() else "干净")
     print("\n=>", "cn " + summary.get("cn", "?")

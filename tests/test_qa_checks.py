@@ -1849,27 +1849,23 @@ def test_ref_line_h_and_v_still_work():
     assert xs[1][0] == xs[1][1], "v 应画竖线"
 
 
-def test_sparse_panel_ink_check_is_preset_aware():
-    """墨迹密度的两条硬检查既不按 `current_preset()` 分档、也不在
-    `_ALLOW_CODES` 里（直接 `problems.append`，没有 allow 出口）。
+def test_sparse_panel_code_is_registered():
+    """只管一件事：码字串在 `_ALLOW_CODES` 里（未知码会直接抛错）。
 
-    nature 档字号 ≤7pt、线宽 ≤1pt，同一构图墨迹必然更低，而阈值没跟着降：
-    algo_convergence 7.5%→4.2%、fit_residual 8.1%→4.0%，于是 cn 下只是
-    WARN 的图在 nature 下变成不可豁免的硬拒。
+    这条原名 `..._is_preset_aware`，但函数体既不调 `current_preset()`
+    也不调 `run_qa`——名实不符会让下一个人以为分档已被覆盖。分档行为由
+    `test_panel_ink_floor_is_preset_aware_and_two_sided` 真正钉住。
     """
     from core.qa import _ALLOW_CODES
     assert "sparse_panel" in _ALLOW_CODES, "墨迹检查没有 allow 出口"
 
 
-def test_sparse_panel_can_be_waived():
-    fig, ax = new_figure("onehalf")
-    ax.plot([1, 2, 3], [1, 2, 3], color=PALETTE[0])
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    fig.suptitle("结论句")
-    stat_box(ax, ["n = 3"], loc="auto")
-    assert not any("墨迹" in p for p in
-                   run_qa(fig, strict=False, allow=("sparse_panel",)))
+# 原 `test_sparse_panel_can_be_waived` 已删除：它那张图墨迹 5.4%、高于 cn
+# 阈值 4.5%，硬检查根本没触发，`assert not any("墨迹" in p)` 无论豁免是否
+# 生效都通过——把 `_hard(..., "sparse_panel")` 改回 `problems.append(...)`
+# 仍然全绿（第 16 轮 opus 的 M6 变异实证）。真正的豁免验证见
+# `test_sparse_panel_waiver_actually_waives_a_firing_check`：它先断言检查
+# **确实触发**，再断言传了码之后不再被拦。
 
 
 # --- R16 公开 API 的枚举参数：非法值必须报错，不能静默走另一分支 -------
@@ -2266,3 +2262,198 @@ def test_parallel_coords_without_better_still_works():
                                  [f"d{i}" for i in range(5)],
                                  highlight_idx=(0,))
     assert ax is not None
+
+
+# --- R16f 墨迹检查的判别力：第 15 轮那批修复此前 0 测试覆盖 -------------
+#
+# 第 16 轮 opus 评审做了 7 处定点变异，全部 144 全绿——连「把整条逐面板
+# 墨迹检查关掉」（area_cm2 >= 12 改成 >= 12000）都没人拦。原因是当时那两条
+# 测试：一条只 assert 码字串在集合里、根本不调 run_qa；另一条是**空断言**
+# ——它那张图 5.4% 高于 cn 的 4.5% 阈值，硬检查压根没触发，豁免有没有生效
+# 都会绿。
+#
+# 下面这组改成**自校准**：二分构造一张墨迹落在「阈值 ×0.85」和「阈值
+# ×1.15」的图，钉的是阈值本身而不是渲染细节。这个构造还有一个性质——
+# nature 的上方点（3.45%）低于 cn 阈值 4.5%，cn 的下方点（3.83%）高于
+# nature 阈值 3.0%，所以任何一档的阈值被改成另一档的值都会立刻变红。
+
+def _fig_at_ink(target, npanels=1):
+    """二分构造一张逐面板墨迹 ≈ target 的图，返回 (fig, 实测均值)。"""
+    from core import _probe
+    lo, hi, fig, got = 0.0, 0.6, None, 0.0
+    for _ in range(16):
+        if fig is not None:
+            plt.close(fig)
+        mid = (lo + hi) / 2
+        fig, axes = plt.subplots(1, npanels,
+                                 figsize=(6.0, 6.0 * 0.5 / max(1, npanels)))
+        axes = np.atleast_1d(axes)
+        for a in axes:
+            a.set_xlim(0, 1)
+            a.set_ylim(0, 1)
+            a.axhspan(0, mid, color="#333333", lw=0)
+            a.set_xlabel("x")
+            a.set_ylabel("y")
+        fig.canvas.draw()
+        got = float(np.mean([_probe.panel_ink(fig, a) for a in axes]))
+        if got < target:
+            lo = mid
+        else:
+            hi = mid
+    return fig, got
+
+
+def _panel_ink_hits(fig, **kw):
+    return [p for p in run_qa(fig, strict=False, **kw)
+            if "墨迹" in p and p.startswith("面板")]
+
+
+def _fig_ink_hits(fig, **kw):
+    return [p for p in run_qa(fig, strict=False, **kw) if "平均墨迹" in p]
+
+
+@pytest.mark.parametrize("preset,floor", [("cn", 0.045), ("nature", 0.030)])
+def test_panel_ink_floor_is_preset_aware_and_two_sided(preset, floor):
+    """逐面板阈值：cn 4.5% / nature 3.0%，两侧都要钉住。
+
+    阈值被改成另一档的值时必然变红——这正是上一轮 M1/M2 变异全绿的地方。
+    """
+    try:
+        apply_style(preset)
+        fig, got = _fig_at_ink(floor * 0.85)
+        assert got < floor, f"{preset} 构造失败：实测 {got:.3%} 未低于 {floor:.1%}"
+        assert _panel_ink_hits(fig), \
+            f"{preset} 档 {got:.2%} 低于 {floor:.1%} 却没触发逐面板墨迹检查"
+
+        fig2, got2 = _fig_at_ink(floor * 1.15)
+        assert got2 > floor, f"{preset} 构造失败：实测 {got2:.3%} 未高于 {floor:.1%}"
+        assert not _panel_ink_hits(fig2), \
+            f"{preset} 档 {got2:.2%} 高于 {floor:.1%} 却被误伤：{_panel_ink_hits(fig2)}"
+    finally:
+        apply_style("cn")
+
+
+@pytest.mark.parametrize("preset,floor", [("cn", 0.13), ("nature", 0.09)])
+def test_figure_level_ink_floor_is_preset_aware_and_two_sided(preset, floor):
+    """图级均值阈值：cn 13% / nature 9%，两侧都要钉住（M3/M4 变异点）。"""
+    try:
+        apply_style(preset)
+        fig, got = _fig_at_ink(floor * 0.85, npanels=3)
+        assert _fig_ink_hits(fig), \
+            f"{preset} 档均值 {got:.2%} 低于 {floor:.0%} 却没触发图级检查"
+        fig2, got2 = _fig_at_ink(floor * 1.15, npanels=3)
+        assert not _fig_ink_hits(fig2), \
+            f"{preset} 档均值 {got2:.2%} 高于 {floor:.0%} 却被误伤"
+    finally:
+        apply_style("cn")
+
+
+def test_sparse_panel_waiver_actually_waives_a_firing_check():
+    """豁免必须在**检查真的触发**的图上验证。
+
+    上一版测试用的图墨迹 5.4%、高于 cn 阈值 4.5%，检查根本没触发，
+    所以 `assert not any("墨迹" in p)` 无论豁免是否生效都通过——把
+    `_hard(..., "sparse_panel")` 改回 `problems.append(...)` 仍然全绿。
+    """
+    fig, got = _fig_at_ink(0.045 * 0.85)
+    assert _panel_ink_hits(fig), "前提不成立：这张图没有触发墨迹硬检查"
+    assert not _panel_ink_hits(fig, allow=("sparse_panel",)), \
+        "传了 sparse_panel 仍被拦——allow 出口没接上"
+
+
+def test_sparse_panel_waiver_leaves_a_trace():
+    """豁免要留痕：写进 fig._ff_qa_waived，save_figure 会给文件名加
+    _QAWAIVED。留痕没接上，豁免就成了「悄悄混进交付物」。
+    """
+    fig, got = _fig_at_ink(0.045 * 0.85)
+    run_qa(fig, strict=False, allow=("sparse_panel",))
+    waived = getattr(fig, "_ff_qa_waived", [])
+    assert any("墨迹" in w for w in waived), f"豁免没留痕：{waived}"
+
+
+# --- R16g 收敛代标注必须指向自己那条曲线 --------------------------------
+
+def test_convergence_labels_stay_nearest_to_their_own_curve():
+    """`xytext=(0, 9 + 9*k)` 按曲线**序号**推高：当第二条曲线在下方时，
+    它的标签被推得比第一条的还高、穿过第一条曲线，落进同一条视觉带。
+    cn 档靠彩色勉强救回绑定，nature 档 `text_color()` 返黑字，两串黑字
+    挤在一起，读者按「标签越高 = 曲线越高」读，正好读反——而图题写的
+    正是「谁比谁早收敛」。
+
+    判据不看像素长相，看语义：每个标签必须离**自己锚定的那条曲线**
+    比离别的曲线更近。
+    """
+    ac = _recipe("algo_convergence")
+    try:
+        apply_style("nature")
+        n = 120
+        it = np.arange(n)
+        top = 900 * np.exp(-it / 18.0) + 300.0      # k=0：终值高，在上方
+        bot = 900 * np.exp(-it / 30.0) + 100.0      # k=1：终值低，在下方
+        fig, ax, info = ac.convergence_curves(
+            [("上方线", list(top), None), ("下方线", list(bot), None)],
+            mode="min")
+        fig.canvas.draw()
+        series = [ln for ln in ax.lines
+                  if ln.get_linestyle() == "-" and len(ln.get_xdata()) > 5]
+        assert len(series) == 2
+        for t in ax.texts:
+            if "代收敛" not in t.get_text():
+                continue
+            xd, yd = t.xy
+            bb = t.get_window_extent(fig.canvas.get_renderer())
+            y_txt = bb.y0 + bb.height / 2.0
+            d = []
+            for ln in series:
+                X, Y = np.asarray(ln.get_xdata()), np.asarray(ln.get_ydata())
+                y_here = float(np.interp(xd, X, Y))
+                d.append(abs(y_txt - ax.transData.transform((xd, y_here))[1]))
+            own = ax.transData.transform((xd, yd))[1]
+            i_own = int(np.argmin([abs(own - ax.transData.transform(
+                (xd, float(np.interp(xd, np.asarray(ln.get_xdata()),
+                                     np.asarray(ln.get_ydata())))))[1])
+                for ln in series]))
+            assert int(np.argmin(d)) == i_own, (
+                f"标签「{t.get_text()}」离别的曲线更近："
+                f"到各曲线像素距离 {[round(v, 1) for v in d]}，"
+                f"它锚定的是第 {i_own} 条")
+    finally:
+        apply_style("cn")
+
+
+def test_ink_messages_name_their_own_threshold_and_the_way_out():
+    """被拦住的用户看到的是**消息**，不是文档。
+
+    此前图级消息在 nature 档硬写「< 13%」（实际门槛 9%），用户照 13% 去改
+    图会白做 4 个百分点的功；两条消息也都不提 `sparse_panel` 出口，而它
+    既不在 api.md 的码表里、也不在 run_qa 的 docstring 里——"稀疏但正确的
+    构图现在有出口"这句话用户无从兑现。
+    """
+    from core.qa import _ALLOW_CODES
+    assert {"sparse_panel", "nonfinite_text"} <= _ALLOW_CODES
+    import core.qa as _qa
+    assert "sparse_panel" in _qa.run_qa.__doc__, "docstring 码表没登记"
+
+    try:
+        apply_style("nature")
+        fig, got = _fig_at_ink(0.09 * 0.85, npanels=3)
+        msg = _fig_ink_hits(fig)
+        assert msg, "前提不成立：图级检查没触发"
+        assert "9%" in msg[0], f"nature 档消息报了错门槛：{msg[0]}"
+        assert "13%" not in msg[0], f"nature 档消息仍写死 13%：{msg[0]}"
+        assert "sparse_panel" in msg[0], f"消息不提出口：{msg[0]}"
+    finally:
+        apply_style("cn")
+
+    fig2, _ = _fig_at_ink(0.045 * 0.85)
+    pm = _panel_ink_hits(fig2)
+    assert pm and "sparse_panel" in pm[0], f"逐面板消息不提出口：{pm[:1]}"
+
+
+def test_ref_line_docstring_says_v_exists():
+    """校验加上了，但 docstring 从没写过 "v" 存在——用户想画竖直阈值线
+    翻遍文档也不知道该传什么，写 "vertical" 现在会被拦（比静默画错好，
+    但仍是死路）。
+    """
+    from core import ref_line as _rl
+    assert '"v"' in (_rl.__doc__ or ""), "docstring 仍没说 v 是合法值"

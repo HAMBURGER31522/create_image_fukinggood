@@ -112,9 +112,13 @@ if __name__ == "__main__":
         xlabel="口径平面横坐标 ξ₁（m）",
         ylabel="口径平面纵坐标 ξ₂（m）",
         zlabel="促动器径向伸缩量（m）")
-    # 硬规则：图题数字来自计算变量（极值所在环带半径）
-    ax.set_title(f"伸缩量场环状分层，极值出现在 "
-                 f"{finfo['r_max_frac']:.2f}R 环带且均在容差内",
+    # 硬规则：图题数字来自计算变量（极值所在环带半径）。
+    # 此前只写了 r_max_frac 却用复数"极值"概括两端——极小值实测在
+    # 1.00R 的最外圈，图上那个点就在边缘，图自己在打自己的脸。
+    # 两个半径都写，都来自计算变量。
+    ax.set_title(f"伸缩量场环状分层：极大值在 "
+                 f"{finfo['r_max_frac']:.2f}R 环带、极小值在 "
+                 f"{finfo['r_min_frac']:.2f}R 口径边缘，均在容差内",
                  fontsize=ptx(9), pad=8)
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "contour_field_masked"))

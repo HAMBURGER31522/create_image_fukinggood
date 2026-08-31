@@ -794,6 +794,10 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
     把论点线调成灰色、却让无关 marker 高饱和，是最典型的层次倒置。
     纯背景基准（y=x 对角线、零线）才用 context/background。
 
+    orientation ∈ {"h" 横线（默认）, "v" 竖线}；其他值直接 ValueError。
+    此前 docstring 与 api.md 都只写默认值 "h"、从没说过 "v" 存在，
+    用户想画竖直阈值线翻遍文档也不知道该传什么。
+
     label_loc: 横线用 left/right（默认 right），竖线用 top/bottom
     （默认 top）。传另一方向的值会报错——竖线分支此前**根本不读**这个
     参数（文档登记、函数体不读的死参数），横线分支则把任何非 "right"
