@@ -2772,6 +2772,21 @@ _NONNUM_CASES = {
     "inset_zoom 日期x": lambda: (lambda f, a, ds: __import__(
         "core").inset_zoom(a, (0.5, 0.5, 0.3, 0.3), (ds[0], ds[2]), (1, 3))
     )(*_date_ax()),
+    # 下面这批是「表够不够全」自查时补的：xytext 走数据坐标、
+    # expand_axes 会改轴限、label_loc 走另一分支、inset 收分类区间
+    "callout xytext=日期 data": lambda: (lambda f, a, ds: __import__(
+        "core").callout(a, (ds[1], 2), "点", (ds[2], 3)))(*_date_ax()),
+    "callout xytext=分类 data": lambda: __import__("core").callout(
+        _cat_ax()[1], ("B", 2), "点", ("C", 3)),
+    "stat_box expand_axes 日期x": lambda: stat_box(
+        _date_ax()[1], ["n = 4"], loc="lower right", expand_axes=True),
+    "stat_box expand_axes 分类x": lambda: stat_box(
+        _cat_ax()[1], ["n = 4"], loc="lower right", expand_axes=True),
+    "ref_line 日期竖线 bottom": lambda: (lambda f, a, ds: __import__(
+        "core").ref_line(a, ds[1], orientation="v", label="阈值",
+                         label_loc="bottom"))(*_date_ax()),
+    "inset_zoom 分类x": lambda: __import__("core").inset_zoom(
+        _cat_ax()[1], (0.5, 0.5, 0.3, 0.3), ("A", "C"), (1, 3)),
 }
 
 
