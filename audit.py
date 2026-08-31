@@ -223,7 +223,10 @@ def cmd_check():
     # 等于把出图漂移整个抹掉后才报「工作树 干净」，这类漂移在这套流程里
     # 原理上不可见。上一步刚跑完 cn（默认档），此刻 gallery/ 里就是默认档
     # 产物，与 HEAD 有差异即说明入库的不是默认档产物。
-    drift = _run("git status --porcelain gallery/").stdout.strip()
+    # 只比 PNG：pdf/svg 里嵌了 /CreationDate 时间戳，每次出图必然不同。
+    # 把它们算进来，这条检查每次都报警，很快就没人看了——检查失效正是
+    # 这么发生的。PNG 是视觉产物，逐字节可复现，正好是该比的那一层。
+    drift = _run("git status --porcelain -- gallery/*.png").stdout.strip()
     n_drift = len([l for l in drift.splitlines() if l.strip()])
     if n_drift:
         bad += 1
