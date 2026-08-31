@@ -176,8 +176,20 @@ def facet_metrics(cat_labels, metrics, width="double"):
     # suptitle 直接压在面板标题上（第 12 轮的老坑：为消除一个硬拒引入
     # 同类硬拒）。这里把 cn 档的绝对留白按字号比缩放后再折回分数——
     # cn 下 pad_fr 恰为 0.15，交付图逐像素不变。
-    pad_fr = 0.15 * 0.36 * (ptx(9.0) / 9.0) / ratio
-    fig.subplots_adjust(wspace=0.35, top=1 - pad_fr, bottom=pad_fr)
+    # 上留白必须拆成两半。`fig.suptitle` 的默认 `y=0.98` 是**图分数**，而
+    # 图高现在随指标数变（ratio ∝ n）：图越高，图题从顶端沉下来的绝对距离
+    # 越大，而面板顶端的绝对留白是恒定的——于是 n≥4 时图题直接压上面板
+    # 标题（实测 cn/nature 两档 n=4、n=5 都硬拒）。固定的"标题带"给绝对
+    # 值，随图高变的"suptitle 下沉量"给分数。
+    # 这正是本轮上一处修复注释里自己写下的坑：留白按绝对高度给、别给分数
+    # ——换个地方又踩了一遍。下留白没有这个问题，保持绝对恒定。
+    _SUP_Y = 0.02                     # suptitle 默认 y=0.98，即下沉 2% 图高
+    _pr = ptx(9.0) / 9.0
+    _H = w * ratio
+    _foot_in = 0.15 * 0.36 * _pr * w  # n=3 档的绝对留白，与 n 无关
+    _head_in = (_foot_in - _SUP_Y * (0.36 * _pr ** 2 * w)) + _SUP_Y * _H
+    fig.subplots_adjust(wspace=0.35, top=1 - _head_in / _H,
+                        bottom=_foot_in / _H)
     y = np.arange(len(cat_labels))[::-1]
     for k, (ax, (title, vals, scale)) in enumerate(zip(axes, metrics)):
         # 未知轴型此前静默画成线性。用户写 log 是因为数据跨数量级，
@@ -186,7 +198,12 @@ def facet_metrics(cat_labels, metrics, width="double"):
                 ("log", "linear"))
         if scale == "log":
             ax.set_xscale("log")
-            title = f"{title}（log 轴）"
+            # 标记挂在**轴**上，不追加进标题。追加会让标题凭空长 5 个字：
+            # 用户给的「内存（MB）」116px 本来放得下 131px 的面板，加完
+            # 变 179px 溢出，撞上邻格的面板标签——而那 5 个字用户删不掉，
+            # 于是他在一个自己无法处置的硬拒面前。何况"这根轴是对数的"
+            # 本来就是轴的属性，不是指标的。
+            ax.set_xlabel("log 轴", fontsize=ptx(7))
         ax.plot(vals, y, color="0.78", linewidth=ptx(1.3, "lw"), zorder=2)
         for v, yi, c in zip(vals, y, PALETTE):
             ax.plot([v], [yi], "o", color=c, markersize=ptx(6.5, "pt"), zorder=3,
@@ -205,7 +222,12 @@ def facet_metrics(cat_labels, metrics, width="double"):
             fig.canvas.get_renderer()).width for t in ax.get_yticklabels()
             if t.get_text().strip()), default=0.0)
         _aw = max(1.0, ax.get_window_extent().width)
-        panel_label(ax, chr(ord("a") + k), dx=-(_tw / _aw + 0.04))
+        # dy 同样要给绝对量。默认 1.04 是**轴分数**，而面板高度随指标数
+        # 变高，0.04 的相对偏移会把标签越推越高，n≥4 时直接撞上图题——
+        # 与上面 suptitle 那处是同一根因的第二层。
+        _ah_pt = ax.get_window_extent().height * 72.0 / fig.dpi
+        _dy = 1.0 + (5.2 * _pr) / max(_ah_pt, 1.0)
+        panel_label(ax, chr(ord("a") + k), dx=-(_tw / _aw + 0.04), dy=_dy)
     return fig, axes
 
 

@@ -635,9 +635,14 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     #      数组判据只认**空白分隔**的 numpy repr：手写区间一律带逗号
     #      （"95% CI [0.12, 0.34]"），不能误伤。
     import re as _re
+    # 判据收紧：Python 的 float repr 只会是**小写** nan/inf，而且不会和
+    # `_` / `-` / 字母黏在一起。此前带 re.I 且不排除 `_`/`-`，把
+    # `L_inf 范数`、`Inf-norm`、`infrastructure` 一律误判成"上游算错了"
+    # 并硬拒，消息还主动误诊——这正是本轮 item 19 刚在墨迹消息上修掉的
+    # 毛病（判据过宽 + 不提自己的出口），换个地方又犯了一遍。
     _RE_NONFIN = _re.compile(
-        r"(?<![0-9A-Za-z\u4e00-\u9fff])[-+]?(?:nan|inf)"
-        r"(?![0-9A-Za-z\u4e00-\u9fff])", _re.I)
+        r"(?<![0-9A-Za-z_\u4e00-\u9fff-])[-+]?(?:nan|inf)"
+        r"(?![0-9A-Za-z_\u4e00-\u9fff-])")
     _RE_ARRAY = _re.compile(
         r"\[\s*[-+]?\d[\d.eE+-]*(?:\s+[-+]?\d[\d.eE+-]*)+\s*\]")
     _junk = []
@@ -651,7 +656,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         _hard(f"{len(_junk)} 处图上文字渲染成了非有限值或数组 repr："
               f"{_junk[:3]}——f-string 里的量是 nan/inf 或还是个数组，"
               f"上游算错了而一路没人拦。先在上游处理掉，别让写着 nan 的"
-              f"结论句进论文", "nonfinite_text")
+              f"结论句进论文；确属正常文字被误判，传 "
+              f"allow=('nonfinite_text',) 豁免", "nonfinite_text")
 
     # 4b. 豆腐块：渲染一次，同时捕获 warnings 与 matplotlib logging 两条通道。
     #     mathtext 解析结果带 lru_cache，前面的 delivered_width_in 已 draw 过

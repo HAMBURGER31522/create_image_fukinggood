@@ -2809,3 +2809,130 @@ def test_run_qa_survives_non_numeric_axes():
         fig.suptitle("结论句")
         stat_box(ax, ["n = 4"], loc="auto")
         run_qa(fig, strict=False)
+
+
+# --- R16m opus 打分逮到的四条（两条推翻了我自己的声称）-----------------
+
+@pytest.mark.parametrize("title,ylab", [
+    ("L_inf 范数单调下降至 1e-6", "L_inf 范数"),
+    ("Inf-norm converges", "Inf-norm"),
+    ("infrastructure 成本占比 42%", "占比"),
+    ("Nanjing 样本 n = 120", "Nanjing"),
+])
+def test_nonfinite_text_check_does_not_hit_legitimate_words(title, ylab):
+    """本轮新增的 `nonfinite_text` 把合法标签误判成「上游算错了」并硬拒。
+
+    `L_inf 范数`（下划线相邻）、`Inf-norm`（大写 + 连字符）都被判成非有限
+    值。Python 的 float repr 只会是**小写** nan/inf，且不会和 `_` / `-` /
+    字母黏在一起——判据要照这个收紧。这是 item 19 刚在墨迹消息上修掉的
+    毛病（消息主动误诊 + 不提自己的出口），同一批提交换个地方又犯。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("迭代")
+    ax.set_ylabel(ylab)
+    fig.suptitle(title)
+    assert not [p for p in run_qa(fig, strict=False) if "非有限" in p], \
+        f"合法文字被误判：{title!r}"
+
+
+def test_nonfinite_text_still_catches_a_real_nan_and_names_its_way_out():
+    """不该放过的一侧：真的 nan/inf 仍要拦，且消息必须给出 allow 出口
+    ——被拦住的用户看到的是消息，不是文档。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle(f"最优值 = {float('nan')}")
+    hits = [p for p in run_qa(fig, strict=False) if "非有限" in p]
+    assert hits, "真的 nan 没拦住"
+    assert "nonfinite_text" in hits[0], f"消息不提出口：{hits[0]}"
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+def test_facet_metrics_two_metrics_is_legal_in_both_presets(preset):
+    """`n/3` 那处修复此前**零测试覆盖**：删掉它 215 条全绿。
+
+    原因是为它写的测试只跑 nature，而 n=2 的墨迹硬拒发生在 **cn** 档
+    ——测试挑了 bug 不出现的那一档，两侧都恒真。这和第 15 轮那条空断言
+    是同一个机制，而本轮的官方方向恰恰就是「测试判别力」。
+    """
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(
+            list("ABCDE"),
+            [("求解时间（s）", [312.0, 96.4, 21.7, 4.3, 0.8], "log"),
+             ("峰值内存（MB）", [1850.0, 940.0, 410.0, 180.0, 95.0], "log")])
+        fig.suptitle("结论句")
+        bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+               if "墨迹" in p]
+        assert not bad, f"{preset} 档 2 指标的合法调用被硬拒：{bad}"
+    finally:
+        apply_style("cn")
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+@pytest.mark.parametrize("n", [2, 3, 4, 5])
+def test_facet_metrics_headroom_survives_more_metrics(preset, n):
+    """图高随指标数变，而 `fig.suptitle` 的默认 `y=0.98` 是**图分数**：
+    图越高，图题沉得越深，而面板顶端的绝对留白恒定 —— n≥4 时图题直接压上
+    面板标题。这正是 item 20 注释里我自己写下的坑：「留白必须按绝对高度
+    给，不能给分数」，换个地方又踩了一遍。
+    """
+    cr = _recipe("comparison_rank")
+    # 标题取「面板宽度放得下」的长度。183mm 塞 5 个面板、每个配 10 个汉字
+    # 的标题本来就放不下，那是构图问题、QA 报「收紧面板标题」是对的处置
+    # ——见 test_facet_metrics_rejects_titles_too_long_for_the_panels。
+    # 这条只钉版面随 n 变化时**库自己**该守住的部分。
+    mets = [("时间（s）", [312.0, 96.4, 21.7, 4.3, 0.8], "log"),
+            ("内存（MB）", [1850.0, 940.0, 410.0, 180.0, 95.0], "log"),
+            ("gap（%）", [0.0, 0.3, 0.9, 1.6, 2.4], "linear"),
+            ("能耗", [42.0, 18.0, 7.5, 2.1, 0.6], "log"),
+            ("碳排", [30.0, 12.0, 5.0, 1.5, 0.4], "log")][:n]
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(list("ABCDE"), mets)
+        fig.suptitle("贪心以 2.4% gap 换 390× 提速与 19× 省存：大规模场景可用")
+        bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+               if "图题" in p or "面板标题" in p]
+        assert not bad, f"{preset} 档 n={n}：{bad[:2]}"
+    finally:
+        apply_style("cn")
+
+
+def test_figure_level_sparse_panel_waiver_actually_waives():
+    """图级墨迹检查的 allow 出口此前无人验证——把它的 `_hard(..., 码)`
+    换成 `problems.append(...)`，215 条全绿。
+
+    （我此前声称「7 处变异 7/7 全红」是错的：那次 M7 我把 `_hard(msg, code)`
+    的第二个参数一并删了，红是因为 TypeError 崩了，不是因为测试检出。
+    合法的 M7 是全绿的，实际 6/7。opus 打分时指出了这一点。）
+    """
+    fig, got = _fig_at_ink(0.13 * 0.85, npanels=3)
+    assert _fig_ink_hits(fig), "前提不成立：图级检查没触发"
+    assert not _fig_ink_hits(fig, allow=("sparse_panel",)), \
+        "传了 sparse_panel 图级检查仍拦——allow 出口没接上"
+
+
+def test_facet_metrics_rejects_titles_too_long_for_the_panels():
+    """另一侧：标题真的放不下时必须拦，且消息要可操作。
+
+    5 个面板 × 10 个汉字的标题在 183mm 里放不下，这是构图问题不是库的
+    版面 bug——QA 报「收紧面板标题」是对的处置。把这条写下来，免得下次
+    有人为了让它过而去动版面公式。
+    """
+    cr = _recipe("comparison_rank")
+    v = [312.0, 96.4, 21.7, 4.3, 0.8]
+    mets = [("单次求解平均墙钟时间（秒）", v, "log"),
+            ("峰值常驻内存占用（兆字节）", v, "log"),
+            ("相对最优解的间隙百分比", v, "linear"),
+            ("整轮求解累计能耗（千瓦时）", v, "log"),
+            ("等效二氧化碳排放（千克）", v, "log")]
+    fig, axes = cr.facet_metrics(list("ABCDE"), mets)
+    fig.suptitle("结论句")
+    bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+           if "面板标题" in p or "直标" in p]
+    assert bad, "标题明显放不下却没拦"
+    assert any("收紧" in p or "错开" in p or "缩短" in p for p in bad),         f"消息不可操作：{bad[:1]}"
