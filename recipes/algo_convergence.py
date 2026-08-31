@@ -17,7 +17,8 @@ from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, ru
 def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
                        logy=False, conv_tol=1e-3, mode="min",
                        width="onehalf"):
-    """curves: [(名称, 每代目标值数组, 颜色), ...]。
+    """curves: [(名称, 每代目标值数组, 颜色), ...]。颜色传 None 则按
+    PALETTE 依次取。
 
     mode: "min"/"max" 自动转 best-so-far 单调线（喂原始每代值即可），
           "raw" 按原样画（已是 best-so-far 时用）。
@@ -29,8 +30,12 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     _one_of("convergence_curves(mode=)", mode, ("min", "max", "raw"))
     acc = {"min": np.minimum.accumulate, "max": np.maximum.accumulate,
            "raw": lambda y: y}[mode]
-    curves = [(name, acc(np.asarray(y, dtype=float)), c)
-              for name, y, c in curves]
+    # 颜色传 None（"库你挑一个"）此前在 nature 档能跑、cn 档崩在
+    # matplotlib 深处的 `Invalid RGBA argument: None` 上——同一个调用两档
+    # 两种结果，而报错里没有半个字提到曲线颜色。补默认：按 PALETTE 取。
+    curves = [(name, acc(np.asarray(y, dtype=float)),
+               PALETTE[i % len(PALETTE)] if c is None else c)
+              for i, (name, y, c) in enumerate(curves)]
     fig, ax = new_figure(width, ratio=0.55)
     if logy:
         ax.set_yscale("log")
@@ -93,7 +98,14 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         # 往下扩一档轴限腾真空带，而不是把标签压上去：这与 stat_box 的
         # expand_axes 是同一条政策。
         _lo, _hi = ax.get_ylim()
-        ax.set_ylim(_lo - 0.10 * (_hi - _lo), _hi)
+        if ax.get_yscale() == "log" and _lo > 0 and _hi > 0:
+            # log 轴上 `lo - 0.10*(hi-lo)` 会算出**非正**下限，matplotlib
+            # 直接忽略并警告，空间根本没腾出来、标签又压回 x 刻度——而
+            # logy=True 是公开且文档化的参数。要在**变换后的坐标空间**里扩。
+            _l0, _h0 = np.log10(_lo), np.log10(_hi)
+            ax.set_ylim(10.0 ** (_l0 - 0.10 * (_h0 - _l0)), _hi)
+        else:
+            ax.set_ylim(_lo - 0.10 * (_hi - _lo), _hi)
     ax.set_xlim(-0.02 * n_max, 1.2 * n_max)   # 右侧留线端标签位，左不出负代
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

@@ -2593,3 +2593,65 @@ def test_facet_metrics_one_metric_points_at_the_right_function():
     with pytest.raises(ValueError) as e:
         cr.facet_metrics(list("ABC"), [("m", [1.0, 2.0, 3.0], "linear")])
     assert "dot_interval" in str(e.value) or "lollipop" in str(e.value)
+
+
+# --- R16i 第二轮打分：codex 报的 logy 扩轴 + 顺带撞出的 None 色 --------
+
+def test_convergence_logy_expansion_stays_positive_on_a_log_axis():
+    """扩轴腾位那一步写成了 `lo - 0.10*(hi-lo)`，只对线性轴成立。
+    log 轴上它算出非正下限，matplotlib 直接忽略（并警告），空间没腾出来，
+    标签又压回 x 刻度——而 `logy=True` 是公开且文档化的参数。
+
+    QA 的 5b5 确实把它拦住了（说明那条新检查有用），但用户是在**正确
+    用法**上被拦，且诊断建议改用 offset points——那个标注本来就是
+    offset points，照做也解决不了。
+    """
+    import warnings as _w
+    ac = _recipe("algo_convergence")
+    x = np.arange(120)
+    curves = [("upper", 900 * np.exp(-x / 18) + 300, PALETTE[0]),
+              ("lower", 900 * np.exp(-x / 30) + 100, PALETTE[1])]
+    with _w.catch_warnings(record=True) as ws:
+        _w.simplefilter("always")
+        fig, ax, _ = ac.convergence_curves(curves, mode="min", logy=True)
+    assert ax.get_ylim()[0] > 0, f"log 轴下限被设成非正：{ax.get_ylim()}"
+    assert not [w for w in ws if "non-positive" in str(w.message)], \
+        "matplotlib 警告 log 轴下限非正——扩轴那步没生效"
+    fig.suptitle("下面那条收敛更晚")
+    from core import stat_box as _sb
+    _sb(ax, ["n = 120"], loc="auto")
+    bad = [p for p in run_qa(fig, strict=False) if "压住本轴刻度" in p]
+    assert not bad, f"标签压住刻度：{bad}"
+
+
+def test_convergence_logy_linear_axis_still_gets_its_headroom():
+    """不该退化的一侧：线性轴的扩轴照旧生效。"""
+    ac = _recipe("algo_convergence")
+    x = np.arange(120)
+    curves = [("upper", 900 * np.exp(-x / 18) + 300, PALETTE[0]),
+              ("lower", 900 * np.exp(-x / 30) + 100, PALETTE[1])]
+    fig, ax, _ = ac.convergence_curves(curves, mode="min", logy=False)
+    lo = ax.get_ylim()[0]
+    ys = np.concatenate([np.minimum.accumulate(np.asarray(c[1], float))
+                         for c in curves])
+    assert lo < ys.min(), "线性轴下方没腾出空间"
+
+
+def test_convergence_curves_takes_none_as_colour_in_both_presets():
+    """`curves` 的第三元传 `None`（"库你挑一个"）在 nature 档能跑、cn 档
+    直接崩在 matplotlib 深处的 `Invalid RGBA argument: None` 上——同一个
+    调用两档两种结果，而报错信息里没有半个字提到曲线颜色。
+    """
+    ac = _recipe("algo_convergence")
+    x = np.arange(60)
+    curves = [("a", 900 * np.exp(-x / 18) + 300, None),
+              ("b", 900 * np.exp(-x / 30) + 100, None)]
+    try:
+        for preset in ("cn", "nature"):
+            apply_style(preset)
+            fig, ax, info = ac.convergence_curves(curves, mode="min")
+            cols = [ln.get_color() for ln in ax.lines
+                    if ln.get_linestyle() == "-" and len(ln.get_xdata()) > 5]
+            assert len(set(cols)) == 2, f"{preset} 档两条线同色：{cols}"
+    finally:
+        apply_style("cn")
