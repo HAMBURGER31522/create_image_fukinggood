@@ -912,6 +912,37 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                          f"两个坐标区的文字挤在同一条缝里，加大 wspace、"
                          f"缩短标签，或把色标换到 loc='bottom'")
 
+        # 5b5. **同轴**的轴外说明文字压住本轴刻度。5b3 把刻度整类排除、
+        #      5b4 只比不同轴、6b 只管刻度×刻度，于是这一格无人覆盖——
+        #      实测 nature 档 demo_beat_baseline 三格底部的证据句盖住 x
+        #      刻度 60%+，两行字叠在一起谁都读不出来，而 QA 一路 PASS
+        #      并落盘。根因几乎总是同一个：文字挂在**轴分数**上，面板一
+        #      变矮，那个相对位置就掉进刻度带。
+        _by_ax: dict[int, list] = {}
+        for _t5 in _cross:
+            _by_ax.setdefault(id(_t5[2]), []).append(_t5)
+        for _items in _by_ax.values():
+            _tk5 = [t for t in _items if t[0].startswith("刻度")]
+            _pl5 = [t for t in _items if not t[0].startswith("刻度")]
+            _worst = None
+            for _n1, _b1, _a1, _r1 in _pl5:
+                for _n2, _b2, _a2, _r2 in _tk5:
+                    _m5 = min(_b1.width * _b1.height, _b2.width * _b2.height)
+                    if _m5 <= 0:
+                        continue
+                    _it5 = Bbox.intersection(_b1, _b2)
+                    if _it5 is None:
+                        continue
+                    _f5 = (_it5.width * _it5.height) / max(1e-9, _m5)
+                    if _f5 > 0.15 and (_worst is None or _f5 > _worst[0]):
+                        _worst = (_f5, _n1, _n2)
+            if _worst:
+                _hit(f"{_worst[1]} 压住本轴刻度 {_worst[2]} "
+                     f"{_worst[0]:.0%}——两行字叠在一起都读不出来。文字别"
+                     f"挂在轴分数上（面板一变矮就掉进刻度带），改用 "
+                     f"xytext=(0, -N) + textcoords='offset points' 给绝对"
+                     f"偏移，或收紧刻度数")
+
         # 5c. 压数据：场按面积、曲线按吞没率与绝对点数
         for name, bb, ax, is_leg, art in boxes:
             if ax is None:

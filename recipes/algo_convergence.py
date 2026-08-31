@@ -59,9 +59,27 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         # 勉强救回绑定，nature 档 text_color() 返黑字，两串黑字挤进同一条
         # 视觉带，读者按"标签越高 = 曲线越高"读正好读反——而图题写的正是
         # 谁比谁早收敛。不要靠"把 k 的顺序倒过来"绕：那只对这组数据成立。
+        # 方向按上下两侧的**空隙**选，不是二元的"最上面往上、其余一律
+        # 往下"——三条曲线时中间那条和最下面那条都往下、挤在一起，中间的
+        # 标签离下面那条更近。偏移再钳在半个空隙内，标签就跨不过去。
         _oth = [np.asarray(o[1], dtype=float)[min(i_conv, len(o[1]) - 1)]
                 for j, o in enumerate(curves) if j != k]
-        _dy = 10 if all(y[i_conv] >= v for v in _oth) else -12
+        _up = [v - y[i_conv] for v in _oth if v > y[i_conv]]
+        _dn = [y[i_conv] - v for v in _oth if v < y[i_conv]]
+        _gap_up = min(_up) if _up else float("inf")
+        _gap_dn = min(_dn) if _dn else float("inf")
+        _sign, _gap = ((1, _gap_up) if _gap_up >= _gap_dn
+                       else (-1, _gap_dn))
+
+        def _to_pt(d):
+            """数据单位的空隙换算成点值（此刻轴限已由 plot 自动定好）。"""
+            if not np.isfinite(d):
+                return 1e9
+            p0 = ax.transData.transform((i_conv, y[i_conv]))[1]
+            p1 = ax.transData.transform((i_conv, y[i_conv] + d))[1]
+            return abs(p1 - p0) * 72.0 / ax.figure.dpi
+
+        _dy = _sign * max(5.0, min(10.0, 0.45 * _to_pt(_gap)))
         _below.append(_dy < 0)
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
                     xytext=(0, _dy), textcoords="offset points",

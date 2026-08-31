@@ -58,7 +58,7 @@ fig._ff_small_multiples = True
 # 上（第 12 轮的老坑：为消一个硬拒引入同类硬拒）。走 ptx() 后两档自动
 # 各算各的，不必为 nature 单独再拍一组数。
 _head_in = (ptx(10) * 1.7 + ptx(9) * 1.5 + 10) / 72.0   # 图题 + 面板标题 + pad
-_foot_in = (ptx(8) * 2.6 + ptx(9) * 1.6) / 72.0         # 证据行 + x 刻度
+_foot_in = (ptx(9) * 2.4 + 8 + ptx(8) * 1.8) / 72.0     # x 刻度 + 证据行
 fig.subplots_adjust(wspace=0.35, left=0.10, right=0.97,
                     top=1 - _head_in / H_IN, bottom=_foot_in / H_IN)
 
@@ -93,8 +93,14 @@ for k, (ax, (title, vals, scale, fmt, ratio)) in enumerate(zip(axes, panels)):
     ax.set_ylim(-0.6, 1.6)
     ax.tick_params(axis="y", length=0)
     # 每面板一句证据
-    ax.text(0.5, -0.32, "A " + fmt.format(ratio), transform=ax.transAxes,
-            ha="center", fontsize=ptx(8), color="0.25", style="italic")
+    # 证据句给**绝对**偏移，不给轴分数：nature 档面板矮了近一半，
+    # -0.32 的轴分数落进刻度带，三格证据句盖住 x 刻度 60%+ 而 QA 照样
+    # PASS（QA 的 5b5 盲区已一并补上）。offset points 与面板高度无关。
+    ax.annotate("A " + fmt.format(ratio), xy=(0.5, 0.0),
+                xycoords="axes fraction",
+                xytext=(0, -(ptx(9) * 2.4 + 8)), textcoords="offset points",
+                ha="center", va="top", fontsize=ptx(8), color="0.25",
+                style="italic")
     panel_label(ax, "abc"[k], dx=-0.02 if k else -0.30)
 
 # 最终论点：成本面板引线强调（硬规则：数字全部来自计算变量）
@@ -103,10 +109,12 @@ callout(axes[2], xy=(cost[0], 1), text=f"同一目标下\nA 省 {saving:.1f} 元
         # 右下有 B 的「18.1」直标，框放那儿会贴上去；左下是真空区
         xytext=(0.26, 0.30), textcoords="axes fraction",
         color=semantic("highlight"), rad=-0.25)
+# 位置交给 stat_box 的占用探测（loc="auto"）。此前显式钉过 upper right /
+# lower left / (b) 格 upper left，各自都在某一个档下压到数据点或直标——
+# 面板一变矮，两行字的框占掉的比例就变，人拍的位置扛不住换档。
+# 3 面板 x 9 个锚点 x 两档全试过，(a) 格 auto 是两档都过的选择之一。
 stat_box(axes[0], ["设置：MC 10⁵ 次/点", "阈值差与成本均为求解输出"],
-         # 显式给 upper right；stat_box 判定它明显更差时会自动改位，
-         # 最终落在左中——那里只与连接线擦一个角，不遮任何数据点或直标
-         loc="upper right", fontsize=ptx(6.5))
+         loc="auto", fontsize=ptx(6.5))
 
 fig.suptitle(f"同一 90% 导通目标：介质 A 总成本仅为 B 的 {cost[0]/cost[1]:.0%}"
              f"——低阈值优势({threshold[1]/threshold[0]:.0f}×)"

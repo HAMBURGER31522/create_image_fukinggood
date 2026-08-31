@@ -238,8 +238,16 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
     是常见错误，横穿数据区的大弧引线既遮数据又制造无意义的视觉噪声。
     文字尽量放在目标点近旁，引线越短越好。
     """
-    _xy = np.asarray(xy, dtype=float).ravel()
-    if _xy.size != 2 or not np.all(np.isfinite(_xy)):
+    # 有限性要在 matplotlib 的**单位换算之后**判。直接
+    # `np.asarray(xy, dtype=float)` 是把"有限性检查"写成了"原始值必须是
+    # float"，会连分类轴（xy=("B", 2)）和日期轴一起拒掉——那是完全合法的
+    # matplotlib 用法。原始 xy 照旧交给 annotate，别在这里替它做换算。
+    try:
+        _conv = [ax.convert_xunits(xy[0]), ax.convert_yunits(xy[1])]
+        _fin = bool(np.all(np.isfinite(np.asarray(_conv, dtype=float))))
+    except (TypeError, ValueError, IndexError):
+        _fin = True     # 换算后仍非数值：交给 matplotlib 自己报，别瞎猜
+    if not _fin:
         raise ValueError(
             f"callout 的目标点 xy={xy!r} 含非有限值——matplotlib 会把这条"
             f"标注渲染成 1x1 的退化框，肉眼完全不可见，而 run_qa 一路报"

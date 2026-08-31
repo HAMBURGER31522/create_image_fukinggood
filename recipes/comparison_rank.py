@@ -144,6 +144,14 @@ def facet_metrics(cat_labels, metrics, width="double"):
     每个指标一个面板，独立轴与单位；替代把 % / 元 / 无量纲塞进同一 y 轴。
     """
     n = len(metrics)
+    if n < 2:
+        # 小倍数的立身之本是"同一编码施于**多个**量"。单个指标画出来必被
+        # 墨迹检查拦下，而那条消息说的是"并入相邻面板"——和 facet 无关，
+        # 用户无从下手。在入口说清该用哪个函数。
+        raise ValueError(
+            f"facet_metrics 是小倍数：需要 ≥2 个不可通约的指标，收到 {n} 个"
+            f"——单个指标请用 comparison_rank.sorted_lollipop 或 "
+            f"recipes/dot_interval.py 的 dot_interval")
     from core import MM, COLUMN_WIDTHS
     w = COLUMN_WIDTHS.get(width, width) * MM
     # 面板高度跟着档走。nature 档字号 7pt、线宽 ≤1pt、标记更小，同一构图
@@ -154,7 +162,12 @@ def facet_metrics(cat_labels, metrics, width="double"):
     # 能变的只有高度。标记/字形的**面积**随字号比的**平方**缩，而面板面积
     # 只随高度**线性**缩——高度按一次方降，密度仍会跌。按平方降才让密度
     # 跨档守恒。cn 档下该因子恒为 1，交付图一个像素不动。
-    ratio = 0.36 * (ptx(9.0) / 9.0) ** 2
+    # 高度还要跟着**指标数**走。单个面板的面积 = (W/n) x (W x ratio)，
+    # 即正比于 ratio/n；而每个面板的墨迹（5 个标记 + 一根连接线）基本是
+    # 常数。ratio 不跟着 n 变，n=2 的面板面积就是 n=3 的 1.5 倍、密度掉到
+    # 2/3，合法调用被墨迹硬拒。乘 n/3 让**面板面积**守恒，密度才守恒
+    # （n=3 时恰为原值，交付图一个像素不动）。
+    ratio = 0.36 * (ptx(9.0) / 9.0) ** 2 * n / 3
     fig, axes = plt.subplots(1, n, figsize=(w, w * ratio))
     fig._ff_small_multiples = True      # 小倍数：同一编码 × 不同指标
     axes = np.atleast_1d(axes)

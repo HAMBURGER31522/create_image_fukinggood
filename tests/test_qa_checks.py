@@ -2164,8 +2164,11 @@ def test_facet_metrics_keeps_its_cn_geometry():
     """
     apply_style("cn")
     cr = _recipe("comparison_rank")
-    fig, axes = cr.facet_metrics(
-        ["a", "b", "c"], [("m1", [1.0, 2.0, 3.0], "linear")])
+    # 用 3 个指标：交付图 comparison_facet_metrics 就是 3 指标，
+    # 高度按 n/3 缩放后 n=3 恰为原值，这条才真的钉住"交付图不动"
+    fig, axes = cr.facet_metrics(["a", "b", "c"], [("m1", [1.0, 2.0, 3.0], "linear"),
+                          ("m2", [3.0, 2.0, 1.0], "linear"),
+                          ("m3", [2.0, 3.0, 1.0], "linear")])
     from core import COLUMN_WIDTHS, MM
     w_in = COLUMN_WIDTHS["double"] * MM
     assert abs(fig.get_size_inches()[0] - w_in) < 1e-9
@@ -2212,14 +2215,17 @@ def test_facet_metrics_rejects_an_unknown_scale():
     cr = _recipe("comparison_rank")
     with pytest.raises(ValueError) as e:
         cr.facet_metrics(["a", "b", "c"],
-                         [("m", [1.0, 2.0, 3.0], "logarithmic")])
+                         [("m", [1.0, 2.0, 3.0], "logarithmic"),
+                          ("m2", [3.0, 2.0, 1.0], "linear")])
     assert "logarithmic" in str(e.value)
 
 
 def test_facet_metrics_log_and_linear_still_work():
     cr = _recipe("comparison_rank")
     got = [cr.facet_metrics(["a", "b", "c"],
-                            [("m", [1.0, 2.0, 3.0], s)])[1][0].get_xscale()
+                            [("m", [1.0, 2.0, 3.0], s),
+                             ("m2", [3.0, 2.0, 1.0], "linear")]
+                            )[1][0].get_xscale()
            for s in ("log", "linear")]
     assert got == ["log", "linear"]
 
@@ -2457,3 +2463,133 @@ def test_ref_line_docstring_says_v_exists():
     """
     from core import ref_line as _rl
     assert '"v"' in (_rl.__doc__ or ""), "docstring 仍没说 v 是合法值"
+
+
+# --- R16h 第 16 轮打分环节：codex 逮到的四条（三条是本轮修复引入的）------
+
+def test_callout_accepts_categorical_and_date_coordinates():
+    """N-5 的修法写错了：`np.asarray(xy, dtype=float)` 把「有限性检查」
+    写成了「原始值必须是 float」，于是 matplotlib 完全合法的**分类轴**和
+    **日期轴**坐标一起被拒——正确用法上被无理由硬拒，是本轮修复引入的回归。
+
+    有限性要在 matplotlib 的单位换算**之后**判，原始 xy 照旧交给 annotate。
+    """
+    import datetime as _dt
+    from core import callout as _co
+    fig, ax = new_figure("onehalf")
+    ax.plot(["A", "B", "C"], [1, 2, 3])
+    _co(ax, ("B", 2), "关键点", (0.7, 0.7), textcoords="axes fraction")
+
+    fig2, ax2 = new_figure("onehalf")
+    ds = [_dt.date(2026, 1, d) for d in (1, 5, 9)]
+    ax2.plot(ds, [1, 2, 3])
+    _co(ax2, (ds[1], 2), "关键点", (0.7, 0.7), textcoords="axes fraction")
+
+
+def test_callout_still_rejects_non_finite_after_unit_conversion():
+    """不该放过的一侧：换算之后仍是 nan/inf 的照样要拦。"""
+    from core import callout as _co
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    with pytest.raises(ValueError):
+        _co(ax, (float("nan"), 0.5), "峰值", (0.7, 0.3))
+    with pytest.raises(ValueError):
+        _co(ax, (0.5, float("inf")), "峰值", (0.7, 0.3))
+
+
+def test_convergence_labels_stay_nearest_with_three_curves():
+    """两条曲线的规则是二元的（最上面往上、其余一律往下），三条时中间那条
+    和最下面那条都往下、挤在一起，中间的标签离**下面**那条更近。
+
+    方向要按上下两侧的**空隙**选，并把偏移钳在半个空隙内，标签才跨不过去。
+    """
+    ac = _recipe("algo_convergence")
+    try:
+        apply_style("nature")
+        x = np.arange(120)
+        cs = [("top", 100 + 20 * np.exp(-x / 20), None),
+              ("middle", 10 + 20 * np.exp(-x / 20), None),
+              ("bottom", 9 + 20 * np.exp(-x / 20), None)]
+        fig, ax, _ = ac.convergence_curves(cs, mode="raw")
+        fig.canvas.draw()
+        r = fig.canvas.get_renderer()
+        series = [z for z in ax.lines
+                  if z.get_linestyle() == "-" and len(z.get_xdata()) > 5]
+        assert len(series) == 3
+        for t in ax.texts:
+            if "代收敛" not in t.get_text():
+                continue
+            xd, yd = t.xy
+            bb = t.get_window_extent(r)
+            y_txt = bb.y0 + bb.height / 2.0
+
+            def _px(ln):
+                X, Y = np.asarray(ln.get_xdata()), np.asarray(ln.get_ydata())
+                return ax.transData.transform(
+                    (xd, float(np.interp(xd, X, Y))))[1]
+            d = [abs(y_txt - _px(ln)) for ln in series]
+            own_px = ax.transData.transform((xd, yd))[1]
+            i_own = int(np.argmin([abs(own_px - _px(ln)) for ln in series]))
+            assert int(np.argmin(d)) == i_own, (
+                f"「{t.get_text()}」到各曲线 {[round(v, 1) for v in d]}，"
+                f"它锚定的是第 {i_own} 条")
+    finally:
+        apply_style("cn")
+
+
+def test_qa_flags_axis_text_sitting_on_its_own_tick_labels():
+    """QA 盲区：5b3 把刻度整类排除、5b4 只比**不同轴**，于是「同一根轴的
+    轴外说明文字压住本轴刻度」无人覆盖——nature 档的 demo 三格证据句盖住
+    x 刻度 60%+，QA 照样 PASS 并落盘。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1, 2], [0, 1, 2])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("结论句")
+    # 故意把说明文字塞进刻度带
+    ax.text(0.5, -0.045, "这行说明正好压在刻度上", transform=ax.transAxes,
+            ha="center", fontsize=8)
+    assert hit(fig, "刻度"), "同轴轴外文字压刻度没有被任何检查覆盖"
+
+
+def test_qa_does_not_flag_a_normal_xlabel_below_the_ticks():
+    """不该触发的一侧：正常的 xlabel 就在刻度下方，不能误报。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1, 2], [0, 1, 2])
+    ax.set_xlabel("迭代代数")
+    ax.set_ylabel("目标函数值")
+    fig.suptitle("结论句")
+    assert not any("压住" in p and "刻度" in p
+                   for p in run_qa(fig, strict=False))
+
+
+def test_facet_metrics_two_metrics_is_a_legal_call():
+    """面板**宽度**随指标数变（W/n）而高度不变：n=2 时面板面积是 n=3 的
+    1.5 倍、n=1 是 3 倍，密度按比例掉下去，于是合法调用被墨迹硬拒。
+    高度要跟着 n 走，让每个面板的长宽比守恒。
+    """
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style("nature")
+        fig, axes = cr.facet_metrics(
+            list("ABCDE"),
+            [("求解时间（s）", [312.0, 96.4, 21.7, 4.3, 0.8], "log"),
+             ("峰值内存（MB）", [1850.0, 940.0, 410.0, 180.0, 95.0], "log")])
+        fig.suptitle("结论句")
+        bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+               if "墨迹" in p]
+        assert not bad, f"2 个指标的合法调用被硬拒：{bad}"
+    finally:
+        apply_style("cn")
+
+
+def test_facet_metrics_one_metric_points_at_the_right_function():
+    """单个指标不是小倍数（小倍数的立身之本是同一编码施于**多**个量）。
+    与其画出一张必被墨迹检查拦下的图、再报一句和 facet 无关的错误信息，
+    不如在入口说清该用哪个函数。
+    """
+    cr = _recipe("comparison_rank")
+    with pytest.raises(ValueError) as e:
+        cr.facet_metrics(list("ABC"), [("m", [1.0, 2.0, 3.0], "linear")])
+    assert "dot_interval" in str(e.value) or "lollipop" in str(e.value)
