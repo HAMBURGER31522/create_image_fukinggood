@@ -242,11 +242,15 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
     # `np.asarray(xy, dtype=float)` 是把"有限性检查"写成了"原始值必须是
     # float"，会连分类轴（xy=("B", 2)）和日期轴一起拒掉——那是完全合法的
     # matplotlib 用法。原始 xy 照旧交给 annotate，别在这里替它做换算。
+    # 换算结果要**贯穿到内部几何**：_auto_xytext（默认 xytext 的八向自动
+    # 选位）和 bg_luminance（场图路径）都要 transData.transform，拿原始的
+    # 分类/日期值喂进去会炸成 "affine_transform(): incompatible function
+    # arguments"——一句和坐标毫无关系的话。只在入口换算是修了一半。
     try:
-        _conv = [ax.convert_xunits(xy[0]), ax.convert_yunits(xy[1])]
-        _fin = bool(np.all(np.isfinite(np.asarray(_conv, dtype=float))))
+        _xyc = (ax.convert_xunits(xy[0]), ax.convert_yunits(xy[1]))
+        _fin = bool(np.all(np.isfinite(np.asarray(_xyc, dtype=float))))
     except (TypeError, ValueError, IndexError):
-        _fin = True     # 换算后仍非数值：交给 matplotlib 自己报，别瞎猜
+        _xyc, _fin = tuple(xy), True    # 换算不了：交给 matplotlib 自己报
     if not _fin:
         raise ValueError(
             f"callout 的目标点 xy={xy!r} 含非有限值——matplotlib 会把这条"
@@ -259,12 +263,12 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
     if xytext is None:
         # 自动挑方向：在目标点周围八向里选占用最低的一格，引线长度
         # 不超过轴对角线的 1/4——手填数据坐标最容易把框填到数据正中
-        xytext, textcoords = _auto_xytext(ax, xy), "axes fraction"
+        xytext, textcoords = _auto_xytext(ax, _xyc), "axes fraction"
     if box is None:
         # 满铺的场图上不用白底框：在色块中间开一个白洞，比压住几条线更糟。
         # 改用白描边文字——底下的场仍然看得见，字也读得清。
         box = not _probe.has_field(ax)
-        if not box and _probe.bg_luminance(ax, xy) < 0.62:
+        if not box and _probe.bg_luminance(ax, _xyc) < 0.62:
             # 但深色/高饱和底上白描边同样读不清，这时还是要半透明白底
             box = True
             _forced_box = True
@@ -346,8 +350,13 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
         return []
     size = _ann_size(fontsize)
     # 在显示坐标里错开：数据坐标的"接近"与视觉上的"叠字"不是一回事
-    order = sorted(range(len(items)), key=lambda i: items[i][1])
-    ys_disp = [ax.transData.transform((0, items[i][1]))[1] for i in order]
+    # 排避让要在**换算后**的坐标上做：把用户给的原始 y（分类轴上是字符串、
+    # 日期轴上是 date）直接喂 transData.transform 会炸成
+    # "affine_transform(): incompatible function arguments"。与 callout 是
+    # 同一根因——单位换算必须贯穿到内部几何，不能只在入口做。
+    _ys = [ax.convert_yunits(it[1]) for it in items]
+    order = sorted(range(len(items)), key=lambda i: _ys[i])
+    ys_disp = [ax.transData.transform((0, _ys[i]))[1] for i in order]
     adj = list(ys_disp)
     # ys_disp 是**显示像素**，min_gap_pt 是**点**——直接相比是单位混用。
     # 本项目 figure.dpi=150，于是 9pt 实际只拉开 9×72/150 = 4.3pt，而标签

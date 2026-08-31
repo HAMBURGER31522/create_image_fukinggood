@@ -2655,3 +2655,71 @@ def test_convergence_curves_takes_none_as_colour_in_both_presets():
             assert len(set(cols)) == 2, f"{preset} 档两条线同色：{cols}"
     finally:
         apply_style("cn")
+
+
+# --- R16j callout 的单位换算要贯穿到内部几何，不能只在入口做 ----------
+
+def test_callout_default_placement_works_on_non_numeric_axes():
+    """上一版只在**入口**做了单位换算，`_auto_xytext`（默认 xytext 时的
+    八向自动选位）和 `bg_luminance`（场图路径）仍拿**原始** xy 去
+    `transData.transform`，于是默认调用在分类轴/日期轴上炸成
+    `TypeError: affine_transform(): incompatible function arguments`
+    ——一句和坐标毫无关系的话。
+
+    而上一版的测试之所以全绿，是因为它每次都**显式**传 xytext、而且用的
+    是线图（box=True 跳过 bg_luminance）——教科书式的「测试恰好绕开
+    失效区」。这条把默认路径、日期轴、场图、mark 都盖上。
+    """
+    import datetime as _dt
+    from core import callout as _co
+
+    fig, ax = new_figure("onehalf")
+    ax.plot(["A", "B", "C"], [1, 2, 3])
+    _co(ax, ("B", 2), "点")                       # 默认 xytext
+
+    fig2, ax2 = new_figure("onehalf")
+    ds = [_dt.date(2026, 1, d) for d in (1, 5, 9)]
+    ax2.plot(ds, [1, 2, 3])
+    _co(ax2, (ds[1], 2), "点")                    # 默认 xytext + 日期轴
+
+    fig3, ax3 = new_figure("onehalf")
+    ax3.plot(["A", "B", "C"], [1, 2, 3])
+    _co(ax3, ("B", 2), "点", mark=True)           # 目标点画标记
+
+    fig4, ax4 = new_figure("onehalf")             # 场图：走 bg_luminance
+    ax4.pcolormesh(np.arange(4), np.arange(4), np.random.default_rng(0)
+                   .random((3, 3)))
+    _co(ax4, (1.5, 1.5), "点")
+
+
+def test_callout_still_rejects_non_finite_on_the_default_path():
+    """不该放过的一侧：默认路径上的 nan 照样要在入口拦住，
+    不能被换算的 try/except 顺手吞掉。
+    """
+    from core import callout as _co
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    with pytest.raises(ValueError):
+        _co(ax, (float("nan"), 0.5), "峰值")
+
+
+def test_end_labels_works_on_a_categorical_y_axis():
+    """同一根因的第二处：`end_labels` 在显示坐标里排避让时，把用户给的
+    **原始** y 直接喂给 `transData.transform`，分类 y 轴上同样炸成
+    `affine_transform(): incompatible function arguments`。
+    """
+    from core import end_labels as _el
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], ["A", "B", "C"])
+    _el(ax, [(3, "C", "末端", PALETTE[0])])
+
+
+def test_end_labels_still_separates_numeric_labels():
+    """不该退化的一侧：数值轴上的自动避让照旧生效。"""
+    from core import end_labels as _el
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    out = _el(ax, [(1, 0.50, "a", PALETTE[0]), (1, 0.502, "b", PALETTE[1])])
+    fig.canvas.draw()
+    ys = sorted(t.get_window_extent(fig.canvas.get_renderer()).y0 for t in out)
+    assert ys[1] - ys[0] > 4.0, f"两个直标没拉开：{ys}"
