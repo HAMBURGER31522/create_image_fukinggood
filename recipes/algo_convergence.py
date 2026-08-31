@@ -10,6 +10,7 @@ from _common import GALLERY
 import numpy as np
 
 from core.style import _one_of
+from core import end_labels
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, PALETTE)
 
@@ -47,6 +48,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     va_of = {idx: ("bottom" if r % 2 == 0 else "top")
              for r, idx in enumerate(finals)}
     _below: list[bool] = []
+    _ends: list[tuple] = []
     for k, (name, y, c) in enumerate(curves):
         y = np.asarray(y, dtype=float)
         it = np.arange(len(y))
@@ -86,12 +88,16 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
 
         _dy = _sign * max(5.0, min(10.0, 0.45 * _to_pt(_gap)))
         _below.append(_dy < 0)
+        # 收敛点落在右缘时，标签要**向左**标：右边那条带是线端直标的地盘
+        # （end_labels 排完避让后就占在那里），两个都是库生成的、用户一个
+        # 都动不了。实测三条终值相近的曲线会撞出 26% 的硬拒。
+        _near_end = i_conv > 0.85 * n_max
+        _dxp, _ha = (-6, "right") if _near_end else (0, "center")
         ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
-                    xytext=(0, _dy), textcoords="offset points",
-                    ha="center", va="bottom" if _dy > 0 else "top",
+                    xytext=(_dxp, _dy), textcoords="offset points",
+                    ha=_ha, va="bottom" if _dy > 0 else "top",
                     fontsize=ptx(6.5), color=text_color(c))
-        lab = end_label(ax, it[-1], final, f" {name} {final:.4g}", c)
-        lab.set_va(va_of[k])
+        _ends.append((it[-1], final, f" {name} {final:.4g}", c))
     if any(_below):
         # 最低那条曲线的收敛标签放在它下方，而它本来就贴着轴底——不腾地方
         # 的话标签会压在 x 刻度上（实测「84 代收敛」正好盖住刻度「80」）。
@@ -107,6 +113,12 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         else:
             ax.set_ylim(_lo - 0.10 * (_hi - _lo), _hi)
     ax.set_xlim(-0.02 * n_max, 1.2 * n_max)   # 右侧留线端标签位，左不出负代
+    # 线端直标一次排完：`end_labels` 会在**显示坐标**里实测避让，而逐条调
+    # `end_label` 再手工交替 va 只能错开两条——三条终值相近的曲线实测重叠
+    # 94% 被 QA 拦下，而调用者没有任何调位参数。
+    # 必须放在扩轴**之后**：避让是按当时的 transData 算的，先排后扩会把
+    # 刚挣出来的像素间距重新压回去（实测交付图两条直标又叠回 54%）。
+    end_labels(ax, _ends)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     fig._ff_stats = {f"{k}_conv": v[0] for k, v in info.items()} | \

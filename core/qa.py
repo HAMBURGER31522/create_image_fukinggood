@@ -635,14 +635,16 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     #      数组判据只认**空白分隔**的 numpy repr：手写区间一律带逗号
     #      （"95% CI [0.12, 0.34]"），不能误伤。
     import re as _re
-    # 判据收紧：Python 的 float repr 只会是**小写** nan/inf，而且不会和
-    # `_` / `-` / 字母黏在一起。此前带 re.I 且不排除 `_`/`-`，把
+    # 判据只收紧**边界**，不收紧大小写：`Decimal("NaN")`、`f"{x:F}"` 都会
+    # 产出大写非有限值，去掉 re.I 会让写着 NaN 的图一路 PASS 并落盘
+    # （第四轮打分 codex 逮到——为消除误伤而矫枉过正）。真正要排除的是
+    # 和 `_` / `-` / 字母黏在一起的词：此前不排除 `_`/`-`，把
     # `L_inf 范数`、`Inf-norm`、`infrastructure` 一律误判成"上游算错了"
     # 并硬拒，消息还主动误诊——这正是本轮 item 19 刚在墨迹消息上修掉的
     # 毛病（判据过宽 + 不提自己的出口），换个地方又犯了一遍。
     _RE_NONFIN = _re.compile(
         r"(?<![0-9A-Za-z_\u4e00-\u9fff-])[-+]?(?:nan|inf)"
-        r"(?![0-9A-Za-z_\u4e00-\u9fff-])")
+        r"(?![0-9A-Za-z_\u4e00-\u9fff-])", _re.I)
     _RE_ARRAY = _re.compile(
         r"\[\s*[-+]?\d[\d.eE+-]*(?:\s+[-+]?\d[\d.eE+-]*)+\s*\]")
     _junk = []

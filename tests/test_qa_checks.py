@@ -2164,11 +2164,14 @@ def test_facet_metrics_keeps_its_cn_geometry():
     """
     apply_style("cn")
     cr = _recipe("comparison_rank")
-    # 用 3 个指标：交付图 comparison_facet_metrics 就是 3 指标，
-    # 高度按 n/3 缩放后 n=3 恰为原值，这条才真的钉住"交付图不动"
-    fig, axes = cr.facet_metrics(["a", "b", "c"], [("m1", [1.0, 2.0, 3.0], "linear"),
-                          ("m2", [3.0, 2.0, 1.0], "linear"),
-                          ("m3", [2.0, 3.0, 1.0], "linear")])
+    # 用**交付图真实的数据**：gallery/comparison_facet_metrics 就是这一组。
+    # 「交付图不动」是对交付图的承诺，不是"任何调用都固定高度"——高度现在
+    # 会按实测墨迹自适应收，简化数据（值 1/2/3）本来就该被收。
+    fig, axes = cr.facet_metrics(
+        ["分支定界（精确）", "割平面", "禁忌搜索", "模拟退火", "贪心启发式"],
+        [("求解时间（s）", [312.0, 96.4, 21.7, 4.3, 0.8], "log"),
+         ("峰值内存（MB）", [1850.0, 940.0, 410.0, 180.0, 95.0], "log"),
+         ("最优性 gap（%）", [0.0, 0.3, 0.9, 1.6, 2.4], "linear")])
     from core import COLUMN_WIDTHS, MM
     w_in = COLUMN_WIDTHS["double"] * MM
     assert abs(fig.get_size_inches()[0] - w_in) < 1e-9
@@ -2820,12 +2823,18 @@ def test_run_qa_survives_non_numeric_axes():
     ("Nanjing 样本 n = 120", "Nanjing"),
 ])
 def test_nonfinite_text_check_does_not_hit_legitimate_words(title, ylab):
-    """本轮新增的 `nonfinite_text` 把合法标签误判成「上游算错了」并硬拒。
+    """`nonfinite_text` 不能把合法标签误判成「上游算错了」并硬拒。
 
-    `L_inf 范数`（下划线相邻）、`Inf-norm`（大写 + 连字符）都被判成非有限
-    值。Python 的 float repr 只会是**小写** nan/inf，且不会和 `_` / `-` /
-    字母黏在一起——判据要照这个收紧。这是 item 19 刚在墨迹消息上修掉的
-    毛病（消息主动误诊 + 不提自己的出口），同一批提交换个地方又犯。
+    真正被误伤的只有前两条：`L_inf 范数`（`inf` 与下划线相邻）和
+    `Inf-norm`（与连字符相邻）。**后两条修复前后都绿**——`infrastructure`
+    的 `inf` 后面紧跟字母 `r`、`Nanjing` 的 `nan` 后面紧跟 `j`，旧判据
+    本来就排除了。留着当回归护栏可以，但要写明它们**不具判别力**，不能
+    拿它们充数说"两侧都钉住了"——这一点由第 16 轮 opus 打分指出，与第
+    37/38 项被推翻的是同一个机制：为一处修复配的测试，有一半挑了 bug
+    不出现的那一侧。
+
+    收紧只动**边界**（`_` / `-` / 字母黏连），不动大小写：大小写另有
+    两侧用例 `test_nonfinite_text_catches_upper_case_too` 钉住。
     """
     fig, ax = new_figure("onehalf")
     ax.plot([1, 2, 3], [1, 2, 3])
@@ -2936,3 +2945,66 @@ def test_facet_metrics_rejects_titles_too_long_for_the_panels():
            if "面板标题" in p or "直标" in p]
     assert bad, "标题明显放不下却没拦"
     assert any("收紧" in p or "错开" in p or "缩短" in p for p in bad),         f"消息不可操作：{bad[:1]}"
+
+
+# --- R16n 第四轮打分：codex 三条 -------------------------------------
+
+@pytest.mark.parametrize("txt", [
+    "结果 = NaN", "结果 = NAN", "值 INF", "误差 -Inf", "结果 = nan",
+])
+def test_nonfinite_text_catches_upper_case_too(txt):
+    """上一处修复为了不误伤 `Inf-norm` 把 `re.I` 整个删了——矫枉过正：
+    `Decimal("NaN")`、`f"{x:F}"` 都会产出**大写**非有限值，于是写着 NaN
+    的图一路 PASS 并落盘。大小写要恢复不敏感，收紧只保留字母/下划线/
+    连字符的边界。本轮第六次「修复自己引入回归」。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle(txt)
+    assert [p for p in run_qa(fig, strict=False) if "非有限" in p], \
+        f"{txt!r} 漏检"
+
+
+def test_convergence_end_labels_separate_when_finals_are_close():
+    """终值相近的三条曲线，线端直标重叠 94% 被 QA 拦下，而调用者没有任何
+    调位参数。根因是 `convergence_curves` 逐条调 `end_label()`、只交替
+    `va`，而库里**本来就有** `end_labels()` 做显示坐标避让——同一个库里
+    不能一处用避让、另一处手工交替。
+    """
+    ac = _recipe("algo_convergence")
+    try:
+        apply_style("nature")
+        x = np.arange(80)
+        cs = [("A", 100 * np.exp(-x / 10) + 2.00, PALETTE[0]),
+              ("B", 100 * np.exp(-x / 10) + 1.99, PALETTE[1]),
+              ("C", 100 * np.exp(-x / 10) + 1.98, PALETTE[2])]
+        fig, ax, _ = ac.convergence_curves(cs, mode="min", logy=True)
+        fig.suptitle("三算法收敛到相近终值")
+        bad = [p for p in run_qa(fig, strict=False)
+               if "直标" in p and "重叠" in p]
+        assert not bad, f"线端直标互压：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+def test_facet_metrics_survives_short_titles_and_narrow_range(preset):
+    """`ratio ∝ n` 只守住了面板**面积**，而每面板的墨迹并非常数——标题
+    长短、刻度多寡、数值文本宽窄都算墨迹。短标题 + 窄 log 跨度的合法调用
+    仍会掉到阈值下（实测 cn 4.0% < 4.5%）。
+    高度要按**实测**最低面板墨迹自适应收，而不是只按 n 线性缩。
+    """
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(
+            list("ABCDE"), [("m0", list(range(1, 6)), "linear"),
+                            ("m1", [2 * v for v in range(1, 6)], "log")])
+        fig.suptitle("方案 E 两项指标最高")
+        bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+               if "墨迹" in p and p.startswith("面板")]
+        assert not bad, f"{preset} 档合法调用被墨迹硬拒：{bad[:1]}"
+    finally:
+        apply_style("cn")
