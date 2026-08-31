@@ -141,6 +141,26 @@ _STYLE_APPLIED = False
 _PRESET = "cn"
 
 
+def _one_of(name: str, value, legal):
+    """公开 API 的枚举型字符串参数，统一在这里校验。
+
+    第 15 轮修了 `ref_line(orientation=)`，但那只是**一类**缺陷的一个
+    实例。第 16 轮三方评审在 `core/` 里又找出五处，主窗口把同一把尺子
+    伸到 `recipes/`（api.md 逐个登记了签名，同样是交付面）又找出三处——
+    其中 `parity(band=("relatve", …))` 拼错一个字母，写进论文的覆盖率
+    从 98% 变成 20%。一处一处补还会继续漏，所以收到这个唯一入口。
+
+    放在 style.py 而不是 annotate.py：recipes 也要用，而 style 不依赖
+    任何兄弟模块，从这里往外导不会成环。
+    """
+    if value not in legal:
+        raise ValueError(
+            f"未知的 {name} {value!r}，可选：{sorted(legal, key=str)}"
+            f"——静默走另一个分支比报错伤得多：报错你当场就改，"
+            f"静默画错的图会直接进论文")
+    return value
+
+
 def ptx(v: float, kind: str = "font") -> float:
     """把**按 cn 档调好的**点值换算到当前档。
 

@@ -9,6 +9,7 @@
 from _common import GALLERY
 import numpy as np
 
+from core.style import _one_of
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, PALETTE)
 
@@ -23,6 +24,9 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     conv_tol: 相对终值变化 < conv_tol 视为收敛，自动标注收敛代。
     返回 (fig, ax, info)，info[名称] = (收敛代, 终值)。
     """
+    # 裸 KeyError('minimum') 不列合法值，与 stat_box(loc=) 修前同一个
+    # 毛病：能拦住，但用户只能去读源码才知道该写什么。
+    _one_of("convergence_curves(mode=)", mode, ("min", "max", "raw"))
     acc = {"min": np.minimum.accumulate, "max": np.maximum.accumulate,
            "raw": lambda y: y}[mode]
     curves = [(name, acc(np.asarray(y, dtype=float)), c)

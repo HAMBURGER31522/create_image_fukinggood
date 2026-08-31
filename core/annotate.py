@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.transforms import blended_transform_factory
 
-from .style import current_preset, preset_cfg
+from .style import current_preset, preset_cfg, _one_of
 from .colors import emphasis, semantic
 
 
@@ -24,23 +24,6 @@ def _ann_size(explicit: float | None = None) -> float:
     if explicit is not None:
         return explicit
     return max(5.0, plt.rcParams["font.size"] - 1.0)
-
-
-def _one_of(name: str, value, legal):
-    """公开 API 的枚举型字符串参数，统一在这里校验。
-
-    第 15 轮修了 `ref_line(orientation=)`，但那只是**一类**缺陷的一个
-    实例。第 16 轮三方评审在同一模式下又找出五处：没校验的字符串参数
-    落进 `else` 兜底分支，用户拿到的图与他写的代码不符而毫无提示——
-    `dot_interval(better="higher")` 甚至把「达标/未达标」整个反转。
-    一处一处补还会继续漏，所以收到这个唯一入口，并配表驱动的回归测试。
-    """
-    if value not in legal:
-        raise ValueError(
-            f"未知的 {name} {value!r}，可选：{sorted(legal, key=str)}"
-            f"——静默走另一个分支比报错伤得多：报错你当场就改，"
-            f"静默画错的图会直接进论文")
-    return value
 
 
 def ink(color, min_ratio: float = 3.3):

@@ -15,6 +15,7 @@ from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
 
+from core.style import _one_of
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, panel_label, smart_legend,
                   slope_lines, PALETTE, semantic)
@@ -166,6 +167,10 @@ def facet_metrics(cat_labels, metrics, width="double"):
     fig.subplots_adjust(wspace=0.35, top=1 - pad_fr, bottom=pad_fr)
     y = np.arange(len(cat_labels))[::-1]
     for k, (ax, (title, vals, scale)) in enumerate(zip(axes, metrics)):
+        # 未知轴型此前静默画成线性。用户写 log 是因为数据跨数量级，
+        # 给成线性等于把图画错，而 QA 无从判断"用户本来想要哪种轴"。
+        _one_of(f"facet_metrics 第 {k + 1} 个指标的轴型", scale,
+                ("log", "linear"))
         if scale == "log":
             ax.set_xscale("log")
             title = f"{title}（log 轴）"

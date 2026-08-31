@@ -2174,3 +2174,68 @@ def test_facet_metrics_keeps_its_cn_geometry():
     w_in = COLUMN_WIDTHS["double"] * MM
     assert abs(fig.get_size_inches()[0] - w_in) < 1e-9
     assert abs(fig.get_size_inches()[1] - w_in * 0.36) < 1e-9
+
+
+# --- R16e recipes 层的同一类缺陷 ---------------------------------------
+#
+# 三位评审都只查了 `core/`，但 `recipes/` 的函数同样是交付给用户的公开
+# API（api.md 逐个登记了签名）。往这层一扫又出两条，其中 parity 的那条
+# 比 core 里任何一条都重：拼错一个字母，写进论文的覆盖率从 98% 变成 20%。
+
+def test_parity_rejects_an_unknown_band_kind():
+    """`band=("relatve", 0.10)` 静默落进绝对带分支：δ 被当成**绝对**单位
+    而不是 10% 相对，`info["inside"]` 从 0.9833 掉到 0.2——而这个数会被
+    写进图题和统计框，直接进论文。全库最重的一条静默走错分支。
+    """
+    import numpy as _np
+    rng = _np.random.default_rng(0)
+    yt = rng.random(60) * 10 + 5
+    yp = yt + rng.standard_normal(60) * 0.3
+    _p = _recipe("parity")
+    with pytest.raises(ValueError) as e:
+        _p.parity(yt, yp, band=("relatve", 0.10))
+    assert "relatve" in str(e.value)
+
+
+def test_parity_relative_and_absolute_bands_both_work():
+    """不该触发的一侧：两个合法带型都要照常算，且结果不同。"""
+    import numpy as _np
+    rng = _np.random.default_rng(0)
+    yt = rng.random(60) * 10 + 5
+    yp = yt + rng.standard_normal(60) * 0.3
+    _p = _recipe("parity")
+    rel = _p.parity(yt, yp, band=("relative", 0.10))[2]["inside"]
+    absv = _p.parity(yt, yp, band=("absolute", 0.10))[2]["inside"]
+    assert rel != absv
+
+
+def test_facet_metrics_rejects_an_unknown_scale():
+    """`("指标", 值, "logarithmic")` 静默画成线性轴——用户要 log 轴是因为
+    数据跨数量级，给成线性轴等于把图画错。
+    """
+    cr = _recipe("comparison_rank")
+    with pytest.raises(ValueError) as e:
+        cr.facet_metrics(["a", "b", "c"],
+                         [("m", [1.0, 2.0, 3.0], "logarithmic")])
+    assert "logarithmic" in str(e.value)
+
+
+def test_facet_metrics_log_and_linear_still_work():
+    cr = _recipe("comparison_rank")
+    got = [cr.facet_metrics(["a", "b", "c"],
+                            [("m", [1.0, 2.0, 3.0], s)])[1][0].get_xscale()
+           for s in ("log", "linear")]
+    assert got == ["log", "linear"]
+
+
+def test_convergence_curves_rejects_an_unknown_mode():
+    """`mode="minimum"` 抛的是裸 `KeyError: 'minimum'`，不列合法值——
+    与 stat_box(loc=) 修前同一个毛病：能拦住，但用户只能去读源码。
+    """
+    import numpy as _np
+    rng = _np.random.default_rng(1)
+    ac = _recipe("algo_convergence")
+    with pytest.raises(ValueError) as e:
+        ac.convergence_curves([("A", list(rng.random(40) * 10), None)],
+                              mode="minimum")
+    assert "minimum" in str(e.value)

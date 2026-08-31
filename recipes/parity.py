@@ -10,6 +10,7 @@
 from _common import GALLERY
 import numpy as np
 
+from core.style import _one_of
 from core import (ptx, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, semantic)
 
@@ -28,6 +29,10 @@ def parity(y_true, y_pred, band=("relative", 0.10), xlabel="实测值",
     if not isinstance(band, (tuple, list)):
         band = ("relative", float(band))
     mode, bval = band
+    # 拼错一个字母就静默落进绝对带分支：δ 被当成**绝对**单位而不是相对
+    # 比例，info["inside"] 从 0.98 掉到 0.20——而这个数会写进图题和统计框，
+    # 直接进论文。全库最重的一处静默走错分支。
+    _one_of("parity(band=) 的带型", mode, ("relative", "absolute"))
     lo = min(y_true.min(), y_pred.min())
     hi = max(y_true.max(), y_pred.max())
     pad = 0.06 * (hi - lo)
