@@ -2239,3 +2239,30 @@ def test_convergence_curves_rejects_an_unknown_mode():
         ac.convergence_curves([("A", list(rng.random(40) * 10), None)],
                               mode="minimum")
     assert "minimum" in str(e.value)
+
+
+def test_parallel_coords_rejects_a_mismatched_better_length():
+    """`better` 比 `dims` 短时 zip 静默截断，最后炸在 matplotlib 的
+    `FixedLocator locations (5)` 上——错误信息里没有半个字提到 better。
+    `slope_lines` 早就为同一模式立了显式长度校验（"zip 静默截断会让整行
+    数据无声消失"），同一个库里不能有两套政策。
+    """
+    import numpy as _np
+    cp = _recipe("composition")
+    rng = _np.random.default_rng(0)
+    with pytest.raises(ValueError) as e:
+        cp.parallel_coords([f"n{i}" for i in range(6)], rng.random((6, 5)) * 10,
+                           [f"d{i}" for i in range(5)], highlight_idx=(0,),
+                           better=["↑", "↓"])
+    assert "better" in str(e.value)
+
+
+def test_parallel_coords_without_better_still_works():
+    import numpy as _np
+    cp = _recipe("composition")
+    rng = _np.random.default_rng(0)
+    fig, ax = cp.parallel_coords([f"n{i}" for i in range(6)],
+                                 rng.random((6, 5)) * 10,
+                                 [f"d{i}" for i in range(5)],
+                                 highlight_idx=(0,))
+    assert ax is not None

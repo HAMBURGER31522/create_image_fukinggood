@@ -150,6 +150,14 @@ def parallel_coords(names, data, dims, highlight_idx=(), better=None,
                 fontsize=ptx(6.5), color="0.4")
     ax.set_xticks(x)
     if better is not None:
+        if len(better) != len(dims):
+            # zip 静默截断 -> 标签数与刻度数对不上，最后炸在
+            # matplotlib 的 "FixedLocator locations (5)" 上，信息里
+            # 没有半个字提到 better。slope_lines 早就为同一模式立了
+            # 显式长度校验，同一个库里不能有两套政策。
+            raise ValueError(
+                f"better 长度 {len(better)} 与 dims 长度 {len(dims)} "
+                f"不一致——zip 会静默截断，后面几维的「哪端更优」直接消失")
         labels = [f"{d}\n（{b}优）" for d, b in zip(dims, better)]
     else:
         labels = dims
