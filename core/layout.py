@@ -17,7 +17,20 @@ MAX_PANELS = 6
 
 
 def _width_mm(width) -> float:
-    return COLUMN_WIDTHS.get(width, width) if isinstance(width, str) else width
+    """档名 → mm。未知字符串必须当场报错。
+
+    此前 `.get(width, width)` 把未知档名原样返回，一路走到
+    `"triple" * 0.0393` 才炸出 `TypeError: can't multiply sequence`——
+    错误信息里没有半个字提到 width，用户只能去读源码。`new_figure`
+    早就校验并列出了合法档名，同一个库里不能有两套政策。
+    """
+    if isinstance(width, str):
+        if width not in COLUMN_WIDTHS:
+            raise ValueError(
+                f"未知栏宽 {width!r}，可选：{sorted(COLUMN_WIDTHS)} "
+                f"或直接给 mm 数值")
+        return COLUMN_WIDTHS[width]
+    return width
 
 
 def figure(rows, width="double", height=None, row_heights=None,

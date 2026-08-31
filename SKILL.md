@@ -116,6 +116,20 @@ fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写
 两档共用：图高上限 **170mm**、`save_figure` 出 png+svg+**pdf**（Nature 主图
 只收矢量，明确拒收 png/jpeg/tiff）、下同的层次与配色规则。
 
+**切档两种方式**：`apply_style("nature")`，或不传参数、用环境变量
+`FF_PRESET=nature`（批量出图时不必改代码）。
+
+**从 recipes 抄来的硬编码点值要过 `ptx()`。** 模板里的 `fontsize=9` /
+`linewidth=1.6` 都是照 cn 档（base 9pt、线宽 1.2）调的，原样搬到 nature 档
+会集体撞「文字 > 7pt」「线宽 > 1pt」的硬拒：
+
+```python
+from core import ptx
+ax.plot(x, y, linewidth=ptx(1.6, "lw"))    # 按该档线宽上限封顶
+ax.set_xlabel("时间（s）", fontsize=ptx(9))  # 按该档字号包线缩放
+ax.plot(x, y, "o", markersize=ptx(3.5, "pt"))  # 纯比例，不加钳制
+```
+
 **字体解析只收有 Regular 字面的家族。** 思源系列常只装 Heavy(900) 一个字面，
 matplotlib 会拿它当 Regular，中文全渲染成粗黑块紧挨 400 字重的拉丁数字——
 看起来像渲染坏了。`apply_style` 自动跳过并打印提示，`run_qa` 复查。
@@ -173,7 +187,8 @@ deuteranopia 下色距仅 0.16、灰度差仅 0.08）。`run_qa` 会模拟三类
 ```python
 import sys; sys.path.insert(0, r"<figure-forge 根目录>")
 from core import apply_style, new_figure, save_figure, run_qa, \
-    stat_box, callout, end_label, end_labels, ref_line, panel_label, ink, \
+    stat_box, callout, end_label, end_labels, ref_line, panel_label, \
+    text_color, ptx, \
     figure, marginal_grid, small_multiples, inset_zoom, share_colorbar, \
     PALETTE, OKABE_ITO, cmap_for, semantic, emphasis, categorical
 
@@ -220,8 +235,11 @@ Nature 的硬约束：整页图 **≤6 面板**、读序 **左→右、上→下
 - [ ] **中文与拉丁字重一致**（中文明显更粗 = 字体解析到了 Heavy 字面）
 - [ ] **文字对其背景对比度 ≥3:1**：语义色直接写字往往不够暗（Okabe-Ito 橙
       仅 2.25:1）。`stat_box`/`callout`/`end_label` 等已内置压暗；裸写
-      `ax.annotate(color=…)` 要自己套 `ink(color)`。深底白字同理——浅色段上
-      写白字会掉到 1.6:1，按底色亮度选黑/白（见 annotated_heatmap.py）
+      `ax.annotate(color=…)` 要自己套 **`text_color(color)`**——不要用
+      `ink()`：它只压暗、不除彩，而 nature 档「彩色文字」是硬拒
+      （Nature 明文 "Avoid coloured text"），照 `ink()` 写必被拦下。
+      `text_color()` 在 nature 档返黑字、cn 档才走 `ink()`。深底白字同理——
+      浅色段上写白字会掉到 1.6:1，按底色亮度选黑/白（见 annotated_heatmap.py）
 - [ ] **最饱和的元素就是论点所在**；陪衬已用 emphasis 压到 context/background
 - [ ] 配色语义一致（同一对象全文同色）；分类 >4 类时有 marker/线型冗余
 - [ ] **任何视觉编码都有解释**：置信带、第二组 marker、色标都能在图内查到含义

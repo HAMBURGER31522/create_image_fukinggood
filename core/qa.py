@@ -99,7 +99,7 @@ _ALLOW_CODES = frozenset({
     "grouped_bars", "unsourced", "overlap", "accessibility",
     "unexplained_band", "number_conflict", "duplicate_series",
     "clim_mismatch", "axis_slack", "sparse_line", "unit_axis_range",
-    "incommensurable", "text_contrast", "sparse_panel",
+    "incommensurable", "text_contrast", "sparse_panel", "nonfinite_text",
 })
 
 
@@ -159,6 +159,13 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         print(f"[QA note] 轴外重排未执行：{e}")
     if isinstance(expect_width, (str, int, float)):
         expect_width = (expect_width,)   # 裸标量是最常见的抄写笔误
+    for _w in (expect_width or ()):
+        # 未知档名此前也走 `COLUMN_WIDTHS.get(w, w)` 兜底，最后炸在
+        # numpy 的 UFuncTypeError 上——同 layout._width_mm 的老毛病。
+        if isinstance(_w, str) and _w not in COLUMN_WIDTHS:
+            raise ValueError(
+                f"未知的 expect_width {_w!r}，可选：{sorted(COLUMN_WIDTHS)} "
+                f"或直接给 mm 数值")
 
     # 0. 图题数字溯源（有 _ff_stats/sourced 才查；只警告不阻断——
     #    差值/比率等合法派生数字无法穷举，误杀比漏报更伤）
@@ -620,6 +627,31 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             f"{len(mixed)} 处中文与 $mathtext$ 混排（会豆腐块），"
             f"改用 Unicode 数学字符（₀ ⁻¹ φ ε √ 等）；"
             f"货币金额写 \\$1200（反斜杠转义）或全角 ＄：{mixed[:2]}")
+
+    # 4a2. 非有限数值 / 数组 repr 被渲染进了图上的文字。
+    #      `f"最优值 = {x}"` 里 x 是 nan/inf 时照样成图；`{arr}` 会印出
+    #      "[1. 2.]"。两者都是上游算错或传错而全程没人拦，图却照常落盘——
+    #      读者看到的是一句写着 nan 的结论句。
+    #      数组判据只认**空白分隔**的 numpy repr：手写区间一律带逗号
+    #      （"95% CI [0.12, 0.34]"），不能误伤。
+    import re as _re
+    _RE_NONFIN = _re.compile(
+        r"(?<![0-9A-Za-z\u4e00-\u9fff])[-+]?(?:nan|inf)"
+        r"(?![0-9A-Za-z\u4e00-\u9fff])", _re.I)
+    _RE_ARRAY = _re.compile(
+        r"\[\s*[-+]?\d[\d.eE+-]*(?:\s+[-+]?\d[\d.eE+-]*)+\s*\]")
+    _junk = []
+    for _t in _all_texts(fig):
+        _s = _t.get_text()
+        if _RE_NONFIN.search(_s):
+            _junk.append(("nan/inf", _s[:26]))
+        elif _RE_ARRAY.search(_s) or "array(" in _s or "dtype=" in _s:
+            _junk.append(("数组 repr", _s[:26]))
+    if _junk:
+        _hard(f"{len(_junk)} 处图上文字渲染成了非有限值或数组 repr："
+              f"{_junk[:3]}——f-string 里的量是 nan/inf 或还是个数组，"
+              f"上游算错了而一路没人拦。先在上游处理掉，别让写着 nan 的"
+              f"结论句进论文", "nonfinite_text")
 
     # 4b. 豆腐块：渲染一次，同时捕获 warnings 与 matplotlib logging 两条通道。
     #     mathtext 解析结果带 lru_cache，前面的 delivered_width_in 已 draw 过

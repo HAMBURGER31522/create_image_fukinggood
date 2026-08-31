@@ -26,6 +26,23 @@ def _ann_size(explicit: float | None = None) -> float:
     return max(5.0, plt.rcParams["font.size"] - 1.0)
 
 
+def _one_of(name: str, value, legal):
+    """公开 API 的枚举型字符串参数，统一在这里校验。
+
+    第 15 轮修了 `ref_line(orientation=)`，但那只是**一类**缺陷的一个
+    实例。第 16 轮三方评审在同一模式下又找出五处：没校验的字符串参数
+    落进 `else` 兜底分支，用户拿到的图与他写的代码不符而毫无提示——
+    `dot_interval(better="higher")` 甚至把「达标/未达标」整个反转。
+    一处一处补还会继续漏，所以收到这个唯一入口，并配表驱动的回归测试。
+    """
+    if value not in legal:
+        raise ValueError(
+            f"未知的 {name} {value!r}，可选：{sorted(legal, key=str)}"
+            f"——静默走另一个分支比报错伤得多：报错你当场就改，"
+            f"静默画错的图会直接进论文")
+    return value
+
+
 def ink(color, min_ratio: float = 3.3):
     """把用作**文字**的语义色压暗到对白底 ≥3.3:1。
 
@@ -104,6 +121,10 @@ def stat_box(ax, lines, loc: str = "auto", fontsize: float | None = None,
     from . import _probe
 
     text = "\n".join(lines)
+    _one_of("stat_box(loc=)", loc, ("auto",) + tuple(_probe._ANCHORS))
+    if outside is not None:
+        _one_of("stat_box(outside=)", outside, ("top", "bottom"))
+
     size = _ann_size(fontsize)
     bbox = dict(boxstyle=f"round,pad={pad}", facecolor=facecolor,
                 edgecolor=edgecolor, alpha=alpha, linewidth=0.5)
@@ -234,6 +255,12 @@ def callout(ax, xy, text, xytext=None, color: str = "#3D7A6B",
     是常见错误，横穿数据区的大弧引线既遮数据又制造无意义的视觉噪声。
     文字尽量放在目标点近旁，引线越短越好。
     """
+    _xy = np.asarray(xy, dtype=float).ravel()
+    if _xy.size != 2 or not np.all(np.isfinite(_xy)):
+        raise ValueError(
+            f"callout 的目标点 xy={xy!r} 含非有限值——matplotlib 会把这条"
+            f"标注渲染成 1x1 的退化框，肉眼完全不可见，而 run_qa 一路报"
+            f"PASS：你以为标注上了，交付的图上没有。先在上游处理掉 nan")
     if mark:
         ax.plot([xy[0]], [xy[1]], "o", color=color, markersize=4.0,
                 markeredgecolor="white", markeredgewidth=0.7, zorder=11)
@@ -406,6 +433,14 @@ def dot_interval(ax, labels, est, lo, hi, threshold=None, thr_label="",
             raise ValueError(
                 f"sizes 长度 {_sz0.size} 与 est 长度 {est.size} 不一致"
                 f"——太短会 IndexError，太长会静默截断（标量同样非法）")
+    # better 无校验时，任何非 "high" 的值（"higher" / "HIGH" / 拼错）
+    # 都落进低值优分支，把每一行的达标判定**整个反转**——图上的达标
+    # 着色、轴外数值列、返回的 ok 全跟着反，而没有任何一条 QA 会响。
+    _one_of("dot_interval(better=)", better, ("high", "low"))
+    # value_col 的实现只判 truthy：`value_col="False"` 这种字符串是
+    # truthy，用户想关掉数值列、结果照画；`"no"` 同理。合法集见 docstring。
+    _one_of("dot_interval(value_col=)", value_col,
+            (True, False, "outside", "inside"))
     order = np.argsort(est) if sort else np.arange(len(est))
     labels = [labels[i] for i in order]
     est, lo, hi = est[order], lo[order], hi[order]
@@ -645,6 +680,7 @@ def slope_lines(ax, labels, before, after, cond_names=("前", "后"), unit="",
     import numpy as np
     from .colors import semantic
 
+    _one_of("slope_lines(mode=)", mode, ("emphasis", "cohort"))
     labels = list(labels)
     b = np.asarray(before, float)
     a = np.asarray(after, float)
@@ -766,7 +802,7 @@ def slope_lines(ax, labels, before, after, cond_names=("前", "后"), unit="",
 
 def ref_line(ax, value, orientation: str = "h", label: str | None = None,
              color: str | None = None, fontsize: float | None = None,
-             label_loc: str = "right", level: str = "focus",
+             label_loc: str | None = None, level: str = "focus",
              linewidth: float | None = None):
     """参考线 + 端点小标签（如 90% 阈值线）。
 
@@ -775,7 +811,10 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
     把论点线调成灰色、却让无关 marker 高饱和，是最典型的层次倒置。
     纯背景基准（y=x 对角线、零线）才用 context/background。
 
-    label_loc: left/right。
+    label_loc: 横线用 left/right（默认 right），竖线用 top/bottom
+    （默认 top）。传另一方向的值会报错——竖线分支此前**根本不读**这个
+    参数（文档登记、函数体不读的死参数），横线分支则把任何非 "right"
+    的值静默当成 "left"。
     """
     # 走 semantic()，不要硬编码：换判据色时这里不跟着改，库里就会出现
     # 两个互不相同的"判据线色"（dot_interval 用 semantic("highlight")、
@@ -794,6 +833,11 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
         raise ValueError(
             f"orientation 只能是 'h'（横线）或 'v'（竖线），收到 "
             f"{orientation!r}")
+    _legal = ("left", "right") if orientation == "h" else ("top", "bottom")
+    if label_loc is None:
+        label_loc = "right" if orientation == "h" else "top"
+    _one_of(f"ref_line(label_loc=) 在 orientation={orientation!r} 下",
+            label_loc, _legal)
     tcol = text_color(c)   # 内含 ink() 压暗；判据色做文字时正好卡在 3:1 线上
     if orientation == "h":
         ax.axhline(value, color=c, linewidth=lw, linestyle=(0, (4, 3)),
@@ -810,8 +854,10 @@ def ref_line(ax, value, orientation: str = "h", label: str | None = None,
                    zorder=2)
         if label:
             tf = blended_transform_factory(ax.transData, ax.transAxes)
-            t = ax.text(value, 0.985, label, transform=tf, ha="left",
-                        va="top", rotation=90, fontsize=size, color=tcol,
+            ya, va = ((0.985, "top") if label_loc == "top"
+                      else (0.015, "bottom"))
+            t = ax.text(value, ya, label, transform=tf, ha="left",
+                        va=va, rotation=90, fontsize=size, color=tcol,
                         zorder=3)
             _halo(t)
 

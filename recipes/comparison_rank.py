@@ -145,10 +145,25 @@ def facet_metrics(cat_labels, metrics, width="double"):
     n = len(metrics)
     from core import MM, COLUMN_WIDTHS
     w = COLUMN_WIDTHS.get(width, width) * MM
-    fig, axes = plt.subplots(1, n, figsize=(w, w * 0.36))
+    # 面板高度跟着档走。nature 档字号 7pt、线宽 ≤1pt、标记更小，同一构图
+    # 的墨迹必然更低；高度不跟着降，18cm² 的面板就只剩 2.5% 墨迹，撞上密度
+    # 硬拒——而这是**随库交付的模板**，用户照 SKILL.md「从 recipes 抄构图」
+    # 走主路径就撞墙。修法不是加豁免，是让面板真的按内容变矮。
+    # 幂次是推出来的、不是试出来的：栏宽被档位钉死（double = 183mm），
+    # 能变的只有高度。标记/字形的**面积**随字号比的**平方**缩，而面板面积
+    # 只随高度**线性**缩——高度按一次方降，密度仍会跌。按平方降才让密度
+    # 跨档守恒。cn 档下该因子恒为 1，交付图一个像素不动。
+    ratio = 0.36 * (ptx(9.0) / 9.0) ** 2
+    fig, axes = plt.subplots(1, n, figsize=(w, w * ratio))
     fig._ff_small_multiples = True      # 小倍数：同一编码 × 不同指标
     axes = np.atleast_1d(axes)
-    fig.subplots_adjust(wspace=0.35, top=0.85, bottom=0.15)
+    # 上下留白必须按**绝对高度**给，不能给分数：图变矮之后，0.15 的分数
+    # 留白也跟着变矮，而图题/面板标题/面板标签的字号没缩那么多，于是
+    # suptitle 直接压在面板标题上（第 12 轮的老坑：为消除一个硬拒引入
+    # 同类硬拒）。这里把 cn 档的绝对留白按字号比缩放后再折回分数——
+    # cn 下 pad_fr 恰为 0.15，交付图逐像素不变。
+    pad_fr = 0.15 * 0.36 * (ptx(9.0) / 9.0) / ratio
+    fig.subplots_adjust(wspace=0.35, top=1 - pad_fr, bottom=pad_fr)
     y = np.arange(len(cat_labels))[::-1]
     for k, (ax, (title, vals, scale)) in enumerate(zip(axes, metrics)):
         if scale == "log":

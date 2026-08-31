@@ -183,6 +183,7 @@ C. 实测：
 
 def cmd_check():
     bad = 0
+    summary = {}
     print("[1/4] 单元测试")
     r = _run("python -m pytest tests/test_qa_checks.py -q")
     tail = [l for l in r.stdout.strip().split("\n") if l.strip()][-1:]
@@ -200,9 +201,12 @@ def cmd_check():
         for ln in r.stdout.split("\n"):
             if ln.startswith("- ") or ln.startswith("[FAIL]"):
                 print("      ", ln.strip()[:110])
-        # 只有 cn 档要求全过；nature 档记录进度
-        if label == "cn" and not allpass:
+        # 两档都要求全过。此前只有 cn 计入 bad，nature 挂了照样打印
+        # "全部通过"——第 16 轮 codex 评审逮到：审查工具自己在粉饰战果，
+        # 而这个工具的全部价值就是别让我把部分完成写成完成。
+        if not allpass:
             bad += 1
+        summary[label] = f"{ok}/25" + ("" if allpass else "  ★未全过")
         notes = [l for l in r.stdout.split("\n")
                  if "未执行" in l or "未完成" in l]
         if notes:
@@ -212,7 +216,9 @@ def cmd_check():
     print("[4/4] 产物还原 + 干净度")
     _run("git checkout -- gallery/")
     print("      工作树", "★不干净" if _dirty() else "干净")
-    print("\n=>", "全部通过" if not bad else f"★{bad} 项需处理")
+    print("\n=>", "cn " + summary.get("cn", "?")
+          + " / nature " + summary.get("nature", "?"))
+    print("=>", "全部通过" if not bad else f"★{bad} 项需处理")
     return bad
 
 

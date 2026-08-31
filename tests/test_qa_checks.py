@@ -1870,3 +1870,307 @@ def test_sparse_panel_can_be_waived():
     stat_box(ax, ["n = 3"], loc="auto")
     assert not any("墨迹" in p for p in
                    run_qa(fig, strict=False, allow=("sparse_panel",)))
+
+
+# --- R16 公开 API 的枚举参数：非法值必须报错，不能静默走另一分支 -------
+#
+# 第 15 轮修了 `ref_line(orientation=)`，但那是**一类**缺陷的一个实例。
+# 第 16 轮三方评审把同一模式又找出五处：字符串枚举参数没有校验、
+# 非法值落进 `else` 兜底分支，用户拿到的图与他写的代码不符而毫无提示。
+# 这组测试按「表驱动」写：新增枚举参数时把它加进表里，漏校验立刻变红。
+
+_ENUM_CASES = [
+    # (说明, 构造并调用的函数, 非法值)
+    ("dot_interval(better=)", "dot_interval", "higher"),
+    ("dot_interval(better=)", "dot_interval", "HIGH"),
+    ("ref_line(label_loc=) 横线", "ref_line_h", "top"),
+    ("ref_line(label_loc=) 竖线", "ref_line_v", "left"),
+    ("stat_box(loc=)", "stat_box_loc", "top left"),
+    ("stat_box(outside=)", "stat_box_outside", "above"),
+    ("slope_lines(mode=)", "slope_lines_mode", "cohorts"),
+    ("ptx(kind=)", "ptx_kind", "linewidth"),
+]
+
+
+def _call_with(which, value):
+    """按 which 调用对应公开 API，把 value 塞进那个枚举参数。"""
+    from core import (dot_interval as _di, ref_line as _rl,
+                      stat_box as _sb, slope_lines as _sl)
+    from core.style import ptx as _ptx
+    if which == "ptx_kind":
+        return _ptx(1.6, value)
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 10], [0, 10])
+    if which == "dot_interval":
+        return _di(ax, ["a", "b"], [0.7, 0.3], [0.6, 0.2], [0.8, 0.4],
+                   threshold=0.5, better=value, sort=False, value_col=False)
+    if which == "ref_line_h":
+        return _rl(ax, 5, orientation="h", label="阈值", label_loc=value)
+    if which == "ref_line_v":
+        return _rl(ax, 5, orientation="v", label="阈值", label_loc=value)
+    if which == "stat_box_loc":
+        return _sb(ax, ["n = 3"], loc=value)
+    if which == "stat_box_outside":
+        return _sb(ax, ["n = 3"], outside=value)
+    if which == "slope_lines_mode":
+        return _sl(ax, ["a", "b"], [1.0, 2.0], [2.0, 1.0], mode=value)
+    raise AssertionError(which)
+
+
+@pytest.mark.parametrize("desc,which,bad", _ENUM_CASES,
+                         ids=[f"{c[0]}={c[2]}" for c in _ENUM_CASES])
+def test_enum_parameters_reject_unknown_values(desc, which, bad):
+    """非法枚举值必须抛 ValueError，且错误信息里要列出合法值。
+
+    「静默走另一分支」比报错伤得多：报错用户当场改，静默错的图会直接
+    进论文。错误信息不列合法值也不行——用户只能去读源码。
+    """
+    with pytest.raises(ValueError) as e:
+        _call_with(which, bad)
+    assert bad in str(e.value), f"{desc}：错误信息没回显收到的非法值"
+
+
+def test_dot_interval_better_high_and_low_are_opposite():
+    """`better` 的两个合法值必须给出相反判定——这是「该触发/不该触发」
+    的另一侧：光校验非法值，万一把 high 也一起改坏就没人拦得住。
+    """
+    from core import dot_interval as _di
+    fig, ax = new_figure("onehalf")
+    hi = list(map(bool, _di(ax, ["a", "b"], [0.7, 0.3], [0.6, 0.2],
+                            [0.8, 0.4], threshold=0.5, better="high",
+                            sort=False, value_col=False)))
+    fig2, ax2 = new_figure("onehalf")
+    lo = list(map(bool, _di(ax2, ["a", "b"], [0.7, 0.3], [0.6, 0.2],
+                            [0.8, 0.4], threshold=0.5, better="low",
+                            sort=False, value_col=False)))
+    assert hi == [True, False], f"better='high' 判定错了：{hi}"
+    assert lo == [False, True], f"better='low' 判定错了：{lo}"
+
+
+def test_ref_line_label_loc_actually_moves_the_label():
+    """竖线分支根本不读 `label_loc`——它是个死参数：文档登记了、
+    函数体不读。两个合法值必须落在不同位置，否则参数等于不存在。
+    """
+    from core import ref_line as _rl
+    pos = {}
+    for loc in ("top", "bottom"):
+        fig, ax = new_figure("onehalf")
+        ax.plot([0, 10], [0, 10])
+        _rl(ax, 5, orientation="v", label="阈值", label_loc=loc)
+        pos[loc] = tuple(round(v, 4) for v in ax.texts[-1].get_position())
+    assert pos["top"] != pos["bottom"], f"竖线 label_loc 是死参数：{pos}"
+
+
+def test_ptx_lw_typo_does_not_return_a_font_sized_number():
+    """`ptx(1.6, "linewidth")` 落进 font 分支后被字号**下限**兜成 5.0——
+    用户要的是 1.0pt 线宽，拿到 5.0pt，整整 5 倍且毫无提示。
+    """
+    from core.style import ptx as _ptx
+    apply_style("nature")
+    try:
+        assert _ptx(1.6, "lw") <= 1.0
+        with pytest.raises(ValueError):
+            _ptx(1.6, "linewidth")
+    finally:
+        apply_style("cn")
+
+
+# --- R16 N-5：非有限数值不能静默变成图上的 nan / 退化标注 --------------
+
+def test_callout_rejects_non_finite_target():
+    """NaN 目标坐标的 callout 渲染成 1×1 退化框，肉眼完全不可见，
+    而 run_qa 报 PASS——用户以为标注上了，交付的图上没有。
+    """
+    from core import callout as _co
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    with pytest.raises(ValueError):
+        _co(ax, (float("nan"), 0.5), "峰值", (0.7, 0.3))
+
+
+def test_callout_finite_target_still_works():
+    from core import callout as _co
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    a = _co(ax, (0.5, 0.5), "峰值", (0.7, 0.3))
+    assert a is not None
+
+
+def test_qa_rejects_nan_rendered_into_a_title():
+    """图题里出现 `nan` / `inf` 一律是上游算错了还漏了检查——
+    这种图不该落盘。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle(f"最优值 = {float('nan')}")
+    assert hit(fig, "nan")
+
+
+def test_qa_rejects_an_array_repr_rendered_into_a_title():
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle(f"候选 = {np.array([1.0, 2.0])}")
+    assert hit(fig, "数组")
+
+
+def test_qa_does_not_flag_an_ordinary_title():
+    """不该触发的一侧：正常图题里带小数、单位、百分号都不能误报。"""
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    fig.suptitle("最优值 = 5.07 cm，覆盖率 94.2%")
+    assert not hit(fig, "nan")
+    assert not hit(fig, "数组")
+
+
+# --- R16b 同一类的余下三处：未知宽度档 / value_col ----------------------
+
+def test_layout_width_rejects_an_unknown_column_name():
+    """`_width_mm` 对未知字符串原样返回，于是 `figure(width="triple")` 一路
+    走到 `"triple" * 0.0393` 才炸出 `TypeError: can't multiply sequence`——
+    能拦住，但错误信息里没有半点线索指向 width。`new_figure` 早就校验了，
+    同一个库里不能有两套政策。
+    """
+    from core.layout import figure as _fig
+    with pytest.raises(ValueError) as e:
+        _fig({"a": "x"}, width="triple")
+    assert "triple" in str(e.value)
+
+
+def test_run_qa_rejects_an_unknown_expect_width():
+    """`expect_width="triple"` 同样走 `COLUMN_WIDTHS.get(w, w)` 兜底，
+    最后炸在 numpy 的 `UFuncTypeError` 上，用户完全无从下手。
+    """
+    fig, ax = new_figure("single")
+    ax.plot([0, 1], [0, 1])
+    with pytest.raises(ValueError) as e:
+        run_qa(fig, expect_width="triple", strict=False)
+    assert "triple" in str(e.value)
+
+
+def test_run_qa_still_takes_a_mm_number_and_a_tuple():
+    """不该触发的一侧：mm 数值与档名元组都要照旧生效。"""
+    fig, ax = new_figure("single")
+    ax.plot([0, 1], [0, 1])
+    run_qa(fig, expect_width=89, strict=False)
+    run_qa(fig, expect_width=("single", "onehalf"), strict=False)
+
+
+def test_dot_interval_value_col_rejects_an_unknown_string():
+    """`value_col` 只认 True / False / "inside"，但实现只判 truthy：
+    `value_col="False"`（字符串）是 truthy，用户想关掉数值列，结果照画。
+    """
+    from core import dot_interval as _di
+    fig, ax = new_figure("onehalf")
+    with pytest.raises(ValueError):
+        _di(ax, ["a", "b"], [0.7, 0.3], [0.6, 0.2], [0.8, 0.4],
+            threshold=0.5, better="high", sort=False, value_col="False")
+
+
+def test_dot_interval_value_col_three_legal_values_differ():
+    """不该触发的一侧：三个合法值必须各走各的分支。"""
+    from core import dot_interval as _di
+    n = {}
+    for vc in (True, False, "inside"):
+        fig, ax = new_figure("onehalf")
+        _di(ax, ["a", "b"], [0.7, 0.3], [0.6, 0.2], [0.8, 0.4],
+            threshold=0.5, better="high", sort=False, value_col=vc)
+        n[str(vc)] = len(ax.texts)
+    assert len(set(n.values())) == 3, f"三个合法值没走出三种行为：{n}"
+
+
+# --- R16c SKILL.md §5 教的写法必须在两档下都真的能过 --------------------
+
+def test_skill_md_section5_advice_survives_the_nature_preset():
+    """入口文档 §5 此前教「裸 `ax.annotate(color=…)` 自己套 `ink(color)`」。
+    `ink()` 只压暗、不除彩，而 nature 档「彩色文字」是 `problems.append`
+    的硬拒且没有 allow 出口——照入口文档写，在 nature 档 100% 被拦下，
+    这是「正确用法上被无理由硬拒」。§5 已改教 `text_color()`，这条钉住它。
+    """
+    from core import ink as _ink, text_color as _tc, semantic as _sem
+    try:
+        apply_style("nature")
+        col = _sem("highlight")
+        # 文档教的写法：必须不产生彩色文字
+        assert not _qa_flags_coloured_text(_tc(col)), \
+            "§5 教的 text_color() 在 nature 档仍被判彩色文字"
+        # 反面：旧写法确实会被拦——证明这条硬拒是真的，不是我编的
+        assert _qa_flags_coloured_text(_ink(col)), \
+            "ink() 在 nature 档没被拦，那 §5 的改动就是无的放矢"
+    finally:
+        apply_style("cn")
+
+
+def _qa_flags_coloured_text(color):
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    ax.annotate("关键点", xy=(0.5, 0.5), xytext=(0.6, 0.3), color=color)
+    out = any("彩色文字" in p for p in run_qa(fig, strict=False))
+    plt.close(fig)
+    return out
+
+
+def test_skill_md_section5_advice_also_holds_under_cn():
+    """cn 档允许彩色文字，但 text_color() 仍要保证 ≥3:1 对比度。"""
+    from core import text_color as _tc, semantic as _sem
+    from core.colors import contrast_ratio
+    apply_style("cn")
+    assert contrast_ratio(_tc(_sem("highlight")), "white") >= 3.0
+
+
+# --- R16d 随库交付的模板必须在两个交付档下都能过 ------------------------
+
+
+def _recipe(name):
+    """按 recipe 自己的运行方式导入：它们 `from _common import GALLERY`，
+    要求 `recipes/` 在 sys.path 上（`python recipes/xxx.py` 时自动成立）。
+    """
+    import importlib
+    rd = str(pathlib.Path(__file__).resolve().parents[1] / "recipes")
+    if rd not in sys.path:
+        sys.path.insert(0, rd)
+    return importlib.import_module(name)
+
+
+def test_facet_metrics_template_passes_under_the_nature_preset():
+    """`facet_metrics` 是随库交付的模板，SKILL.md 的工作流要求"从 recipes
+    抄构图"。它在 nature 档被墨迹密度硬拒（18cm² 面板 2.5%），等于用户
+    照文档走主路径就撞墙——这是「正确用法上被无理由硬拒」。
+
+    修法不是加豁免：nature 档字号 7pt、线宽 ≤1pt、标记更小，同一构图的
+    墨迹必然更低，**面板本来就该按内容变矮**。面板高度跟着档走，密度自然
+    回到阈值以上，cn 档一个像素都不动。
+    """
+    try:
+        apply_style("nature")
+        cr = _recipe("comparison_rank")
+        fig, axes = cr.facet_metrics(
+            ["分支定界", "割平面", "禁忌搜索", "模拟退火", "贪心"],
+            [("求解时间（s）", [312.0, 96.4, 21.7, 4.3, 0.8], "log"),
+             ("峰值内存（MB）", [1850.0, 940.0, 410.0, 180.0, 95.0], "log"),
+             ("最优性 gap（%）", [0.0, 0.3, 0.9, 1.6, 2.4], "linear")])
+        fig.suptitle("结论句")
+        bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+               if "墨迹" in p]
+        assert not bad, f"nature 档模板被墨迹硬拒：{bad}"
+    finally:
+        apply_style("cn")
+
+
+def test_facet_metrics_keeps_its_cn_geometry():
+    """不该触发的一侧：cn 档的图形尺寸不能因为上面的修法发生任何变化
+    （gallery 里 25 张交付图都是 cn 档出的，动了就是回归）。
+    """
+    apply_style("cn")
+    cr = _recipe("comparison_rank")
+    fig, axes = cr.facet_metrics(
+        ["a", "b", "c"], [("m1", [1.0, 2.0, 3.0], "linear")])
+    from core import COLUMN_WIDTHS, MM
+    w_in = COLUMN_WIDTHS["double"] * MM
+    assert abs(fig.get_size_inches()[0] - w_in) < 1e-9
+    assert abs(fig.get_size_inches()[1] - w_in * 0.36) < 1e-9

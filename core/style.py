@@ -156,6 +156,13 @@ def ptx(v: float, kind: str = "font") -> float:
                 但既不受字号下限也不受线宽上限约束"的量。不缩放它们的话，
                 nature 档（base 7 vs cn 9）下标记会相对文字明显偏大。
     """
+    if kind not in ("font", "lw", "pt"):
+        # 拼错的 kind 会静默落进 font 分支：`ptx(1.6, "linewidth")` 在
+        # nature 档返回 5.0（被字号**下限**兜住）而不是 1.0——用户要的是
+        # 1pt 线宽，拿到 5pt，整整 5 倍且毫无提示。
+        raise ValueError(
+            f"未知的 ptx(kind=) {kind!r}，可选：['font', 'lw', 'pt']"
+            f"——拼错会静默按字号缩放，线宽会被字号下限兜成 5.0")
     if not v:
         return 0.0          # lw=0（无边框填充）与"不画文字"都是合法输入
     cfg = _PRESETS[_PRESET]
