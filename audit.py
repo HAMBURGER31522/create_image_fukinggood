@@ -193,7 +193,12 @@ def cmd_check():
     bad = 0
     summary = {}
     print("[1/4] 单元测试")
-    r = _run("python -m pytest tests/test_qa_checks.py -q")
+    # 跑 tests/ 全量，不是只跑 test_qa_checks.py。此前只跑那一个文件，
+    # 第 16 轮新增的 test_manifest.py（15 条）与 test_packaging.py（7 条）
+    # 完全不在审查门禁内——门禁盖不住的测试等于没有门禁，而这个工具的
+    # 全部价值就是别让我把部分完成写成完成。zcode 在 P1/P2 交付时如实
+    # 报了这个缺口。
+    r = _run("python -m pytest tests/ -q")
     tail = [l for l in r.stdout.strip().split("\n") if l.strip()][-1:]
     print("     ", *tail)
     if r.returncode:
