@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 覆盖 pyproject.toml 声明的 requires-python 下限与当前主流上限
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # 中文交付是本项目能力的一部分，字体稳健性测试需要真实 CJK 字体
+      - name: Install CJK fonts
+        run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
+
+      - name: Install build/test prerequisites
+        run: python -m pip install --upgrade pip "setuptools>=77" wheel pytest
+
+      # 安装态安装（带运行依赖），不是把 repo root 塞进 PYTHONPATH
+      - name: Install package
+        run: python -m pip install .
+
+      # 在仓库外目录验证安装副本可导入、版本可读、兼容旧导入
+      - name: Import smoke outside repo
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -c "import figure_forge as ff; print(ff.__version__); print(ff.apply_style.__module__)"
+          python -c "from core import apply_style; print(apply_style.__module__)"
+
+      - name: Run full test suite
+        run: python -m pytest tests/ -q

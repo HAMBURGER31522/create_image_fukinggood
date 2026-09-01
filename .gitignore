@@ -13,3 +13,9 @@ resource/ref/_REVIEW.html
 # 截图不该进公开仓库历史；提炼出的规则见 resource/ref/_INDEX.md，
 # 逐张出处见 _SOURCES.md，可随时按 URL 重下。
 resource/ref/*.png
+
+# pip wheel / pip install . 就地构建的产物（tests/test_packaging.py 构建后自清，
+# 这里兜底防误提交）
+build/
+dist/
+*.egg-info/

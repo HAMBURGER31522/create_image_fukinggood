@@ -1,0 +1,34 @@
+[build-system]
+# setuptools>=77 才支持 PEP 639 的 SPDX license 字符串写法
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "figure-forge"
+description = "科学出版级 matplotlib 出图库：期刊档样式、run_qa 硬门禁、坏图不落盘、图中数字溯源、figure manifest 台账"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "figure-forge contributors" }]
+requires-python = ">=3.10"
+dynamic = ["version"]
+# 只声明打包进 wheel 的 core/ 的真实运行依赖。
+# seaborn 是可选增强（core/colors.py 的 crest/vlag 有 ImportError 回退）；
+# scipy/openpyxl 只被 recipes/ 用到，随开发装（requirements.txt）。
+dependencies = [
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+full = ["seaborn>=0.13"]
+
+[tool.setuptools]
+# 显式枚举，不用 find：recipes/tests/tools/demo/gallery 都不是发行内容。
+# core 作为顶层包一并打包，保证既有 `from core import ...` 脚本兼容。
+packages = ["figure_forge", "core"]
+
+[tool.setuptools.dynamic]
+# 单源版本：不从 git tag 或安装元数据运行时猜
+version = { attr = "figure_forge._version.__version__" }

@@ -12,6 +12,7 @@ from .layout import (figure, marginal_grid, small_multiples, panel_label,
                      inset_zoom, share_colorbar, MAX_PANELS)
 from .qa import run_qa
 from .io import load_table, as_1d
+from .manifest import FigureRecord
 
 __all__ = [
     "apply_style", "MM", "COLUMN_WIDTHS", "MAX_HEIGHT_MM", "new_figure",
@@ -26,4 +27,5 @@ __all__ = [
     "figure", "marginal_grid", "small_multiples", "panel_label",
     "inset_zoom", "share_colorbar", "MAX_PANELS",
     "run_qa", "load_table", "as_1d",
+    "FigureRecord",
 ]

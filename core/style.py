@@ -22,6 +22,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
+from .manifest import FigureRecord, complete_record, write_manifest
+
 MM = 1 / 25.4  # mm -> inch
 
 # Nature 系栏宽；"cn" 为中文数模 A4 正文常用图宽
@@ -348,7 +350,8 @@ def mark_qa_passed(fig) -> None:
 
 def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
                 tight: bool = True, exact_width: bool = True,
-                force: bool = False) -> list[str]:
+                force: bool = False, record: FigureRecord | None = None,
+                manifest_path=None) -> list[str]:
     """导出 png(300dpi) + svg + pdf。返回输出文件列表。
 
     Nature 主图只收矢量（.pdf/.eps 优先），明确拒收 .png/.jpeg/.tiff——
@@ -360,6 +363,11 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
     tight=False 用于 3D 图：mplot3d 的轴标签不计入 tight bbox，
     会被裁掉，此时改走 subplots_adjust 手动边距。
     草稿档（apply_style(draft=True)）只出 PNG。
+
+    可选溯源台账（core/manifest.py）：同时给 record（FigureRecord，
+    填 id/claim/source_data/generation_script 四项）与 manifest_path，
+    全部格式落盘成功且 QA 通过后才 upsert 一行进台账；QA 未通过
+    （force 绕行）的图不记账。不传这两个参数时行为与旧调用完全一致。
     """
     from pathlib import Path
     # "坏图不落盘"必须是机制，不能靠自觉：run_qa(strict=False) 只打印
@@ -402,4 +410,18 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
         p = f"{path_no_ext}.{ext}"
         fig.savefig(p, bbox_inches=bbox if tight else fig.bbox_inches)
         out.append(p)
+    if (record is None) != (manifest_path is None):
+        raise ValueError(
+            "record 与 manifest_path 必须同时给出，只给其一无法定位台账")
+    if record is not None:
+        if id(fig) in _QA_PASSED:
+            # 全部格式落盘成功才记账；QA 未通过的图（force 绕行）没有
+            # 资格进台账——台账里的 qa_status 只会写 passed
+            write_manifest(
+                complete_record(record, out, manifest_path=manifest_path,
+                                preset=current_preset()),
+                manifest_path)
+        else:
+            print(f"[style WARN] 该图未经 run_qa 通过（force/草稿），"
+                  f"不入台账：{record.id}")
     return out
