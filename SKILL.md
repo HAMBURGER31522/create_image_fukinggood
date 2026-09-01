@@ -185,6 +185,8 @@ deuteranopia 下色距仅 0.16、灰度差仅 0.08）。`run_qa` 会模拟三类
 ### 4. 出图代码骨架
 
 ```python
+# pip install . 后用稳定导入名：from figure_forge import ...
+# skill 场景直接用源码目录时保持下面两行：
 import sys; sys.path.insert(0, r"<figure-forge 根目录>")
 from core import apply_style, new_figure, save_figure, run_qa, \
     stat_box, callout, end_label, end_labels, ref_line, panel_label, \
@@ -225,6 +227,32 @@ Nature 的硬约束：整页图 **≤6 面板**、读序 **左→右、上→下
 
 判断该不该合并：**若几张图在论证同一个结论，它们本来就该是一张图的几个面板。**
 把一条论证拆成五张各自为战的图，是"作业感"最大的来源。
+
+### 4c. 持久台账（可选）：figure_manifest.csv
+
+运行时 `_ff_stats + run_qa` 管住"图对不对"，落盘即消失；台账管住
+"图是哪来的"，交付目录自解释。每个交付图给一条 `FigureRecord`
+（id/claim/source_data/generation_script 四项必填，纯示意图也要写明
+构造依据），`save_figure` 在 QA 通过且全部格式落盘成功后写一行：
+
+```python
+from core import FigureRecord           # 安装态：from figure_forge import FigureRecord
+
+record = FigureRecord(
+    id="q4_1_optimum",
+    claim="满足证书下界的最低成本方案为纯介质A",
+    source_data=("结果/二维响应面.csv", "结果/最终方案.csv"),
+    generation_script=__file__,
+)
+save_figure(fig, "交付/图名", record=record,
+            manifest_path="交付/figure_manifest.csv")
+```
+
+列固定九列：`id,path,formats,claim,source_data,generation_script,preset,
+qa_status,sha256`。按 id 幂等 upsert、稳定排序；path 是相对台账的 POSIX
+路径；source_data 为 JSON 数组；sha256 逐交付格式记录文件实算哈希。
+不传 `record/manifest_path` 时 `save_figure(fig, stem)` 行为不变；
+QA 未通过（force 绕行）的图不记账——台账里只会出现 passed 的图。
 
 ### 5. QA 目测清单（Read PNG 后逐项过）
 

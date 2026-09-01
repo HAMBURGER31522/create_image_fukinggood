@@ -18,12 +18,32 @@
 ## 安装
 
 ```bash
+# 包安装（外部脚本推荐）：稳定导入名 figure_forge
+pip install .                                # 仓库根目录直接装
+python -m pip wheel --no-deps . -w dist      # 或先出 wheel 分发
+pip install dist/figure_forge-*.whl
+pip install -e .                             # 可编辑安装（开发模式）
+```
+
+```python
+import figure_forge as ff
+ff.__version__                                 # 版本单源于 figure_forge/_version.py
+from figure_forge import apply_style, new_figure, save_figure, run_qa
+from core import apply_style                   # 兼容期旧导入，继续可用
+```
+
+源码目录直接跑（agent skill 场景，无需安装）：
+
+```bash
 git clone https://github.com/HAMBURGER31522/create_image_fukinggood.git figure-forge
 cd figure-forge
 pip install -r requirements.txt
 ```
 
-依赖：Python ≥ 3.10，matplotlib ≥ 3.8，numpy、scipy、seaborn。
+依赖：Python ≥ 3.10（CI 在 3.10/3.13 上做安装态测试），matplotlib ≥ 3.8，
+numpy ≥ 1.26，pandas ≥ 2.0；seaborn 可选（`pip install "figure-forge[full]"`，
+缺失时色图自动回退内置档）；scipy、openpyxl 仅供 recipes/ 使用，随
+requirements.txt 装。
 中文字体：优先 Source Han Serif SC（思源宋体），回退 SimSun/SimHei/微软雅黑，装了任意一个即可。
 
 ## 作为 Cursor/Claude skill 使用
@@ -37,8 +57,8 @@ pip install -r requirements.txt
 ## 手动使用（三步）
 
 ```python
-import sys; sys.path.insert(0, r"<figure-forge 根目录>")
-from core import apply_style, new_figure, save_figure, run_qa, stat_box, callout
+from figure_forge import apply_style, new_figure, save_figure, run_qa, \
+    stat_box, callout          # 未安装、直接用源码目录时见下方 SKILL.md 骨架
 
 apply_style()                                  # 1. 全局样式（必须最先调）
 fig, ax = new_figure("onehalf", ratio=0.62)    # 2. 按期刊栏宽建图
@@ -47,6 +67,25 @@ stat_box(ax, [f"n = {len(x)}",                 #    统计注释框：数字必�
               f"RMS = {rms:.2f} cm"])
 run_qa(fig, expect_width=("onehalf",))         # 3. 先 QA：不过直接抛错
 save_figure(fig, "out/图名")                    # 4. 过了再导出 png(300dpi)+svg
+```
+
+可选溯源台账：拿到交付目录的人不开驱动就能回答"这张图主张什么、数据
+从哪来、哪个脚本生成"。`record`/`manifest_path` 是可选参数，不传时
+`save_figure(fig, stem)` 行为不变；QA 未通过的图不入台账。
+
+```python
+from figure_forge import FigureRecord
+
+record = FigureRecord(
+    id="q4_1_optimum",
+    claim="满足证书下界的最低成本方案为纯介质A",
+    source_data=("结果/二维响应面.csv", "结果/最终方案.csv"),
+    generation_script=__file__,
+)
+save_figure(fig, "out/图名", record=record,
+            manifest_path="out/figure_manifest.csv")
+# out/figure_manifest.csv：id,path,formats,claim,source_data,
+# generation_script,preset,qa_status,sha256（逐格式哈希，幂等 upsert）
 ```
 
 每个 recipe 都能独立运行看 demo：
