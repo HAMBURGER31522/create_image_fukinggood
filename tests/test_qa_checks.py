@@ -3132,3 +3132,29 @@ def test_facet_metrics_stops_shrinking_at_the_qa_area_gate(preset):
                 f"{preset} 收成畸形比例 {h_in/w_in:.3f}（{w_in:.2f}×{h_in:.2f}in）"
     finally:
         apply_style("cn")
+
+
+def test_constant_column_message_is_accurate_and_offers_an_exit():
+    """常数列与「离群点把轴撑爆」是两回事，诊断不能混着说——前者根本没有
+    离群点，用户照「改对数轴或断轴」去做毫无用处。
+
+    而且消息里**不能报个数**：判据用的 `d` 是加密采样后的点，不是用户给的
+    那几个值（实测传 5 个值它会说「38 个值」）。这条检查的全部意义就是别
+    误诊，消息里塞个假数字等于自己砸自己的招牌。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([5.0] * 5, list(range(5)), "o-")
+    ax.set_xlabel("指标")
+    ax.set_ylabel("方案")
+    fig.suptitle("结论句")
+    stat_box(ax, ["n = 5"], loc="auto")
+    hits = [p for p in run_qa(fig, strict=False) if "常数" in p]
+    assert hits, "常数列没被拦"
+    m = hits[0]
+    assert "5" in m, f"没报出那个常数值：{m}"
+    assert "离群点" not in m, f"仍在误诊成离群点：{m}"
+    assert "个值全等于" not in m, f"仍在报采样点数当用户值数：{m}"
+    assert "axis_slack" in m, f"消息不提出口：{m}"
+    # 另一侧：传了码要真的放行
+    assert not [p for p in run_qa(fig, strict=False, allow=("axis_slack",))
+                if "常数" in p]
