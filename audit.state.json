@@ -1,26 +1,48 @@
 {
   "round": 15,
-  "head": "edc20b9",
+  "head": "eac7de3",
   "target": "F:/mathematical modeling/skills/figure-forge",
   "gate": "交付给用户的东西（产物 + 公开 API + 文档）有没有会让用户拿到错误结果、或在正确用法上被无理由硬拒的缺陷。不看内部整洁度。",
   "verdict_last": "未达标（两方评审：ref_line 静默画错方向 + 墨迹检查不分档且无豁免 + 三处彩色文字）",
-  "changed": "core/annotate.py（ref_line orientation 校验）、core/qa.py（墨迹阈值按档 + sparse_panel 豁免码）、recipes/{phase_transition,route_map,comparison_rank}.py（text_color）",
+  "changed": "第 16 轮共 15 个提交（edc20b9..eac7de3）。core/{annotate,qa,style,layout}.py、recipes/{comparison_rank,algo_convergence,parity,composition,contour_field}.py、demo/beat_baseline.py、recipes/run_all.py、audit.py、SKILL.md、reference/api.md、tests/test_qa_checks.py、gallery/ 全量重出",
   "fixed_last_round": [
     "ref_line 的 orientation 加校验——此前任何非 'h' 的值静默画成竖线，阈值点错轴而 QA 全部 30 条检查无一命中（全库唯一会产出几何错误却照常交付的缺陷，Sonnet 独有发现）",
     "墨迹密度两条硬检查改为按档取阈值（nature 面板 3.0% / 图级 9%）并加 sparse_panel 豁免码——此前不分档且直接 problems.append，没有 allow 出口",
     "三处裸 annotate(color=…) 改走 text_color()：phase_transition / route_map / comparison_rank"
   ],
   "pending": [
-    "N-5 run_qa 放行图题渲染成 nan / 数组 repr；NaN 坐标的 callout 静默消失而 QA 说 PASS（Opus 第 14 轮报，尚未处理）",
-    "api.md 漂移：callout rad 文档 0.25 实际 0.12；ink min_ratio 文档 3.0 实际 3.3",
-    "SKILL.md / api.md 未记 ptx / text_color / FF_PRESET；SKILL.md §5 教的 ink() 在 nature 档会硬拒（应教 text_color）",
-    "nature 24/25：comparison_rank 的 18cm² 面板 2.5% 墨迹——真实构图问题，判断要不要并 panel 或显式豁免"
+    "打分门槛未过：codex 67 / opus 85（第四轮，8bcce1b）。第五轮在跑。",
+    "打磨级、已知未修：cn 档 demo 的统计框叠住 (a) 格灰色连接线约 44%（半透明、线可辨、数据点与直标未遮）——opus 第四轮指出，并同时指出主窗口「9 锚点全试过」那轮只量了压数据点与压直标、没量连接线",
+    "打磨级、边界：facet_metrics 数据跨度极小时 n=3 全 log 卡在 4.4% vs 4.5%，有 allow=('sparse_panel',) 出口，消息也写明了",
+    "**有意不改**：5 面板 × 10 汉字标题在 183mm 里放不下是构图问题，QA 报「收紧面板标题」是对的处置，已写成 test_facet_metrics_rejects_titles_too_long_for_the_panels 固定住，免得下次有人为了让它过而去动版面公式"
   ],
   "what": "figure-forge：给数学建模论文生成期刊级图表的 Python skill。core/ 五模块（style 样式档 cn|nature / colors / layout / annotate / qa 出图前自动检查，不过就抛错 / _probe 占用与像素探测）；recipes/ 每图种一个模板；tests/ pytest；文档 SKILL.md（agent 入口）+ SPEC.md（设计合同）+ reference/",
   "baseline": {
-    "pytest": "144 passed",
-    "run_all_cn": "25/25 ALL PASS",
-    "run_all_nature": "24/25"
+    "pytest": "240 passed",
+    "run_all_cn": "26/26 ALL PASS",
+    "run_all_nature": "26/26 ALL PASS",
+    "gallery": "与默认档一致（audit.py check 第 4 步会比对 PNG）"
   },
-  "history": "已跑 14 轮。历轮最有效的方向是「用户视角实跑」（只读 SKILL.md 照骨架写图，撞出过两处十轮没人碰到的硬拒）和「交叉验证」（两个不同模型并行，Sonnet 找到了两轮 Opus 都没碰到的 ref_line 静默画错方向）。反复出现的失败模式：判据去解析渲染结果、豁免 fail-open、测试恰好绕开失效区、commit 里把部分完成写成完成。"
+  "history": "已跑 16 轮。历轮最有效的方向是「用户视角实跑」和「交叉验证」（多模型并行）。第 16 轮新学到两条，比历轮任何一条都更该记住：①**修复自己引入回归**出现了七次（facet 矮下来后 suptitle 压标题 / 收敛标签改对方向后压刻度 / callout 换算只做入口 / 扩轴公式只对线性轴成立 / suptitle 用图分数 /去 re.I 放过大写 NAN / end_labels 排在扩轴之前），且**每次都是 QA 绿、靠目测或下一轮评审才发现**——所以「改完跑一遍 audit check 就交」是不够的，改了版面必须逐张放大目测。②**主窗口自己的声称被推翻五处**（「7 处变异 7/7 全红」实为 6/7、「n/3 两侧都钉住」实为零覆盖、「infrastructure 也被误伤」从来没有、「面板面积守恒」实测不守恒、「9 锚点全试过」没量连接线）——这类比功能缺陷更伤，会让下一轮站在假地基上。**每一句「已验证」都要真的当场跑一遍**，尤其是变异测试：把 _hard(msg, code) 的第二个参数删掉会 TypeError 崩，那种红不是检出，是崩。历轮反复出现的失败模式：判据去解析渲染结果、豁免 fail-open、**测试恰好绕开失效区**（第 16 轮的具体形态是「测试挑了 bug 不出现的那一档/那一侧」）、commit 里把部分完成写成完成。",
+  "in_progress": {
+    "round": 16,
+    "状态": "修复已完成，卡在打分门槛（三家平均 >95 才算过）。未 push。",
+    "方式": "三家并行评审（codex gpt-5.6-sol/xhigh/goals、opus 子 agent、zcode GLM-5.3-Flash），各给一个 git worktree；主窗口逐条复现后才采纳，复现不出来的原样退回。修完再派同三家按同一张扣分表打分。",
+    "打分历史": [
+      "第一轮 5019911：codex 47",
+      "第二轮 5b5f717：codex 90 / opus 68",
+      "第三轮 83c4172：codex 失败（额度）",
+      "第四轮 8bcce1b：codex 67 / opus 85（两家独立命中同一条致错）",
+      "第五轮 eac7de3：进行中"
+    ],
+    "本轮修完的大项": [
+      "公开 API 枚举参数无校验是**一类**缺陷（core 5 处 + recipes 3 处 + 长度 1 处），收到 core/style.py 的 _one_of() 唯一入口，配 _ENUM_CASES 表驱动回归。最重的是 parity(band=('relatve',…)) 拼错一个字母、写进论文的覆盖率从 98% 变 20%",
+      "N-5 收口：callout 拒非有限坐标、run_qa 新增 nonfinite_text 检查",
+      "单位换算必须贯穿到内部几何（callout 的 _auto_xytext/bg_luminance、end_labels），配 _NONNUM_CASES 表（16 条）",
+      "第 15 轮墨迹修复此前 0/7 变异被检出（两条测试一条名实不符、一条空断言），改成自校准（二分构造阈值 ×0.85 / ×1.15），现在 7/7 全红",
+      "demo/beat_baseline.py 两档都跑不起来且 15 轮来不在任何检查范围内 —— run_all 扫描扩到 demo/（25→26）",
+      "入库 gallery/ 实为 nature 产物而 README 承诺默认档可复现（39 张里 36 张对不上）—— audit 顺序改成 nature 先 cn 后、还原前先比对（只比 PNG），已按默认档重出",
+      "nature 24/25 → 26/26（14 轮来第一次两档全过）"
+    ]
+  }
 }

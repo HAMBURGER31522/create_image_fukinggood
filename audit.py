@@ -128,7 +128,15 @@ def cmd_status():
     if b:
         print("基线      " + " / ".join(f"{k}={v}" for k, v in b.items()))
     print()
-    print(f"轮次      第 {d['round']} 轮")
+    ip = d.get("in_progress")
+    if ip:
+        # 状态文件停在上一轮 = 新窗口以为什么都没发生，那就废了它的全部
+        # 价值。轮次没收尾也要如实写在这里。
+        print(f"★进行中  第 {ip['round']} 轮：{ip['状态']}")
+        if ip.get("打分历史"):
+            print("  打分    " + " / ".join(ip["打分历史"]))
+        print()
+    print(f"轮次      第 {d['round']} 轮（最后收尾的一轮）")
     print(f"HEAD      {_sha()}   （状态里记的是 {d['head']}）")
     print(f"工作树    {'★不干净——先提交或还原' if _dirty() else '干净'}")
     print(f"上轮结论  {d['verdict_last']}")
