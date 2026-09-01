@@ -51,21 +51,21 @@ def installed(tmp_path_factory):
     r = subprocess.run(
         [sys.executable, "-m", "pip", "wheel", "--no-deps",
          "--no-build-isolation", ".", "-w", str(out_dir)],
-        cwd=str(ROOT), capture_output=True, text=True, timeout=600)
+        cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     assert r.returncode == 0, r.stdout + r.stderr
     wheels = list(out_dir.glob("figure_forge-*.whl"))
     assert len(wheels) == 1, wheels
     r = subprocess.run(
         [sys.executable, "-m", "pip", "install", "--no-deps",
          "--no-cache-dir", "--target", str(target), str(wheels[0])],
-        capture_output=True, text=True, timeout=600)
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     assert r.returncode == 0, r.stdout + r.stderr
     # 就地构建会掉 build/ 与 egg-info，清掉别弄脏工作树
     shutil.rmtree(ROOT / "build", ignore_errors=True)
     for egg in ROOT.glob("*.egg-info"):
         shutil.rmtree(egg, ignore_errors=True)
     porcelain = subprocess.run(["git", "status", "--porcelain"], cwd=str(ROOT),
-                               capture_output=True, text=True).stdout
+                               capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     return {"wheel": wheels[0], "target": target, "smoke": smoke,
             "porcelain": porcelain}
 
@@ -81,7 +81,7 @@ def test_wheel_contains_public_and_compat_packages(installed):
 def _run_installed(installed, code):
     env = dict(os.environ, PYTHONPATH=str(installed["target"]))
     r = subprocess.run([sys.executable, "-c", code], cwd=str(installed["smoke"]),
-                       env=env, capture_output=True, text=True, timeout=600)
+                       env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
     assert r.returncode == 0, r.stdout + r.stderr
     return r.stdout
 
@@ -125,7 +125,7 @@ print("\\n".join(out))
         assert (installed["smoke"] / p).exists()
     # 源码树 0 个新增文件
     now = subprocess.run(["git", "status", "--porcelain"], cwd=str(ROOT),
-                         capture_output=True, text=True).stdout
+                         capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
     assert now == installed["porcelain"]
 
 
