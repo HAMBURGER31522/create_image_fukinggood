@@ -20,8 +20,9 @@ from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, ru
 def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
                        logy=False, conv_tol=1e-3, mode="min",
                        width="onehalf"):
-    """curves: [(名称, 每代目标值数组, 颜色), ...]。颜色传 None 则按
-    PALETTE 依次取。
+    """curves: [(名称, 每代目标值数组, 颜色), ...]。颜色传 None 时走
+    categorical(n)，自动取得颜色 + marker + 线型的整套冗余编码；显式颜色
+    保持不变，不自动追加 marker/线型。
 
     mode: "min"/"max" 自动转 best-so-far 单调线（喂原始每代值即可），
           "raw" 按原样画（已是 best-so-far 时用）。
@@ -157,7 +158,11 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
             t.remove()
         _ends = [(x, yv, f"{txt}（{g} 代）", col)
                  for (x, yv, txt, col), g in zip(_ends, _gens)]
-    end_labels(ax, _ends)
+    _end_annotations = end_labels(ax, _ends)
+    # QA 溯源必须区分复合直标里的“类别名称”与“统计量”。由生成直标的
+    # recipe 标出精确名称片段；不能让 QA 猜字符串格式，更不能跳过整条直标。
+    for _annotation, (name, _, _) in zip(_end_annotations, curves):
+        _annotation._ff_label_texts = (name,)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     fig._ff_stats = {f"{k}_conv": v[0] for k, v in info.items()} | \

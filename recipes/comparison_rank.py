@@ -14,6 +14,7 @@
 from _common import GALLERY
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.transforms import Bbox
 
 from core.style import _one_of
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
@@ -211,6 +212,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
 
     _margins()
     y = np.arange(len(cat_labels))[::-1]
+    _value_labels = [[] for _ in axes]
     for k, (ax, (title, vals, scale)) in enumerate(zip(axes, metrics)):
         # 未知轴型此前静默画成线性。用户写 log 是因为数据跨数量级，
         # 给成线性等于把图画错，而 QA 无从判断"用户本来想要哪种轴"。
@@ -228,9 +230,10 @@ def facet_metrics(cat_labels, metrics, width="double"):
         for v, yi, c in zip(vals, y, PALETTE):
             ax.plot([v], [yi], "o", color=c, markersize=ptx(6.5, "pt"), zorder=3,
                     markeredgecolor="white", markeredgewidth=ptx(1.0, "lw"))
-            ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, ptx(8, "pt")),
-                        textcoords="offset points", ha="center",
-                        fontsize=ptx(7.5), fontweight="bold", color=text_color(c))
+            _value_labels[k].append(ax.annotate(
+                f"{v:g}", xy=(v, yi), xytext=(0, ptx(8, "pt")),
+                textcoords="offset points", ha="center",
+                fontsize=ptx(7.5), fontweight="bold", color=text_color(c)))
         ax.set_yticks(y)
         ax.set_yticklabels(cat_labels if k == 0 else [""] * len(cat_labels))
         ax.set_title(title, fontsize=ptx(8.5))
@@ -266,6 +269,27 @@ def facet_metrics(cat_labels, metrics, width="double"):
         # 收高不得破掉「行数下限」——否则墨迹是够了，直标又顶进标题
         fig.set_size_inches(_wi, max(_hi * _k, _min_h_in))
         _margins()
+        # 候选高度还必须通过**实测文字框**：常数列的墨迹最低，cn 档会
+        # 一次收到面积门槛附近，下一轮虽按面积停手，刚接受的候选高度却已
+        # 让最上行数值直标压进面板标题。这里不再叠一个高度魔数；画出候选
+        # 后直接量标签与标题是否相交，相交就回退到本轮之前的已知安全高度。
+        fig.canvas.draw()
+        _rd = fig.canvas.get_renderer()
+        _touches_title = False
+        for _ax, _labels in zip(axes, _value_labels):
+            _title_box = _ax.title.get_window_extent(_rd)
+            for _label in _labels:
+                _it = Bbox.intersection(
+                    _title_box, _label.get_window_extent(_rd))
+                if _it is not None and _it.width > 0 and _it.height > 0:
+                    _touches_title = True
+                    break
+            if _touches_title:
+                break
+        if _touches_title:
+            fig.set_size_inches(_wi, _hi)
+            _margins()
+            break
 
     # 面板标签必须等高度定下来之后再放：dx 折算自实测刻度宽度、dy 折算自
     # 实测面板高度，收高之前算出来的值收完就不作数了。

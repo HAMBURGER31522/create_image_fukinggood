@@ -380,6 +380,27 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
             textcoords="offset points", color=text_color(color),
             fontsize=size, fontweight=fontweight, ha="left", va="center",
             zorder=10, annotation_clip=False))
+
+    # 间距排开之后还要把**整组真实文字框**留在坐标区内。只围绕原始均值
+    # 回中不等于有边界：终值都挤在轴底时，8 条以上直标会被整体推到 x
+    # 刻度带。先画出实际字体，再求“整组平移量”的可行区间；区间非空时
+    # 取离 0 最近的平移，不拍字号/高度常数。若标签组本身比轴还高，则
+    # 不存在同时满足上下界的平移，只能居中后交给 QA 报信息过载。
+    ax.figure.canvas.draw()
+    _renderer = ax.figure.canvas.get_renderer()
+    _axis_box = ax.get_window_extent(_renderer)
+    _label_boxes = [ann.get_window_extent(_renderer) for ann in out]
+    _shift_lo = _axis_box.y0 - min(bb.y0 for bb in _label_boxes)
+    _shift_hi = _axis_box.y1 - max(bb.y1 for bb in _label_boxes)
+    if _shift_lo <= _shift_hi:
+        _shift_px = float(np.clip(0.0, _shift_lo, _shift_hi))
+    else:
+        _shift_px = 0.5 * (_shift_lo + _shift_hi)
+    if abs(_shift_px) > 1e-9:
+        _shift_pt = _shift_px * 72.0 / ax.figure.dpi
+        for ann in out:
+            _x_pt, _y_pt = ann.get_position()
+            ann.set_position((_x_pt, _y_pt + _shift_pt))
     return out
 
 

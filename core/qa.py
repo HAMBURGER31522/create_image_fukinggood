@@ -257,7 +257,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         for ax in fig.get_axes():
             scan += list(ax.texts)
         scan += list(fig.texts)
-        titles = [t.get_text() for t in scan if t is not None]
+        text_artists = [t for t in scan if t is not None]
 
         def _is_label(txt, tok):
             """结构性标签不是统计量，不该要求溯源。
@@ -279,8 +279,22 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 return True
             return False
 
-        for txt in titles:
-            for tok in re.findall(r"\d+(?:\.\d+)?", txt):
+        for text_artist in text_artists:
+            txt = text_artist.get_text()
+            # 复合直标可由 recipe 标出其中的**名称片段**。名称里的版本号/
+            # 序号是类别标识，不是统计量；只能跳过该精确片段，不能跳过
+            # 整条直标，否则同一串里的手写假终值也会漏掉。
+            _label_spans = []
+            for _label in getattr(text_artist, "_ff_label_texts", ()):
+                _start = 0
+                while _label and (_at := txt.find(_label, _start)) >= 0:
+                    _label_spans.append((_at, _at + len(_label)))
+                    _start = _at + len(_label)
+            for _match in re.finditer(r"\d+(?:\.\d+)?", txt):
+                tok = _match.group(0)
+                if any(lo <= _match.start() and _match.end() <= hi
+                       for lo, hi in _label_spans):
+                    continue
                 num = float(tok)
                 if 1900 <= num <= 2100 and "." not in tok:
                     continue                      # 年份豁免
@@ -957,10 +971,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                         _worst = (_f5, _n1, _n2)
             if _worst:
                 _hit(f"{_worst[1]} 压住本轴刻度 {_worst[2]} "
-                     f"{_worst[0]:.0%}——两行字叠在一起都读不出来。文字别"
-                     f"挂在轴分数上（面板一变矮就掉进刻度带），改用 "
-                     f"xytext=(0, -N) + textcoords='offset points' 给绝对"
-                     f"偏移，或收紧刻度数")
+                     f"{_worst[0]:.0%}——两行字叠在一起都读不出来。把说明"
+                     f"文字移回坐标区或调整现有偏移（轴分数定位可改用 "
+                     f"offset points；已经使用时就减小偏移），也可收紧刻度"
+                     f"数；确需轴外说明与刻度共用该区域，传 "
+                     f"allow=('overlap',) 豁免")
 
         # 5c. 压数据：场按面积、曲线按吞没率与绝对点数
         for name, bb, ax, is_leg, art in boxes:

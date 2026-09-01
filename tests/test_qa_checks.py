@@ -3158,3 +3158,159 @@ def test_constant_column_message_is_accurate_and_offers_an_exit():
     # 另一侧：传了码要真的放行
     assert not [p for p in run_qa(fig, strict=False, allow=("axis_slack",))
                 if "常数" in p]
+
+
+# --- R16 第六轮实现：主窗口确认的四条交付缺陷 --------------------------
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+@pytest.mark.parametrize("ncat", [2, 3])
+def test_facet_metrics_constant_values_do_not_touch_panel_titles(preset, ncat):
+    """常数列虽可豁免 axis_slack，库生成的数值直标仍必须留在标题下方。
+
+    cn/nature 是同一公开调用的两个档位：nature 原本不重叠，是不该被回归
+    修复扰动的一侧；cn 原本在收高后重叠 67%，是必须修掉的一侧。
+    """
+    from matplotlib.transforms import Bbox
+
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(
+            [f"c{i}" for i in range(ncat)],
+            [("m1", [5.0] * ncat, "linear"),
+             ("m2", [7.0] * ncat, "linear")])
+        fig.suptitle("常数指标核验")
+        stat_box(axes[0], ["实验设置"], loc="auto")
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        for ax in axes:
+            title_box = ax.title.get_window_extent(renderer)
+            value_boxes = [t.get_window_extent(renderer) for t in ax.texts
+                           if t.get_text() in {"5", "7"}]
+            assert value_boxes, "前提不成立：没有找到 facet_metrics 的数值直标"
+            assert not any(Bbox.intersection(title_box, bb) is not None
+                           for bb in value_boxes), \
+                f"{preset} 档 {ncat} 类目的数值直标仍碰到面板标题"
+        bad = [p for p in run_qa(
+            fig, strict=False, allow=("axis_slack", "sparse_panel"))
+            if "直标互相重叠" in p and "面板标题" in p]
+        assert not bad, f"{preset} 档 {ncat} 类目仍被标题重叠硬拒：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+@pytest.mark.parametrize("ncur", [8, 10])
+def test_convergence_many_close_end_labels_stay_inside_axis(preset, ncur):
+    """显示坐标避让后的整组线端直标必须钳在坐标区内。
+
+    8/10 条覆盖刚开始越界和越界加重两侧；两个档位共用同一坐标几何，
+    都不应让库生成的直标掉进 x 刻度带。
+    """
+    ac = _recipe("algo_convergence")
+    x = np.arange(60)
+    try:
+        apply_style(preset)
+        rng = np.random.default_rng(1)
+        curves = [
+            (f"算法{k + 1}",
+             5.0 + 0.02 * k + 8 * np.exp(-x / (8 + 2 * k))
+             + rng.normal(0, .01, len(x)), None)
+            for k in range(ncur)
+        ]
+        fig, ax, _ = ac.convergence_curves(curves, logy=False)
+        fig.suptitle("多算法收敛")
+        stat_box(ax, ["种群 100"], loc="auto")
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        axis_box = ax.get_window_extent(renderer)
+        labels = [t for t in ax.texts
+                  if t.get_text().lstrip().startswith("算法")]
+        assert len(labels) == ncur, "前提不成立：没有找到全部线端直标"
+        boxes = [t.get_window_extent(renderer) for t in labels]
+        assert min(bb.y0 for bb in boxes) >= axis_box.y0 - 0.1, \
+            f"{preset} {ncur} 条时线端直标掉到轴底以下"
+        assert max(bb.y1 for bb in boxes) <= axis_box.y1 + 0.1, \
+            f"{preset} {ncur} 条时线端直标顶到轴顶以上"
+        bad = [p for p in run_qa(fig, strict=False)
+               if "压住本轴刻度" in p]
+        assert not bad, f"{preset} {ncur} 条仍压住本轴刻度：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+def test_tick_overlap_message_does_not_misdiagnose_offset_annotation():
+    """5b5 也会拦 offset-points 文字，不能无条件诊断成轴分数定位。
+
+    真有轴外文字压刻度仍要拦；消息必须给出 overlap 豁免出口，且不能让
+    已经使用 offset points 的调用者再做一遍无效操作。
+    """
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    ax.set_xticks([0.5])
+    ax.set_xticklabels(["50"])
+    ax.annotate("轴外说明", xy=(0.5, 0), xytext=(0, -10),
+                textcoords="offset points", ha="center", va="top",
+                annotation_clip=False)
+    fig.suptitle("结论句")
+    hits = [p for p in run_qa(fig, strict=False) if "压住本轴刻度" in p]
+    assert hits, "前提不成立：offset-points 文字确实压刻度却没被 5b5 拦住"
+    msg = hits[0]
+    assert "allow=('overlap',)" in msg, f"消息没有提供实际豁免出口：{msg}"
+    assert "文字别挂在轴分数上" not in msg, f"消息仍在主动误诊定位方式：{msg}"
+    assert "改用 xytext=(0, -N)" not in msg, f"消息仍建议重复现有做法：{msg}"
+    waived = run_qa(fig, strict=False, allow=("overlap",))
+    assert not [p for p in waived if "压住本轴刻度" in p], \
+        "消息给了 overlap 出口，但传入后 5b5 没有真正放行"
+
+
+@pytest.mark.parametrize("names", [
+    ["算法1", "算法2"],
+    ["v2.1", "v3.0"],
+])
+def test_convergence_numeric_names_are_not_unsourced_statistics(names):
+    """线端直标的名称部分可带版本号/序号，统计量部分仍照常溯源。"""
+    ac = _recipe("algo_convergence")
+    x = np.arange(60)
+    curves = [(name, 5.0 + 0.5 * i + 8 * np.exp(-x / (8 + 3 * i)),
+               PALETTE[i]) for i, name in enumerate(names)]
+    fig, ax, info = ac.convergence_curves(curves)
+    fig.suptitle("两算法收敛对比")
+    stat_box(ax, ["种群 100"], loc="auto")
+    sourced = {}
+    for key, (i_conv, final) in info.items():
+        sourced[f"{key}_conv"] = i_conv
+        sourced[f"{key}_final"] = final
+    bad = [p for p in run_qa(fig, strict=False, sourced=sourced)
+           if "未溯源到计算变量" in p]
+    assert not bad, f"曲线名称里的数字被误当成统计量：{bad[:2]}"
+
+
+def test_convergence_numeric_name_exemption_does_not_hide_fake_final():
+    """名称数字可豁免，但同一线端直标里伪造的终值仍必须被拦。"""
+    ac = _recipe("algo_convergence")
+    x = np.arange(60)
+    curves = [("算法2", 5.0 + 8 * np.exp(-x / 8), PALETTE[0]),
+              ("v2.1", 5.5 + 8 * np.exp(-x / 11), PALETTE[1])]
+    fig, ax, info = ac.convergence_curves(curves)
+    labels = [t for t in ax.texts
+              if t.get_text().lstrip().startswith("算法2")]
+    assert labels, "前提不成立：没有找到算法2的线端直标"
+    labels[0].set_text(" 算法2 999.123")
+    sourced = {}
+    for key, (i_conv, final) in info.items():
+        sourced[f"{key}_conv"] = i_conv
+        sourced[f"{key}_final"] = final
+    bad = [p for p in run_qa(fig, strict=False, sourced=sourced)
+           if "数字 999.123 未溯源到计算变量" in p]
+    assert bad, "名称数字豁免把真正伪造的线端终值也一起放过了"
+
+
+def test_convergence_docstring_describes_categorical_auto_encoding():
+    """公开 docstring 必须准确区分 None 自动编码与显式颜色。"""
+    ac = _recipe("algo_convergence")
+    doc = ac.convergence_curves.__doc__ or ""
+    assert "categorical(n)" in doc
+    assert "marker" in doc and "线型" in doc
+    assert "显式颜色" in doc
+    assert "PALETTE 依次取" not in doc
