@@ -172,6 +172,16 @@ def facet_metrics(cat_labels, metrics, width="double"):
     # （"乘 n/3 让面板面积守恒"是上一版注释里的说法，实测不成立，
     #   由第 16 轮 opus 打分推翻。）
     ratio = 0.36 * (ptx(9.0) / 9.0) ** 2 * n / 3
+    # 还要给**类目行数**留下限。上面两项只看档位和指标数，都不看有几行；
+    # 而每个标记上方 8pt 处还压着一个数值直标。nature 档面板本来就矮，
+    # 行数一多，最上面那行的直标就顶进面板标题（实测 2 指标 × ≥4 类目：
+    # 「72.1」压「内存(MB)」25%，硬拒；同一调用 cn 档全过——两档行为不
+    # 一致，而用户手上没有任何高度/刻度参数可调）。
+    # 自适应收高只对墨迹负责（本例墨迹 9.8% 远高于 3.0% 下限、根本不触发），
+    # 兜不住这一类，所以下限要在这里给。
+    _rows = len(cat_labels)
+    _min_h_in = (_rows * ptx(7.5) * 2.2 + ptx(8) + ptx(8.5) * 2.0) / 72.0
+    ratio = max(ratio, _min_h_in / w)
     fig, axes = plt.subplots(1, n, figsize=(w, w * ratio))
     fig._ff_small_multiples = True      # 小倍数：同一编码 × 不同指标
     axes = np.atleast_1d(axes)
@@ -218,7 +228,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
         for v, yi, c in zip(vals, y, PALETTE):
             ax.plot([v], [yi], "o", color=c, markersize=ptx(6.5, "pt"), zorder=3,
                     markeredgecolor="white", markeredgewidth=ptx(1.0, "lw"))
-            ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, 8),
+            ax.annotate(f"{v:g}", xy=(v, yi), xytext=(0, ptx(8, "pt")),
                         textcoords="offset points", ha="center",
                         fontsize=ptx(7.5), fontweight="bold", color=text_color(c))
         ax.set_yticks(y)
@@ -231,16 +241,30 @@ def facet_metrics(cat_labels, metrics, width="double"):
     # 短标题 + 窄 log 跨度的合法调用仍会掉到阈值下（实测 cn 4.0% < 4.5%）。
     # 与其再拍一个安全系数，不如量了再收：判据用的是什么，就照什么量。
     from core import _probe
-    from core.style import current_preset
-    _floor = 0.030 if current_preset() == "nature" else 0.045
+    from core.qa import panel_ink_floor
+    # 照**同一个**判据收：此前这里自己抄了一份阈值，两处各写一份就是
+    # 第二真值源，改了一处另一处不跟着变（第 16 轮 opus 打分点名）。
+    _floor = panel_ink_floor()
     for _ in range(3):
         fig.canvas.draw()
         _lo = min(_probe.panel_ink(fig, a) for a in axes)
         if _lo >= _floor * 1.06:
             break
+        # 判据用什么，就照什么量——这是本函数上一处修复自己写下的原则，
+        # 这里差点又违反：QA 的逐面板墨迹检查只在 `area_cm2 >= 12` 时才
+        # 触发（qa.py），收到 12 cm² 以下再收毫无意义，那条检查本来就不会
+        # 响，只会把图收成畸形（实测某指标是常数列时收出 183×16mm、
+        # 高宽比 0.087，面板压成一条线）。收不到阈值就停手，让 QA 照常报
+        # sparse_panel：它有 allow 出口、有可读消息，比一张畸形图强得多。
+        _amin = min((a.get_window_extent().width / fig.dpi * 2.54)
+                    * (a.get_window_extent().height / fig.dpi * 2.54)
+                    for a in axes)
+        if _amin <= 12.0:
+            break
         _k = max(0.62, _lo / (_floor * 1.12))   # 面积∝高度，密度∝1/高度
         _wi, _hi = fig.get_size_inches()
-        fig.set_size_inches(_wi, _hi * _k)
+        # 收高不得破掉「行数下限」——否则墨迹是够了，直标又顶进标题
+        fig.set_size_inches(_wi, max(_hi * _k, _min_h_in))
         _margins()
 
     # 面板标签必须等高度定下来之后再放：dx 折算自实测刻度宽度、dy 折算自

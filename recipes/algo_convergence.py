@@ -10,7 +10,9 @@ from _common import GALLERY
 import numpy as np
 
 from core.style import _one_of
-from core import end_labels
+from matplotlib.transforms import Bbox
+
+from core import end_labels, categorical
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, end_label, PALETTE)
 
@@ -33,26 +35,40 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
            "raw": lambda y: y}[mode]
     # 颜色传 None（"库你挑一个"）此前在 nature 档能跑、cn 档崩在
     # matplotlib 深处的 `Invalid RGBA argument: None` 上——同一个调用两档
-    # 两种结果，而报错里没有半个字提到曲线颜色。补默认：按 PALETTE 取。
+    # 两种结果，而报错里没有半个字提到曲线颜色。
+    # 补默认时要走 `categorical(n)` 而不是只取 PALETTE 的颜色：它给的是
+    # **色 + marker + 线型**的整套冗余编码。只取颜色的话，6 条以上曲线必被
+    # 可达性检查硬拒（实测两档 6/7 条都拦），而它建议的"加形状/标签冗余"
+    # 用户做不到——本函数根本不收 marker/linestyle 参数。SKILL.md §3d
+    # 写的就是"分类 >4 类时冗余编码必备"，库自己有工具却没用上。
+    _auto = [i for i, (_, _, c) in enumerate(curves) if c is None]
+    # categorical 的上限是 6（库自己的政策：>6 类该换构图，不是加颜色），
+    # 但那条上限不该以**崩**的形式表现在这里：改之前 7 条曲线是能跑的
+    # （只被可达性检查拦下）。取到 6 再循环——7 条以上编码会重复，而那正是
+    # 库判定"该换构图"的场景，QA 的可达性/重复系列检查会照常说话。
+    _cols, _marks, _lss = categorical(min(max(len(curves), 1), 6))
     curves = [(name, acc(np.asarray(y, dtype=float)),
-               PALETTE[i % len(PALETTE)] if c is None else c)
+               _cols[i % len(_cols)] if c is None else c)
               for i, (name, y, c) in enumerate(curves)]
     fig, ax = new_figure(width, ratio=0.55)
     if logy:
         ax.set_yscale("log")
     info = {}
     n_max = max(len(y) for _, y, _ in curves)
-    # 终值接近的曲线，线端标签上下错开避免相压
-    finals = sorted(range(len(curves)),
-                    key=lambda k: curves[k][1][-1], reverse=True)
-    va_of = {idx: ("bottom" if r % 2 == 0 else "top")
-             for r, idx in enumerate(finals)}
+    # （原先这里按终值排序、给线端标签交替 va 做避让；改走 end_labels 的
+    #   显示坐标避让之后这段成了死代码，已删——第 16 轮 opus 打分指出。）
     _below: list[bool] = []
     _ends: list[tuple] = []
+    _conv: list = []
+    _gens: list[int] = []
     for k, (name, y, c) in enumerate(curves):
         y = np.asarray(y, dtype=float)
         it = np.arange(len(y))
-        ax.plot(it, y, color=c, linewidth=ptx(1.4, "lw"), zorder=3)
+        _kw = ({} if k not in _auto else
+               {"marker": _marks[k % len(_marks)],
+                "markersize": ptx(3.2, "pt"), "markevery": max(1, len(y) // 8),
+                "linestyle": _lss[k % len(_lss)]})
+        ax.plot(it, y, color=c, linewidth=ptx(1.4, "lw"), zorder=3, **_kw)
         # 收敛代：此后所有值都在终值 (1±tol) 内的最早代
         final = y[-1]
         ok = np.abs(y - final) <= conv_tol * abs(final)
@@ -93,11 +109,13 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
         # 都动不了。实测三条终值相近的曲线会撞出 26% 的硬拒。
         _near_end = i_conv > 0.85 * n_max
         _dxp, _ha = (-6, "right") if _near_end else (0, "center")
-        ax.annotate(f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
-                    xytext=(_dxp, _dy), textcoords="offset points",
-                    ha=_ha, va="bottom" if _dy > 0 else "top",
-                    fontsize=ptx(6.5), color=text_color(c))
+        _conv.append(ax.annotate(
+            f"{i_conv} 代收敛", xy=(i_conv, y[i_conv]),
+            xytext=(_dxp, _dy), textcoords="offset points",
+            ha=_ha, va="bottom" if _dy > 0 else "top",
+            fontsize=ptx(6.5), color=text_color(c)))
         _ends.append((it[-1], final, f" {name} {final:.4g}", c))
+        _gens.append(i_conv)
     if any(_below):
         # 最低那条曲线的收敛标签放在它下方，而它本来就贴着轴底——不腾地方
         # 的话标签会压在 x 刻度上（实测「84 代收敛」正好盖住刻度「80」）。
@@ -118,6 +136,27 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     # 94% 被 QA 拦下，而调用者没有任何调位参数。
     # 必须放在扩轴**之后**：避让是按当时的 transData 算的，先排后扩会把
     # 刚挣出来的像素间距重新压回去（实测交付图两条直标又叠回 54%）。
+    # 收敛代标签成组检查：多条曲线都在末代附近收敛时，它们全挤在同一条
+    # 窄带里（实测 3~6 条曲线 × 6 seed 两档 48 组里 cn 16 / nature 11 组被
+    # 互压拦下），而纵向被"标签必须离自己曲线最近"锁死、横向挪又会削弱与
+    # 标记的关联——这一类没法靠挪位解决。
+    # 撞了就把代数**折进线端直标**：那里已经有 end_labels 的显示坐标避让，
+    # 信息一个不丢，而且每条直标本来就唯一绑定一条曲线。收敛点的标记留着，
+    # 读者仍看得见"在哪一代收敛"。
+    fig.canvas.draw()
+    _r = fig.canvas.get_renderer()
+    _bbs = [t.get_window_extent(_r) for t in _conv]
+    _clash = any(
+        (lambda it: it is not None and (it.width * it.height) / max(
+            1e-9, min(_bbs[i].width * _bbs[i].height,
+                      _bbs[j].width * _bbs[j].height)) > 0.15)(
+            Bbox.intersection(_bbs[i], _bbs[j]))
+        for i in range(len(_bbs)) for j in range(i + 1, len(_bbs)))
+    if _clash:
+        for t in _conv:
+            t.remove()
+        _ends = [(x, yv, f"{txt}（{g} 代）", col)
+                 for (x, yv, txt, col), g in zip(_ends, _gens)]
     end_labels(ax, _ends)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

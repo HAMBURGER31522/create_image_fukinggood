@@ -31,6 +31,17 @@ def _min_font() -> float:
     return _MIN_FONT_BY_PRESET.get(current_preset(), MIN_FONT_PT)
 
 
+# 逐面板墨迹下限。recipes/comparison_rank.py 的自适应收高要照**同一个**
+# 判据收，此前它自己抄了一份 `0.030 if nature else 0.045`——两处各写一份
+# 就是第二真值源，改了一处另一处不跟着变（第 16 轮 opus 打分点名）。
+_INK_FLOOR_BY_PRESET = {"nature": 0.030, "cn": 0.045}
+
+
+def panel_ink_floor() -> float:
+    """当前档的逐面板墨迹下限。低于它且面板 ≥12cm² 会被硬拒。"""
+    return _INK_FLOOR_BY_PRESET.get(current_preset(), 0.045)
+
+
 def _is_colored(color, tol: float = 0.06) -> bool:
     """是否为彩色文字（黑/白/中性灰不算）。nature 档禁彩色文字。"""
     try:
@@ -1131,7 +1142,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             # 更低（实测 algo_convergence 7.5%→4.2%、fit_residual
             # 8.1%→4.0%），阈值不跟着降就会把 cn 下只是 WARN 的图在
             # nature 下变成硬拒。
-            _ink_floor = 0.030 if current_preset() == "nature" else 0.045
+            _ink_floor = panel_ink_floor()
             if ink < _ink_floor and area_cm2 >= 12:
                 _hard(
                     f"面板 {area_cm2:.0f} cm² 却只有 {ink:.1%} 墨迹"
@@ -1195,9 +1206,20 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                               r"fraction|share|rate|ratio|accuracy|recall",
                               _lab8 or "", re.I))
                 if used < 0.35 and not _probe.has_field(ax) and not _prop8:
-                    _hard(f"{nm} 轴数据只占 {used:.0%} 轴长——其余数据被压成"
-                          f"一条线（多半是单个离群点把轴撑爆）。改对数轴或"
-                          f"断轴，或把离群点单独拆一格", "axis_slack")
+                    # 常数列（所有值相同）与"离群点把轴撑爆"是两回事，
+                    # 诊断不能混着说：前者根本没有离群点，用户照"改对数轴
+                    # 或断轴"去做毫无用处。消息主动误诊比不报还伤——本轮
+                    # 已经在 nonfinite_text 上栽过一次同样的毛病。
+                    if float(np.ptp(d)) == 0.0:
+                        _hard(f"{nm} 轴上这一列是**常数**（{len(d)} 个值全等"
+                              f"于 {float(d[0]):g}），画成点距图读不出任何"
+                              f"差异。把它移出图、放进正文或统计框；确要保留"
+                              f"，传 allow=('axis_slack',) 豁免", "axis_slack")
+                    else:
+                        _hard(f"{nm} 轴数据只占 {used:.0%} 轴长——其余数据被"
+                              f"压成一条线（多半是单个离群点把轴撑爆）。改对"
+                              f"数轴或断轴，或把离群点单独拆一格；确属正常，"
+                              f"传 allow=('axis_slack',) 豁免", "axis_slack")
                 elif used < 0.60:
                     print(f"[QA WARN] {nm} 轴数据只占 {used:.0%} 轴长——"
                           f"轴限被撑大（多半为腾注释位），收紧轴限，"

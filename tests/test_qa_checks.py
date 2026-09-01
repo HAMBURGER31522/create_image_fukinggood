@@ -2403,8 +2403,9 @@ def test_convergence_labels_stay_nearest_to_their_own_curve():
             [("上方线", list(top), None), ("下方线", list(bot), None)],
             mode="min")
         fig.canvas.draw()
-        series = [ln for ln in ax.lines
-                  if ln.get_linestyle() == "-" and len(ln.get_xdata()) > 5]
+        # 不能再按 linestyle == "-" 筛：自动配色现在会给非实线线型
+        # （categorical 的冗余编码），实线只剩一条。按数据长度筛。
+        series = [ln for ln in ax.lines if len(ln.get_xdata()) > 5]
         assert len(series) == 2
         for t in ax.texts:
             if "代收敛" not in t.get_text():
@@ -2516,8 +2517,8 @@ def test_convergence_labels_stay_nearest_with_three_curves():
         fig, ax, _ = ac.convergence_curves(cs, mode="raw")
         fig.canvas.draw()
         r = fig.canvas.get_renderer()
-        series = [z for z in ax.lines
-                  if z.get_linestyle() == "-" and len(z.get_xdata()) > 5]
+        # 同上：自动配色带非实线线型，按数据长度筛
+        series = [z for z in ax.lines if len(z.get_xdata()) > 5]
         assert len(series) == 3
         for t in ax.texts:
             if "代收敛" not in t.get_text():
@@ -2654,7 +2655,7 @@ def test_convergence_curves_takes_none_as_colour_in_both_presets():
             apply_style(preset)
             fig, ax, info = ac.convergence_curves(curves, mode="min")
             cols = [ln.get_color() for ln in ax.lines
-                    if ln.get_linestyle() == "-" and len(ln.get_xdata()) > 5]
+                    if len(ln.get_xdata()) > 5]
             assert len(set(cols)) == 2, f"{preset} 档两条线同色：{cols}"
     finally:
         apply_style("cn")
@@ -3006,5 +3007,128 @@ def test_facet_metrics_survives_short_titles_and_narrow_range(preset):
         bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
                if "墨迹" in p and p.startswith("面板")]
         assert not bad, f"{preset} 档合法调用被墨迹硬拒：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+# --- R16p 第五轮打分：zcode 报的两档不一致 ------------------------------
+
+@pytest.mark.parametrize("ncat", [3, 4, 5, 6])
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+def test_facet_metrics_two_metrics_survives_more_categories(preset, ncat):
+    """nature 档 2 指标 × ≥4 类目：库自己画的最上面那行数值直标顶进面板
+    标题（实测「72.1」压「内存(MB)」25%），硬拒；同一调用 cn 档全过
+    ——两档行为不一致，而用户手上没有任何高度/刻度参数可调。
+
+    根因：面板高度只按档位和指标数算，**不看类目行数**；而数值直标的
+    `xytext=(0, 8)` 是绝对点偏移，面板一矮就顶出去。自适应收高只对墨迹
+    负责（本例墨迹 9.8% 远高于 3.0% 下限，根本不触发）。
+    高度要给行数留下限。
+    """
+    cr = _recipe("comparison_rank")
+    v1 = [72.1, 65.8, 88.4, 59.2, 74.9, 61.0][:ncat]
+    v2 = [3.2, 2.9, 4.1, 2.7, 3.5, 3.0][:ncat]
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(
+            [f"方案{i}" for i in range(ncat)],
+            [("内存(MB)", v1, "linear"), ("耗时(s)", v2, "linear")])
+        fig.suptitle("双指标对比")
+        stat_box(axes[0], [f"n = {ncat}"], loc="lower left")
+        bad = run_qa(fig, expect_width=("double",), strict=False)
+        assert not bad, f"{preset} 档 2 指标 × {ncat} 类目被硬拒：{bad[:2]}"
+    finally:
+        apply_style("cn")
+
+
+# --- R16r 第五轮打分：三家共报两条 + codex 第三条 + opus 的覆盖缺口 -----
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+@pytest.mark.parametrize("ncur", [3, 4, 5, 6])
+def test_convergence_generation_labels_never_pile_up(preset, ncur):
+    """多条曲线都在末代附近收敛时，「N 代收敛」标签全挤在同一条窄带里
+    （实测 3~6 条 × 6 seed 两档 48 组：cn 16 组 / nature 11 组被互压硬拒），
+    而纵向被「标签必须离自己曲线最近」锁死、横向挪又削弱与标记的关联
+    ——这一类没法靠挪位解决。撞了就把代数**折进线端直标**（那里已有
+    end_labels 的显示坐标避让），信息一个不丢。
+    """
+    ac = _recipe("algo_convergence")
+    it = np.arange(120)
+    try:
+        apply_style(preset)
+        rng = np.random.default_rng(ncur)
+        d = rng.uniform(6, 40, ncur)
+        cs = [(f"算法{k+1}",
+               5.0 + 0.03 * k + 8 * np.exp(-it / d[k])
+               + rng.normal(0, .03, len(it)), None) for k in range(ncur)]
+        fig, ax, _ = ac.convergence_curves(cs)
+        ax.set_title("收敛对比")
+        stat_box(ax, ["种群 100"], loc="auto")
+        bad = [p for p in run_qa(fig, expect_width=("onehalf",), strict=False)
+               if "直标" in p and "重叠" in p]
+        assert not bad, f"{preset} {ncur} 条：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+@pytest.mark.parametrize("ncur", [1, 2, 4, 6, 7, 10])
+def test_convergence_auto_colour_carries_redundant_encoding(preset, ncur):
+    """`color=None` 此前只从 PALETTE 取**颜色**，于是 6 条以上曲线必被
+    可达性检查硬拒，而它建议的「加形状/标签冗余」用户做不到——本函数
+    根本不收 marker/linestyle 参数。SKILL.md §3d 写的就是「分类 >4 类时
+    冗余编码必备」，库自己有 `categorical(n)` 却没用上。
+
+    另一侧：`categorical` 上限是 6（>6 类该换构图），但那条上限不该以
+    **崩**的形式表现——改之前 7 条曲线是能跑的。取到 6 再循环。
+    """
+    ac = _recipe("algo_convergence")
+    x = np.arange(40)
+    try:
+        apply_style(preset)
+        cs = [(str(i), 10.0 ** (i % 6) * (np.exp(-x / 10) + 1), None)
+              for i in range(ncur)]
+        fig, ax, _ = ac.convergence_curves(cs, logy=True)
+        fig.suptitle("多算法收敛")
+        bad = [p for p in run_qa(fig, strict=False) if p.startswith("可达性")]
+        assert not bad, f"{preset} {ncur} 条 None 色被可达性拦：{bad[:1]}"
+    finally:
+        apply_style("cn")
+
+
+def test_facet_metrics_reflows_margins_after_shrinking():
+    """收高之后必须**重排留白**：`top`/`bottom` 是分数，图一矮，绝对留白
+    跟着矮，图题就压上面板标签。这一步此前没有任何测试守着——删掉循环里
+    的 `_margins()`，`pytest -k facet` 19 条全绿（opus 第五轮指出）。
+    """
+    cr = _recipe("comparison_rank")
+    fig, axes = cr.facet_metrics(
+        list("ABCDE"), [("m0", list(range(1, 6)), "linear"),
+                        ("m1", [2 * v for v in range(1, 6)], "log")])
+    fig.suptitle("方案 E 两项指标最高")
+    bad = [p for p in run_qa(fig, expect_width=("double",), strict=False)
+           if "重叠" in p]
+    assert not bad, f"收高后没重排留白：{bad[:1]}"
+
+
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+def test_facet_metrics_stops_shrinking_at_the_qa_area_gate(preset):
+    """收高循环只看墨迹、不看面积，而 QA 的逐面板墨迹检查只在
+    `area_cm2 >= 12` 时才触发——收到 12 cm² 以下再收毫无意义，那条检查
+    本来就不会响，只会把图收成畸形（实测某指标是常数列时收出 183×16mm、
+    高宽比 0.087）。「判据用什么就照什么量」是本函数自己写下的原则。
+    """
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style(preset)
+        for labels, mets in (
+                (["A", "B"], [("m1", [5.0, 5.0], "linear"),
+                              ("m2", [7.0, 7.0], "linear")]),
+                (["甲", "乙", "丙"], [("准确率", [0.9] * 3, "linear"),
+                                      ("召回率", [0.8] * 3, "linear")])):
+            fig, axes = cr.facet_metrics(labels, mets)
+            w_in, h_in = fig.get_size_inches()
+            assert h_in / w_in > 0.13, \
+                f"{preset} 收成畸形比例 {h_in/w_in:.3f}（{w_in:.2f}×{h_in:.2f}in）"
     finally:
         apply_style("cn")
