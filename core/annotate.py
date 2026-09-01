@@ -82,6 +82,12 @@ def _halo(txt, lw: float = 2.0):
     return txt
 
 
+def _tag_end_label(annotation):
+    """标出由本库定位的线端直标，供 QA 选择可执行的修复建议。"""
+    annotation._ff_end_label = True
+    return annotation
+
+
 def stat_box(ax, lines, loc: str = "auto", fontsize: float | None = None,
              edgecolor: str = "0.7", facecolor: str = "white",
              alpha: float = 0.85, pad: float = 0.45,
@@ -326,12 +332,12 @@ def end_label(ax, x, y, text, color, dx_pt: float = 4.0,
     读者不必在图例与曲线间来回扫视。
     dx_pt: 相对线端的水平偏移，单位 points。
     """
-    return _halo(ax.annotate(
+    return _halo(_tag_end_label(ax.annotate(
         text, xy=(x, y), xytext=(dx_pt, 0), textcoords="offset points",
         color=text_color(color), fontsize=_ann_size(fontsize),
         fontweight=fontweight, ha="left", va="center", zorder=10,
         annotation_clip=False,
-    ))
+    )))
 
 
 def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
@@ -342,6 +348,10 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
     图例与曲线间来回扫视），但多条曲线末端 y 值接近时标签必然重叠——
     这正是大多数人放弃直标改用图例的原因。这里按 y 排序后强制拉开
     至少 min_gap_pt 点的间距，把直标变成可以无脑使用的默认做法。
+
+    可容纳时，避让后的整组会平移回坐标区；间距不会被压缩。若整组本身
+    高于面板，就不存在合法平移，QA 会硬拒并建议换构图。超过 6 条曲线应
+    拆成小倍数、点区间图或数据表，这与 categorical 的类别上限一致。
 
     返回 Annotation 列表，顺序与 items 一致。
     """
@@ -375,11 +385,11 @@ def end_labels(ax, items, dx_pt: float = 4.0, fontsize: float | None = None,
     for k, i in enumerate(order):
         x, yv, text, color = items[i]
         dy_pt = (adj[k] - ys_disp[k]) * 72.0 / ax.figure.dpi
-        out[i] = _halo(ax.annotate(
+        out[i] = _halo(_tag_end_label(ax.annotate(
             text, xy=(x, yv), xytext=(dx_pt, dy_pt),
             textcoords="offset points", color=text_color(color),
             fontsize=size, fontweight=fontweight, ha="left", va="center",
-            zorder=10, annotation_clip=False))
+            zorder=10, annotation_clip=False)))
 
     # 间距排开之后还要把**整组真实文字框**留在坐标区内。只围绕原始均值
     # 回中不等于有边界：终值都挤在轴底时，8 条以上直标会被整体推到 x

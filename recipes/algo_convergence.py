@@ -176,6 +176,7 @@ if __name__ == "__main__":
     it = np.arange(120)
     raw1 = 5.2 + 8 * np.exp(-it / 18) + rng.normal(0, 0.06, len(it))
     raw2 = 5.0 + 8 * np.exp(-it / 9) + rng.normal(0, 0.04, len(it))
+    population = 100
     # 直接喂每代原始值，mode="min" 自动转 best-so-far
     fig, ax, info = convergence_curves(
         [("标准 GA", raw1, PALETTE[0]), ("改进 GA", raw2, "#C97B84")],
@@ -183,10 +184,11 @@ if __name__ == "__main__":
     gain = (info["标准 GA"][1] - info["改进 GA"][1]) / info["标准 GA"][1]
     ax.set_title(f"改进 GA 提前 {info['标准 GA'][0] - info['改进 GA'][0]} 代收敛，"
                  f"终值优 {gain:.1%}", fontsize=ptx(9.5))
-    stat_box(ax, ["种群 100，交叉 0.8 / 变异 0.05",
+    stat_box(ax, [f"种群 {population}，交叉 0.8 / 变异 0.05",
                   f"收敛判据：相对变化 < 0.1%",
                   f"终值 {info['标准 GA'][1]:.3f} vs {info['改进 GA'][1]:.3f}"],
              loc="upper right", fontsize=ptx(6.5))
+    fig._ff_stats["population"] = population
     run_qa(fig, expect_width=("onehalf",))
     save_figure(fig, str(GALLERY / "algo_convergence"))
     print("algo_convergence: OK")

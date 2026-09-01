@@ -215,6 +215,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         # p90 * ratio 算出来的，只查差与比会把它误判成手写常数。
         for a in base_vals:
             for b in base_vals:
+                if a == b:
+                    # 自配对会凭空制造恒等的 0/1/100 等退化值；其中
+                    # a / b * 100 会系统性掩盖所有手写常数 100。
+                    continue
                 vals.add(abs(a - b))
                 vals.add(a * b)
                 vals.add(a * b * 100)
@@ -279,6 +283,49 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 return True
             return False
 
+        _IDENT_CH = set(
+            "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-/")
+        _QUANTITY_CTX = (
+            "终值", "均值", "误差", "提升", "提高", "增长", "下降", "降低",
+            "增加", "减少", "约", "共", "达", "超", "差", "倍", "次", "代",
+            "年", "月", "天", "小时", "分钟", "秒", "万", "亿", "元", "%",
+        )
+
+        def _is_cjk(ch):
+            return "\u4e00" <= ch <= "\u9fff"
+
+        def _is_name_like(txt, match):
+            """名字或序号中的数字不参与统计量溯源。"""
+            tok, i, j = match.group(0), match.start(), match.end()
+
+            # E1: v2.1 / GA-2 / R2。只看左侧；右侧字母可能是单位。
+            start = i
+            while start > 0 and txt[start - 1] in _IDENT_CH:
+                start -= 1
+            if any(ch.isascii() and ch.isalpha() for ch in txt[start:i]):
+                return True
+
+            # E2: 第 3 组 / 第3组。两侧允许空白。
+            if re.search(r"第\s*$", txt[:i]) and re.match(
+                    r"\s*[组代批类期号次轮问章节条款台名只种个题]", txt[j:]):
+                return True
+
+            # E3: 算法3 / 3组 / 模型12。小数和三位以上整数仍是量值；
+            # “提升6倍”“终值5”等量值上下文也必须继续溯源。
+            if "." not in tok and 0 < float(tok) < 100:
+                left = txt[i - 1] if i > 0 else ""
+                right = txt[j] if j < len(txt) else ""
+                if _is_cjk(left) or _is_cjk(right):
+                    word_start = i
+                    while word_start > 0 and _is_cjk(txt[word_start - 1]):
+                        word_start -= 1
+                    left_word = txt[word_start:i]
+                    right_context = txt[j:j + 3]
+                    if not any(q in left_word or q in right_context
+                               for q in _QUANTITY_CTX):
+                        return True
+            return False
+
         for text_artist in text_artists:
             txt = text_artist.get_text()
             # 复合直标可由 recipe 标出其中的**名称片段**。名称里的版本号/
@@ -300,7 +347,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     continue                      # 年份豁免
                 dec = len(tok.split(".")[1]) if "." in tok else 0
                 tol = lambda v: max(0.02 * abs(v), 0.55 * 10 ** -dec)
-                if _is_label(txt, tok):
+                if _is_label(txt, tok) or _is_name_like(txt, _match):
                     continue
                 if not any(abs(num - v) <= tol(v) for v in vals):
                     msg = (f"数字 {tok} 未溯源到计算变量（疑似手写常数）："
@@ -968,14 +1015,21 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                         continue
                     _f5 = (_it5.width * _it5.height) / max(1e-9, _m5)
                     if _f5 > 0.15 and (_worst is None or _f5 > _worst[0]):
-                        _worst = (_f5, _n1, _n2)
+                        _worst = (_f5, _n1, _n2, _r1)
             if _worst:
-                _hit(f"{_worst[1]} 压住本轴刻度 {_worst[2]} "
-                     f"{_worst[0]:.0%}——两行字叠在一起都读不出来。把说明"
-                     f"文字移回坐标区或调整现有偏移（轴分数定位可改用 "
-                     f"offset points；已经使用时就减小偏移），也可收紧刻度"
-                     f"数；确需轴外说明与刻度共用该区域，传 "
-                     f"allow=('overlap',) 豁免")
+                if getattr(_worst[3], "_ff_end_label", False):
+                    _hit(f"{_worst[1]} 压住本轴刻度 {_worst[2]} "
+                         f"{_worst[0]:.0%}——线端直标整摞被避让推出面板："
+                         f"终值太近、条数太多，右缘放不下。超过 6 条曲线"
+                         f"该换构图（小倍数拆面板 / 点区间图 / 数据表），"
+                         f"或减少曲线；确要保留传 allow=('overlap',) 豁免")
+                else:
+                    _hit(f"{_worst[1]} 压住本轴刻度 {_worst[2]} "
+                         f"{_worst[0]:.0%}——两行字叠在一起都读不出来。"
+                         f"轴分数定位可改成 xytext=(0, -N)、"
+                         f"textcoords='offset points'；已经使用 offset points "
+                         f"时就减小现有偏移。也可收紧刻度数；确需轴外说明"
+                         f"与刻度共用该区域，传 allow=('overlap',) 豁免")
 
         # 5c. 压数据：场按面积、曲线按吞没率与绝对点数
         for name, bb, ax, is_leg, art in boxes:

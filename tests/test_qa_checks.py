@@ -407,7 +407,7 @@ def test_same_label_reported_for_two_conditions_is_not_a_conflict():
 # ======================================================================
 
 from core import (dot_interval, slope_lines, stat_box,  # noqa: E402
-                  callout, ref_line)
+                  callout, end_label, end_labels, ref_line)
 
 
 def _di_fig(**kw):
@@ -3267,6 +3267,7 @@ def test_tick_overlap_message_does_not_misdiagnose_offset_annotation():
 @pytest.mark.parametrize("names", [
     ["算法1", "算法2"],
     ["v2.1", "v3.0"],
+    ["方案 3", "Model 4"],
 ])
 def test_convergence_numeric_names_are_not_unsourced_statistics(names):
     """线端直标的名称部分可带版本号/序号，统计量部分仍照常溯源。"""
@@ -3281,6 +3282,7 @@ def test_convergence_numeric_names_are_not_unsourced_statistics(names):
     for key, (i_conv, final) in info.items():
         sourced[f"{key}_conv"] = i_conv
         sourced[f"{key}_final"] = final
+    sourced["population"] = 100
     bad = [p for p in run_qa(fig, strict=False, sourced=sourced)
            if "未溯源到计算变量" in p]
     assert not bad, f"曲线名称里的数字被误当成统计量：{bad[:2]}"
@@ -3314,3 +3316,107 @@ def test_convergence_docstring_describes_categorical_auto_encoding():
     assert "marker" in doc and "线型" in doc
     assert "显式颜色" in doc
     assert "PALETTE 依次取" not in doc
+
+
+# --- R16 差量：数字溯源词法判据与 5b5 来源消息 -------------------------
+
+def _unsourced(fig, **kw):
+    return [p for p in probs(fig, **kw) if "未溯源到计算变量" in p]
+
+
+def _figure_with_text(txt, placement="text"):
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    if placement == "suptitle":
+        fig.suptitle(txt)
+    elif placement == "title":
+        ax.set_title(txt)
+    elif placement == "stat_box":
+        stat_box(ax, [txt], loc="upper left")
+    elif placement == "callout":
+        callout(ax, (2, 2), txt, xytext=(0.7, 0.7))
+    else:
+        ax.text(0.1, 0.8, txt, transform=ax.transAxes)
+    return fig
+
+
+def test_derived_values_do_not_hide_handwritten_hundred():
+    bad = _unsourced(_figure_with_text("种群 100"), sourced={"p": 5.0})
+    assert any("数字 100" in p for p in bad)
+
+
+def test_hundred_is_allowed_when_it_is_an_actual_source_value():
+    bad = _unsourced(_figure_with_text("种群 100"),
+                     sourced={"population": 100.0})
+    assert not bad
+
+
+@pytest.mark.parametrize("placement,txt,sourced", [
+    ("suptitle", "算法3 的终值 5.998", {"final": 5.998}),
+    ("title", "第 3 组均值 5.6", {"mean": 5.6}),
+    ("stat_box", "v2.1 精度 0.913", {"accuracy": 0.913}),
+    ("callout", "GA-2 用时 12.3 s", {"elapsed": 12.3}),
+    ("text", "第3组（均值 5.6）", {"mean": 5.6}),
+    ("text", "R2 = 0.87", {"r_squared": 0.87}),
+    ("text", "模型12 vs 模型13", {"unrelated": 5.0}),
+    ("text", "A4 尺寸 0.297", {"size": 0.297}),
+])
+def test_digits_inside_names_are_not_statistics(placement, txt, sourced):
+    assert not _unsourced(_figure_with_text(txt, placement), sourced=sourced)
+
+
+@pytest.mark.parametrize("txt,frag,sourced", [
+    ("算法3 的终值 4.444", "数字 4.444", {"final": 5.998}),
+    ("终值5.998", "数字 5.998", {"final": 5.0}),
+    ("RMS 5.998mm", "数字 5.998", {"rms": 5.0}),
+    ("种群 250，交叉 0.8", "数字 250", {"cross": 0.8}),
+    ("种群250", "数字 250", {"population": 5.0}),
+    ("较基线提升6倍", "数字 6", {"gain": 7.3}),
+    ("误差终值5", "数字 5", {"error": 7.3}),
+])
+def test_handwritten_statistics_still_flagged(txt, frag, sourced):
+    assert any(frag in p for p in _unsourced(
+        _figure_with_text(txt), sourced=sourced))
+
+
+def test_end_label_helpers_tag_library_generated_annotations():
+    fig, ax = new_figure("onehalf")
+    ax.plot([0, 1], [0, 1])
+    one = end_label(ax, 1, 1, "末端", PALETTE[0])
+    many = end_labels(ax, [(1, 0.3, "低", PALETTE[1]),
+                           (1, 0.7, "高", PALETTE[2])])
+    assert getattr(one, "_ff_end_label", False)
+    assert all(getattr(ann, "_ff_end_label", False) for ann in many)
+
+
+def test_end_label_stack_overflow_message_points_to_composition_change():
+    fig, ax = new_figure("onehalf")
+    x = np.arange(40)
+    ax.plot(x, 0.5 - 0.3 * x / x.max(), color="C9")
+    for i in range(24):
+        y = 0.02 + 0.001 * i + 0.0005 * x / x.max()
+        ax.plot(x, y, color=f"C{i % 10}")
+    ax.set_xlim(0, 48)
+    end_labels(ax, [
+        (x[-1], 0.02 + 0.001 * i,
+         f" 算法{i + 1} {0.02 + 0.001 * i:.3f}", f"C{i % 10}")
+        for i in range(24)
+    ])
+    hits = [p for p in probs(fig) if "压住本轴刻度" in p]
+    assert hits, "前提不成立：不可容纳的直标栈没有被 5b5 拦住"
+    assert any("避让推出面板" in p and "换构图" in p for p in hits)
+    assert any("allow=('overlap',)" in p for p in hits)
+    assert not any("xytext" in p or "offset points" in p for p in hits)
+
+
+def test_user_placed_text_over_ticks_keeps_conditional_offset_advice():
+    fig, ax = new_figure("onehalf")
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.text(0.5, -0.04, "挂在面板底缘、伸进刻度带的说明文字",
+            transform=ax.transAxes, va="top")
+    ax.set_xticks([1, 1.5, 2, 2.5, 3])
+    hits = [p for p in probs(fig) if "压住本轴刻度" in p]
+    assert hits
+    assert any("xytext" in p and "textcoords='offset points'" in p
+               for p in hits)
+    assert any("已经" in p and "偏移" in p for p in hits)
