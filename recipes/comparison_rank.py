@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.transforms import Bbox
 
+from core.annotate import _halo
 from core.style import _one_of
 from core import (text_color, ptx, ink, apply_style, new_figure, save_figure, run_qa,
                   stat_box, callout, panel_label, smart_legend,
@@ -230,10 +231,16 @@ def facet_metrics(cat_labels, metrics, width="double"):
         for v, yi, c in zip(vals, y, PALETTE):
             ax.plot([v], [yi], "o", color=c, markersize=ptx(6.5, "pt"), zorder=3,
                     markeredgecolor="white", markeredgewidth=ptx(1.0, "lw"))
-            _value_labels[k].append(ax.annotate(
+            # 白色描边：常数列时所有标记同 x，而直标向上偏移 8pt，行一密
+            # 就落到**上一行的标记**上——QA 量到的背景是那个标记而不是白底，
+            # 对比度掉到 1.68:1 被硬拒（实测 cn 5/6 类目挂、nature 全过）。
+            # 用 `_halo` 的描边而不是白底方框：方框会在图上打一个洞、把底下
+            # 的标记整个遮掉，描边只让字周围一圈变白。QA 的对比度检查会把
+            # 描边合成进背景，所以这是它认的那条路。
+            _value_labels[k].append(_halo(ax.annotate(
                 f"{v:g}", xy=(v, yi), xytext=(0, ptx(8, "pt")),
                 textcoords="offset points", ha="center",
-                fontsize=ptx(7.5), fontweight="bold", color=text_color(c)))
+                fontsize=ptx(7.5), fontweight="bold", color=text_color(c))))
         ax.set_yticks(y)
         ax.set_yticklabels(cat_labels if k == 0 else [""] * len(cat_labels))
         ax.set_title(title, fontsize=ptx(8.5))

@@ -3420,3 +3420,32 @@ def test_user_placed_text_over_ticks_keeps_conditional_offset_advice():
     assert any("xytext" in p and "textcoords='offset points'" in p
                for p in hits)
     assert any("已经" in p and "偏移" in p for p in hits)
+
+
+# --- R16s facet 的数值直标压在上一行标记上（cn 5+ 类目）-----------------
+
+@pytest.mark.parametrize("ncat", [2, 3, 4, 5, 6])
+@pytest.mark.parametrize("preset", ["cn", "nature"])
+def test_facet_value_labels_stay_readable_on_any_background(preset, ncat):
+    """常数列时所有标记同 x，而数值直标向上偏移 8pt——行一密就落到**上一行
+    的标记**上，量到的背景是那个标记而不是白底，对比度掉到 1.68:1 被硬拒
+    （实测 cn 5/6 类目挂、nature 全过）。
+
+    库里对这种情况本来就有机制：`_halo` 的白色描边（`end_labels`/`ref_line`
+    都在用），而 QA 的对比度检查会把描边合成进背景。用白底方框不行——那会
+    在图上打一个洞，遮住底下的标记。
+    """
+    cr = _recipe("comparison_rank")
+    try:
+        apply_style(preset)
+        fig, axes = cr.facet_metrics(
+            [f"c{i}" for i in range(ncat)],
+            [("m1", [5.0] * ncat, "linear"), ("m2", [7.0] * ncat, "linear")])
+        fig.suptitle("常数指标核验")
+        stat_box(axes[0], ["实验设置"], loc="auto")
+        bad = [p for p in run_qa(fig, strict=False,
+                                allow=("axis_slack", "sparse_panel"))
+               if "对比度" in p]
+        assert not bad, f"{preset} {ncat} 类目：{bad[0][:80]}"
+    finally:
+        apply_style("cn")
