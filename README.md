@@ -88,6 +88,30 @@ save_figure(fig, "out/图名", record=record,
 # generation_script,preset,qa_status,sha256（逐格式哈希，幂等 upsert）
 ```
 
+### 期刊档（IEEE / PNAS）
+
+`journal=` 是正交于 `preset` 的交付约束档：preset 管语言与纹理，
+journal 只覆盖**有官方出处**的栏宽、字号区间与图高上限（值与出处
+登记在 `core/journals.py`，不可变 profile）。
+
+```python
+apply_style("nature", journal="ieee")   # sans 纹理 + IEEE 栏宽/字号约束
+fig, ax = new_figure("single")          # 88.9mm（IEEE 官方单栏 3.5in）
+run_qa(fig)                             # 按 IEEE 档核对：字号 8–10pt、高≤220mm
+save_figure(fig, "out/fig")             # 未过 QA 依旧 0 文件落盘
+```
+
+| 档 | 栏宽 (mm) | 字号 (pt) | 图高上限 | 约束值官方出处（复核 2026-09-01） |
+|---|---|---|---|---|
+| `ieee` | single 88.9 / double 182 | 8–10（基准 9） | 220 mm | [IEEE Author Center · Resolution and Size](https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/resolution-and-size/)、[Improve Your Graphics](https://conferences.ieeeauthorcenter.ieee.org/write-your-paper/improve-your-graphics/)、[IEEE PES 作者套件](https://ieee-pes.org/publications/authors-kit/preparation-of-a-formatted-technical-work/) |
+| `pnas` | single 90 / onehalf 110 / double 180 | 6–12（基准沿用 preset） | 220 mm | [PNAS Author Center · Submitting Your Manuscript](https://www.pnas.org/author-center/submitting-your-manuscript) |
+
+边界如实声明：IEEE/PNAS 官方**没有**背景网格、彩色文字、线宽的禁令
+或区间，这两档因此不设这三项档级检查（不造数）；这三项硬拒只属于
+`nature` 档（Nature 明文）。`journal="ieee"` 只说明"按 IEEE 官方约束
+核对过"，**调用成功不等于合规**——交付以 `run_qa` 通过为准，官方
+改版后须重核 `reviewed_on` 日期并更新注册表。
+
 每个 recipe 都能独立运行看 demo：
 
 ```bash

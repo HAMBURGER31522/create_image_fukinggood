@@ -15,20 +15,27 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 from .colors import BANNED_CMAPS, check_accessibility
-from .style import (COLUMN_WIDTHS, MAX_HEIGHT_MM, delivered_width_in,
+from .style import (COLUMN_WIDTHS, delivered_width_in,
                     font_report, font_weights, is_styled, is_draft,
-                    current_preset)
+                    current_preset, active_profile)
 from .layout import MAX_PANELS
 from . import _probe
 
-# 字号下限随档走：nature 档 Nature 规定最小 5pt；cn 档排版缩放后仍需 ≥6pt
-_MIN_FONT_BY_PRESET = {"nature": 5.0, "cn": 6.5}
-MIN_FONT_PT = 6.5          # 兼容旧引用；实际判定用 _min_font()
+# 字号下限/上限、栏宽、图高、线宽上限、网格与彩色文字许可——这些期刊
+# 交付约束现在统一从 core/journals.py 的档注册表取（journal= 显式指定
+# 优先，否则 preset 自带档），本文件不再持有第二真值源。
+MIN_FONT_PT = 6.5          # 兼容旧引用；实际判定用 active_profile()
 _TOL_MM = 3.0
 
 
-def _min_font() -> float:
-    return _MIN_FONT_BY_PRESET.get(current_preset(), MIN_FONT_PT)
+def _pt(v: float) -> str:
+    """7.0 → "7"、6.5 → "6.5"：消息文本与迁移前的硬编码字面逐字一致。"""
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def _min_font() -> float | None:
+    """当前档字号下限（注册表单源）；None = 该档无字号下限检查。"""
+    return active_profile().min_font_pt
 
 
 # 逐面板墨迹下限。recipes/comparison_rank.py 的自适应收高要照**同一个**
@@ -358,21 +365,30 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                     else:
                         problems.append(msg)
 
-    # 1. 字号下限（按档：nature 5pt / cn 6.5pt）
+    # 1. 字号上下限（按档取自期刊档注册表：nature 5–7pt / cn ≥6.5pt /
+    #    ieee 8–10pt / pnas 6–12pt）
+    prof = active_profile()
     _minpt = _min_font()
-    small = [t for t in _all_texts(fig) if t.get_fontsize() < _minpt]
-    if small:
-        problems.append(
-            f"{len(small)} 处文字字号 < {_minpt}pt，印刷不可读："
-            f"{[t.get_text()[:12] for t in small[:3]]}")
-    # nature 档还有上限：Nature 规定除面板标签(8pt)外正文最大 7pt
-    if current_preset() == "nature":
+    if _minpt is not None:
+        small = [t for t in _all_texts(fig) if t.get_fontsize() < _minpt]
+        if small:
+            problems.append(
+                f"{len(small)} 处文字字号 < {_minpt}pt，印刷不可读："
+                f"{[t.get_text()[:12] for t in small[:3]]}")
+    # 字号上限：面板标签字号高于正交上限的档（nature 8pt 标签 vs 7pt
+    # 正文）豁免小写面板字母 a–h，其余档上限 ≥ 标签字号无需豁免
+    _maxpt = prof.max_font_pt
+    if _maxpt is not None:
+        _exempt = ({chr(ord("a") + i) for i in range(MAX_PANELS)}
+                   if (prof.panel_label_size is not None
+                       and prof.panel_label_size > _maxpt) else set())
         big = [t for t in _all_texts(fig)
-               if t.get_fontsize() > 7.0 and t.get_text().strip() not in
-               {chr(ord("a") + i) for i in range(MAX_PANELS)}]
+               if t.get_fontsize() > _maxpt
+               and t.get_text().strip() not in _exempt]
         if big:
             problems.append(
-                f"{len(big)} 处文字 > 7pt，超 Nature 正文字号上限："
+                f"{len(big)} 处文字 > {_pt(_maxpt)}pt，"
+                f"超 {prof.display} 正文字号上限："
                 f"{[(t.get_text()[:10], t.get_fontsize()) for t in big[:3]]}")
 
     # 1b. 字体字重一致性——本 skill 历史上最伤观感的缺陷。
@@ -492,18 +508,20 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     #    而非 fig.get_figwidth()（裁剪前画布，与交付文件无关）
     tight = not any(getattr(a, "name", "") == "3d" for a in axes)
     w_mm = delivered_width_in(fig, tight=tight) * 25.4
-    targets = ([COLUMN_WIDTHS.get(w, w) for w in expect_width]
-               if expect_width else list(COLUMN_WIDTHS.values()))
+    _widths = prof.column_widths_mm
+    targets = ([_widths.get(w, COLUMN_WIDTHS.get(w, w))
+                if isinstance(w, str) else w for w in expect_width]
+               if expect_width else list(_widths.values()))
     if not any(abs(w_mm - t) <= _TOL_MM for t in targets):
         problems.append(
             f"交付宽 {w_mm:.0f}mm 不在{'目标' if expect_width else '标准'}档 "
             f"{targets}（±{_TOL_MM}mm）；内容溢出画布时收紧构图")
 
-    # 3c. 图高上限：Nature 明文 170mm（整页图含图注的可用高度）
+    # 3c. 图高上限（按档：nature/cn 170mm，ieee/pnas 220mm）
     h_mm = fig.get_figheight() * 25.4
-    if h_mm > MAX_HEIGHT_MM + _TOL_MM:
+    if h_mm > prof.max_height_mm + _TOL_MM:
         problems.append(
-            f"图高 {h_mm:.0f}mm 超上限 {MAX_HEIGHT_MM:.0f}mm，"
+            f"图高 {h_mm:.0f}mm 超上限 {prof.max_height_mm:.0f}mm，"
             f"减少行数或压缩面板高度")
 
     # 3d. 面板数：Nature 建议整页图 ≤6 个面板（小倍数网格是正当例外）
@@ -513,27 +531,31 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         print(f"[QA WARN] {n_panel} 个面板超 Nature 建议上限 {MAX_PANELS}——"
               f"若非小倍数网格，拆成两张图")
 
-    # 3e. 档规范：nature 档硬性对齐 Nature 官方要求
-    if current_preset() == "nature":
+    # 3e. 档规范：按当前约束档核对**官方明文**的禁令/区间。nature 档
+    #     硬性对齐 Nature 官方要求；ieee/pnas 官方页面没有网格、彩色
+    #     文字与线宽条款，这三项不造数、不设档级检查（见 journals.py）
+    if not prof.grid_allowed:
         gridded = [a for a in axes
                    if any(ln.get_visible() for ln in
                           a.get_xgridlines() + a.get_ygridlines())]
         if gridded:
             problems.append(
-                f"{len(gridded)} 个轴开着背景网格——Nature 明文 "
-                f"'No background gridlines'，nature 档必须关掉")
+                f"{len(gridded)} 个轴开着背景网格——{prof.display} 明文 "
+                f"'No background gridlines'，{prof.name} 档必须关掉")
         colored = [t.get_text()[:12] for t in _all_texts(fig)
                    if _is_colored(t.get_color())]
         if colored:
             problems.append(
-                f"{len(colored)} 处彩色文字——Nature 明文 'Avoid coloured "
+                f"{len(colored)} 处彩色文字——{prof.display} 明文 'Avoid coloured "
                 f"text'，语义改走 keyline/key（框线、标记），文字用黑色："
                 f"{colored[:3]}")
+    if prof.max_line_pt is not None:
         heavy = [ln for a in axes for ln in a.lines
-                 if ln.get_linewidth() > 1.0 + 1e-9]
+                 if ln.get_linewidth() > prof.max_line_pt + 1e-9]
         if heavy:
             problems.append(
-                f"{len(heavy)} 条线宽 > 1pt，超 Nature 线宽区间 0.25–1pt")
+                f"{len(heavy)} 条线宽 > {_pt(prof.max_line_pt)}pt，"
+                f"超 {prof.display} 线宽区间 {prof.line_range}")
 
     # 7. 可达性：分类色在三类色盲与灰度下是否仍可区分。
     #    若已用不同 marker/线型做冗余编码，灰度不可分降级为提示。

@@ -22,6 +22,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
+from .journals import JournalProfile, get_journal
 from .manifest import FigureRecord, complete_record, write_manifest
 
 MM = 1 / 25.4  # mm -> inch
@@ -141,6 +142,7 @@ _PRESETS = {
 _DRAFT_MODE = False
 _STYLE_APPLIED = False
 _PRESET = "cn"
+_JOURNAL: str | None = None   # 期刊约束档（apply_style(journal=) 设置）
 
 
 def _one_of(name: str, value, legal):
@@ -188,28 +190,47 @@ def ptx(v: float, kind: str = "font") -> float:
     if not v:
         return 0.0          # lw=0（无边框填充）与"不画文字"都是合法输入
     cfg = _PRESETS[_PRESET]
+    prof = active_profile()
     if kind == "lw":
         # cn 的 `line_width` 是**默认**线宽，不是上限——把它当上限会把森林图
         # 的粗横棒、斜率图的高亮线一律压到 1.2，而 cn 档根本没有线宽 QA
         # 检查。这与库内既有的 `_mark_lw`（cn 恒等）直接矛盾，同一个库里
-        # 不能有两套线宽政策。只有 nature 明文限 0.25–1pt，才封顶。
-        if _PRESET != "nature":
+        # 不能有两套线宽政策。只有档注册表里有线宽上限（nature 0.25–1pt）
+        # 才封顶；ieee/pnas 官方无线宽条款，不造数、不封顶。
+        if prof.max_line_pt is None:
             return float(v)
         ref = _PRESETS["cn"]["line_width"]
         out = float(v) * cfg["line_width"] / ref
-        return min(out, float(cfg["line_width"]))
+        return min(out, float(prof.max_line_pt))
     ref = _PRESETS["cn"]["base_size"]
     out = float(v) * float(plt.rcParams.get("font.size", ref)) / ref
     if kind == "pt":
         return out
-    lo = 5.0 if _PRESET == "nature" else 6.5
-    hi = 7.0 if _PRESET == "nature" else 1e9
+    lo = prof.min_font_pt if prof.min_font_pt is not None else 6.5
+    hi = prof.max_font_pt if prof.max_font_pt is not None else 1e9
     return max(lo, min(out, hi))
 
 
 def current_preset() -> str:
     """当前样式档（annotate/layout/qa 按档调整行为）。"""
     return _PRESET
+
+
+def current_journal() -> str | None:
+    """当前期刊约束档名（apply_style(journal=) 设置）。
+
+    None = 未显式选期刊档，交付约束沿用 preset 自带档（cn/nature）。
+    """
+    return _JOURNAL
+
+
+def active_profile() -> JournalProfile:
+    """当前生效的交付约束档：journal 显式指定优先，否则 preset 自带档。
+
+    qa/new_figure/ptx 的档级数值（栏宽、字号区间、线宽上限、图高、
+    网格/彩色文字许可）都从这里取，注册表是唯一真值源。
+    """
+    return get_journal(_JOURNAL) if _JOURNAL is not None else get_journal(_PRESET)
 
 
 def preset_cfg(key: str | None = None):
@@ -238,7 +259,7 @@ def is_draft() -> bool:
 
 
 def apply_style(preset: str | None = None, base_size: float | None = None,
-                draft: bool = False) -> None:
+                draft: bool = False, *, journal: str | None = None) -> None:
     """应用样式档。preset ∈ {"cn", "nature"}；base_size 覆盖档内默认字号。
 
     preset=None 时读环境变量 `FF_PRESET`，缺省 "cn"。**档位选择必须在库里**：
@@ -250,18 +271,46 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
     cn 档 9pt，适配 A4 中文论文缩放后的可读性。
     draft=True 为 72h 赛时草稿档：降 dpi、save_figure 只出 PNG，
     交付前必须用默认档重出一遍。
+
+    journal="ieee"/"pnas" 叠加期刊交付约束档（core/journals.py，正交于
+    preset：preset 管语言与纹理，journal 只覆盖有官方出处的栏宽/字号/
+    图高）。journal=None（缺省）逐 rcParam、逐像素保持既有行为；重复
+    调用 apply_style 会重置 journal——每次调用定义完整样式态。档内
+    base_font_pt 只在未显式给 base_size 时生效；图题字号夹进该档字号
+    区间，刻度/图例字号不落到下限之下。
     """
-    global _DRAFT_MODE, _STYLE_APPLIED, _PRESET
+    global _DRAFT_MODE, _STYLE_APPLIED, _PRESET, _JOURNAL
     if preset is None:
         preset = _os.environ.get("FF_PRESET", "cn")
     if preset not in _PRESETS:
         raise ValueError(f"未知样式档 '{preset}'，可选：{sorted(_PRESETS)}")
+    # 未知期刊档在 apply_style 这一层就报（带合法档名与出处指引），
+    # 不等画完图 run_qa 才发现
+    prof = get_journal(journal) if journal is not None else None
     _DRAFT_MODE, _STYLE_APPLIED, _PRESET = draft, True, preset
+    _JOURNAL = journal
     cfg = _PRESETS[preset]
     bs = cfg["base_size"] if base_size is None else base_size
-    if preset == "nature" and bs > 7.0:
+    if prof is not None and prof.base_font_pt is not None \
+            and base_size is None:
+        bs = prof.base_font_pt
+    if journal is None and preset == "nature" and bs > 7.0:
         print(f"[style WARN] nature 档正文字号上限 7pt，收到 {bs}pt —— "
               f"Nature 会退稿重排，确认是有意为之")
+    if journal is None:
+        title_size = cfg["title_size"]
+        tick_size, legend_size = bs - 1, bs - 1.5
+    else:
+        # 期刊档激活：字号全部夹进该档官方区间。图题按基准字号等比
+        # 缩放（cn 10.5/9 在 nature 纹理下是 7/7，切到别的基准要跟着
+        # 走），再夹进 [min, max]；刻度/图例同层正文，不低于下限。
+        title_size = cfg["title_size"] * bs / cfg["base_size"]
+        if prof.min_font_pt is not None:
+            title_size = max(title_size, prof.min_font_pt)
+        if prof.max_font_pt is not None:
+            title_size = min(title_size, prof.max_font_pt)
+        floor = prof.min_font_pt if prof.min_font_pt is not None else 0.0
+        tick_size, legend_size = max(bs - 1, floor), max(bs - 1.5, floor)
     fonts = _resolve_fonts(preset)
     mpl.rcParams.update({
         # 直接给列表才能触发逐字符回退（拉丁用拉丁字体、中文用 CJK 字体）
@@ -272,14 +321,15 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
         "font.size": bs,
 
         "axes.labelsize": bs,
-        "xtick.labelsize": bs - 1,
-        "ytick.labelsize": bs - 1,
-        "legend.fontsize": bs - 1.5,
+        "xtick.labelsize": tick_size,
+        "ytick.labelsize": tick_size,
+        "legend.fontsize": legend_size,
         # figure.titlesize 留在 matplotlib 默认 "large"（= 1.2×base）时，
         # nature 档 base=7 会渲染成 8.4pt，而 run_qa 硬拒 >7pt——不加图题
         # 又报"无图题"，该档实际不可用。两个标题字号都必须显式定死。
-        "figure.titlesize": cfg["title_size"],
-        "axes.titlesize": cfg["title_size"],
+        # （journal=None 时即 preset 原值；期刊档激活时按官方区间夹取）
+        "figure.titlesize": title_size,
+        "axes.titlesize": title_size,
         "axes.linewidth": cfg["axes_lw"],
         "xtick.major.width": cfg["axes_lw"], "ytick.major.width": cfg["axes_lw"],
         "xtick.major.size": 2.5, "ytick.major.size": 2.5,
@@ -308,19 +358,39 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
 
 def new_figure(width: str | float = "onehalf", ratio: float = 0.62,
                **kwargs):
-    """按栏宽建图。width 取 COLUMN_WIDTHS 键名或 mm 数值；ratio=高/宽。"""
+    """按栏宽建图。width 取栏宽键名或 mm 数值；ratio=高/宽。
+
+    journal=None 时键名走 COLUMN_WIDTHS（既有行为）；期刊档激活时键名
+    走该档官方栏宽（如 ieee 只有 single/double，传 onehalf 直接报错
+    ——静默落回 136mm 会让 QA 宽度检查莫名爆红，报错当场就改）。
+    """
     if isinstance(width, str):
-        if width not in COLUMN_WIDTHS:
-            raise ValueError(
-                f"未知栏宽 '{width}'，可选：{sorted(COLUMN_WIDTHS)} 或 mm 数值")
-        w_mm = COLUMN_WIDTHS[width]
+        if _JOURNAL is not None:
+            jw = get_journal(_JOURNAL).column_widths_mm
+            if width not in jw:
+                raise ValueError(
+                    f"未知栏宽 '{width}'（当前期刊档 '{_JOURNAL}'），"
+                    f"可用：{sorted(jw)} 或 mm 数值——官方栏宽与出处见 "
+                    f"core/journals.py")
+            w_mm = jw[width]
+        else:
+            if width not in COLUMN_WIDTHS:
+                raise ValueError(
+                    f"未知栏宽 '{width}'，可选：{sorted(COLUMN_WIDTHS)} 或 mm 数值")
+            w_mm = COLUMN_WIDTHS[width]
     else:
         w_mm = width
     h_mm = w_mm * ratio
-    if h_mm > MAX_HEIGHT_MM:
-        print(f"[style WARN] 图高 {h_mm:.0f}mm 超 Nature 上限 "
-              f"{MAX_HEIGHT_MM:.0f}mm，收 ratio 到 "
-              f"{MAX_HEIGHT_MM / w_mm:.2f} 以内")
+    cap = (MAX_HEIGHT_MM if _JOURNAL is None
+           else get_journal(_JOURNAL).max_height_mm)
+    if h_mm > cap:
+        if _JOURNAL is None:
+            print(f"[style WARN] 图高 {h_mm:.0f}mm 超 Nature 上限 "
+                  f"{MAX_HEIGHT_MM:.0f}mm，收 ratio 到 "
+                  f"{MAX_HEIGHT_MM / w_mm:.2f} 以内")
+        else:
+            print(f"[style WARN] 图高 {h_mm:.0f}mm 超期刊档 '{_JOURNAL}' "
+                  f"上限 {cap:.0f}mm，收 ratio 到 {cap / w_mm:.2f} 以内")
     figsize = (w_mm * MM, h_mm * MM)
     return plt.subplots(figsize=figsize, **kwargs)
 
@@ -401,7 +471,9 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
                   f"{bb.width * 25.4:.0f} > {target * 25.4:.0f} mm")
         if not exact_width:
             w_mm = bb.width * 25.4
-            if not any(abs(w_mm - t) <= 3 for t in COLUMN_WIDTHS.values()):
+            _targets = (get_journal(_JOURNAL).column_widths_mm.values()
+                        if _JOURNAL is not None else COLUMN_WIDTHS.values())
+            if not any(abs(w_mm - t) <= 3 for t in _targets):
                 print(f"[style WARN] exact_width=False 且落盘宽 {w_mm:.0f}mm "
                       f"不是标准栏宽，字号契约不成立")
         bbox = bb

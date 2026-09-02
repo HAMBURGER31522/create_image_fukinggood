@@ -134,6 +134,31 @@ ax.plot(x, y, "o", markersize=ptx(3.5, "pt"))  # 纯比例，不加钳制
 matplotlib 会拿它当 Regular，中文全渲染成粗黑块紧挨 400 字重的拉丁数字——
 看起来像渲染坏了。`apply_style` 自动跳过并打印提示，`run_qa` 复查。
 
+### 3b-2. 期刊档：`apply_style(preset, journal="ieee" | "pnas")`
+
+投 IEEE / PNAS 时叠加**期刊交付约束档**：`journal=` 与 `preset=` 正交
+（preset 管语言与纹理，journal 只覆盖有官方出处的栏宽/字号/图高；
+`journal=None` 缺省时沿用 preset 自带约束，行为与此前逐像素一致）。
+约束值全部登记在 `core/journals.py` 的不可变 profile 里，逐项带官方
+URL 与复核日期（`reviewed_on`），官方改版后重核再更新。
+
+| 档 | 栏宽 (mm) | 字号 (pt) | 图高上限 | 官方出处（复核 2026-09-01） |
+|---|---|---|---|---|
+| `ieee` | single 88.9 / double 182（官方无 1.5 栏） | 8–10（基准 9） | 220 mm | [Resolution and Size（IEEE Author Center）](https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/create-graphics-for-your-article/resolution-and-size/)、[Improve Your Graphics](https://conferences.ieeeauthorcenter.ieee.org/write-your-paper/improve-your-graphics/)、[IEEE PES 作者套件](https://ieee-pes.org/publications/authors-kit/preparation-of-a-formatted-technical-work/) |
+| `pnas` | single 90 / onehalf 110 / double 180 | 6–12（基准沿用 preset） | 220 mm | [Submitting Your Manuscript（PNAS Author Center）](https://www.pnas.org/author-center/submitting-your-manuscript) |
+
+```python
+apply_style("nature", journal="ieee")   # sans 纹理 + IEEE 约束
+fig, ax = new_figure("single")          # 88.9mm；传 "onehalf" 会直接报错
+run_qa(fig)                             # 字号/宽度/图高按 IEEE 档核对
+save_figure(fig, "out/fig")
+```
+
+边界如实声明：IEEE / PNAS 官方**没有**背景网格、彩色文字、线宽的禁令
+或区间——这两档不设这三项档级检查（不造数），这三项硬拒只属于
+`nature` 档。`journal="ieee"` 表示"按 IEEE 官方约束核对过"，
+**调用成功不等于合规，`run_qa` 通过才算**。
+
 ### 3c. 视觉层次：饱和度必须跟着重要性走
 
 Nature 艺术编辑的核心原则：**最重要的元素饱和度最高，背景元素用中性色**。
