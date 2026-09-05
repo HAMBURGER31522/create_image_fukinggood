@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 
 from .colors import BANNED_CMAPS, check_accessibility
-from .style import (COLUMN_WIDTHS, delivered_width_in,
+from .style import (column_width_mm, column_widths, delivered_width_in,
                     font_report, font_weights, is_styled, is_draft,
                     current_preset, active_profile)
 from .layout import MAX_PANELS
@@ -118,6 +118,7 @@ _ALLOW_CODES = frozenset({
     "unexplained_band", "number_conflict", "duplicate_series",
     "clim_mismatch", "axis_slack", "sparse_line", "unit_axis_range",
     "incommensurable", "text_contrast", "sparse_panel", "nonfinite_text",
+    "journal_height", "journal_font_range",
 })
 
 
@@ -131,9 +132,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     allow: 显式豁免的硬拒绝项，如 ("grouped_bars",)——仅限
     taxonomy 允许的场景（同单位、≤4 组）。可用码：
     grouped_bars / unsourced / overlap / accessibility /
-    unexplained_band / number_conflict / duplicate_series /
-    clim_mismatch / axis_slack / sparse_line / unit_axis_range /
-    incommensurable / text_contrast / sparse_panel / nonfinite_text。
+     unexplained_band / number_conflict / duplicate_series /
+     clim_mismatch / axis_slack / sparse_line / unit_axis_range /
+     incommensurable / text_contrast / sparse_panel / nonfinite_text /
+     journal_height / journal_font_range。
     未知的码直接抛错（拼错时静默无效比报错更伤）。
     豁免会记入 fig._ff_qa_waived 并标进文件名。
     """
@@ -155,6 +157,19 @@ def run_qa(fig, expect_width=None, strict: bool = True,
 
     problems: list[str] = []
     _waived: list[str] = []
+    _waived_codes: list[str] = []
+
+    from .style import revoke_qa_passed
+    revoke_qa_passed(fig)
+    for _attr in ("_ff_qa_waived", "_ff_qa_waived_codes"):
+        if hasattr(fig, _attr):
+            delattr(fig, _attr)
+
+    def _waive(msg: str, code: str) -> None:
+        _waived.append(msg)
+        if code not in _waived_codes:
+            _waived_codes.append(code)
+        print(f"[QA WAIVED] {msg}")
 
     def _hard(msg: str, code: str) -> None:
         """硬错，但留 allow 豁免位。
@@ -163,8 +178,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
         文件名标成 _QAWAIVED——豁免留痕，不会悄悄混进交付物。
         """
         if code in allow:
-            _waived.append(msg)
-            print(f"[QA WAIVED] {msg}")
+            _waive(msg, code)
         else:
             problems.append(msg)
 
@@ -180,10 +194,8 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     for _w in (expect_width or ()):
         # 未知档名此前也走 `COLUMN_WIDTHS.get(w, w)` 兜底，最后炸在
         # numpy 的 UFuncTypeError 上——同 layout._width_mm 的老毛病。
-        if isinstance(_w, str) and _w not in COLUMN_WIDTHS:
-            raise ValueError(
-                f"未知的 expect_width {_w!r}，可选：{sorted(COLUMN_WIDTHS)} "
-                f"或直接给 mm 数值")
+        if isinstance(_w, str):
+            column_width_mm(_w)
 
     # 0. 图题数字溯源（有 _ff_stats/sourced 才查；只警告不阻断——
     #    差值/比率等合法派生数字无法穷举，误杀比漏报更伤）
@@ -359,11 +371,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 if not any(abs(num - v) <= tol(v) for v in vals):
                     msg = (f"数字 {tok} 未溯源到计算变量（疑似手写常数）："
                            f"…{txt[:26]}")
-                    if "unsourced" in allow:
-                        _waived.append(msg)
-                        print(f"[QA WAIVED] {msg}")
-                    else:
-                        problems.append(msg)
+                    _hard(msg, "unsourced")
 
     # 1. 字号上下限（按档取自期刊档注册表：nature 5–7pt / cn ≥6.5pt /
     #    ieee 8–10pt / pnas 6–12pt）
@@ -372,9 +380,10 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     if _minpt is not None:
         small = [t for t in _all_texts(fig) if t.get_fontsize() < _minpt]
         if small:
-            problems.append(
+            _hard(
                 f"{len(small)} 处文字字号 < {_minpt}pt，印刷不可读："
-                f"{[t.get_text()[:12] for t in small[:3]]}")
+                f"{[t.get_text()[:12] for t in small[:3]]}",
+                "journal_font_range")
     # 字号上限：面板标签字号高于正交上限的档（nature 8pt 标签 vs 7pt
     # 正文）豁免小写面板字母 a–h，其余档上限 ≥ 标签字号无需豁免
     _maxpt = prof.max_font_pt
@@ -386,10 +395,11 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                if t.get_fontsize() > _maxpt
                and t.get_text().strip() not in _exempt]
         if big:
-            problems.append(
+            _hard(
                 f"{len(big)} 处文字 > {_pt(_maxpt)}pt，"
                 f"超 {prof.display} 正文字号上限："
-                f"{[(t.get_text()[:10], t.get_fontsize()) for t in big[:3]]}")
+                f"{[(t.get_text()[:10], t.get_fontsize()) for t in big[:3]]}",
+                "journal_font_range")
 
     # 1b. 字体字重一致性——本 skill 历史上最伤观感的缺陷。
     #     思源系列常只装 Heavy(900) 一个字面，matplotlib 拿它当 Regular，
@@ -508,10 +518,9 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     #    而非 fig.get_figwidth()（裁剪前画布，与交付文件无关）
     tight = not any(getattr(a, "name", "") == "3d" for a in axes)
     w_mm = delivered_width_in(fig, tight=tight) * 25.4
-    _widths = prof.column_widths_mm
-    targets = ([_widths.get(w, COLUMN_WIDTHS.get(w, w))
-                if isinstance(w, str) else w for w in expect_width]
-               if expect_width else list(_widths.values()))
+    targets = ([column_width_mm(w) if isinstance(w, str) else w
+                for w in expect_width]
+               if expect_width else list(column_widths().values()))
     if not any(abs(w_mm - t) <= _TOL_MM for t in targets):
         problems.append(
             f"交付宽 {w_mm:.0f}mm 不在{'目标' if expect_width else '标准'}档 "
@@ -520,9 +529,9 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     # 3c. 图高上限（按档：nature/cn 170mm，ieee/pnas 220mm）
     h_mm = fig.get_figheight() * 25.4
     if h_mm > prof.max_height_mm + _TOL_MM:
-        problems.append(
+        _hard(
             f"图高 {h_mm:.0f}mm 超上限 {prof.max_height_mm:.0f}mm，"
-            f"减少行数或压缩面板高度")
+            f"减少行数或压缩面板高度", "journal_height")
 
     # 3d. 面板数：Nature 建议整页图 ≤6 个面板（小倍数网格是正当例外）
     n_panel = sum(1 for a in axes
@@ -811,8 +820,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
 
     def _hit(msg):
         if "overlap" in allow:
-            _waived.append(msg)
-            print(f"[QA WAIVED] {msg}")
+            _waive(msg, "overlap")
         else:
             problems.append(msg)
 
@@ -1860,6 +1868,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
 
     if _waived:
         fig._ff_qa_waived = list(_waived)
+        fig._ff_qa_waived_codes = list(_waived_codes)
 
     if problems and strict:
         raise AssertionError("QA FAILED:\n- " + "\n- ".join(problems))

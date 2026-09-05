@@ -1,6 +1,7 @@
 from .style import (apply_style, MM, COLUMN_WIDTHS, MAX_HEIGHT_MM,
                     new_figure, save_figure, current_preset, current_journal,
-                    preset_cfg, font_report, font_weights, ptx)
+                    preset_cfg, font_report, font_weights, ptx,
+                    column_widths, column_width_mm)
 from .journals import JournalProfile, get_journal
 from .colors import (OKABE_ITO, PALETTE, PALETTE_MUTED, MARKERS, LINESTYLES,
                      cmap_for, semantic, truncate_cmap, categorical,
@@ -18,7 +19,7 @@ from .manifest import FigureRecord
 __all__ = [
     "apply_style", "MM", "COLUMN_WIDTHS", "MAX_HEIGHT_MM", "new_figure",
     "save_figure", "current_preset", "current_journal", "preset_cfg",
-    "font_report", "font_weights", "ptx",
+    "font_report", "font_weights", "ptx", "column_widths", "column_width_mm",
     "JournalProfile", "get_journal",
     "OKABE_ITO", "PALETTE", "PALETTE_MUTED", "MARKERS", "LINESTYLES",
     "cmap_for", "semantic", "truncate_cmap", "categorical",

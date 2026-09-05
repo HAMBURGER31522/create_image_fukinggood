@@ -11,6 +11,8 @@ import csv
 import dataclasses
 import hashlib
 import json
+import os
+import subprocess
 import sys
 import pathlib
 
@@ -144,6 +146,26 @@ def test_force_save_without_qa_writes_no_row(tmp_path, monkeypatch, capsys):
     assert "不入台账" in capsys.readouterr().out
 
 
+def test_qa_pass_registry_releases_collected_figures(monkeypatch):
+    """QA 资格随 Figure 生命周期结束，不能靠可复用的 id 长存。"""
+    import gc
+    import weakref
+    import core.style as style
+
+    style._QA_PASSED.clear()
+    fig, ax = new_figure("single")
+    style.mark_qa_passed(fig)
+    assert len(style._QA_PASSED) == 1
+
+    ref = weakref.ref(fig)
+    plt.close(fig)
+    del fig, ax
+    gc.collect()
+
+    assert ref() is None
+    assert len(style._QA_PASSED) == 0
+
+
 def test_force_save_keeps_existing_rows_parseable(tmp_path, monkeypatch):
     fig = _clean_fig()
     mpath = tmp_path / "figure_manifest.csv"
@@ -210,6 +232,67 @@ def test_default_save_figure_unchanged(tmp_path):
     assert not list(tmp_path.rglob("*manifest*"))
 
 
+def test_repeated_svg_and_pdf_exports_are_byte_stable(tmp_path):
+    fig = _clean_fig()
+    first = save_figure(fig, str(tmp_path / "first"), formats=("svg", "pdf"))
+    second = save_figure(fig, str(tmp_path / "second"), formats=("svg", "pdf"))
+    for left, right in zip(first, second):
+        assert pathlib.Path(left).read_bytes() == pathlib.Path(right).read_bytes()
+
+
+def test_manifest_records_qa_waiver_codes(tmp_path):
+    rng = np.random.default_rng(11)
+    fig, ax = new_figure("single")
+    ax.scatter(np.full(200, 5.0), rng.normal(size=200), s=18)
+    ax.set_title("常数轴的分布结论")
+    ax.text(0.05, 0.95, "样本充分", transform=ax.transAxes, va="top",
+            bbox=dict(boxstyle="round", fc="white", ec="0.4"))
+    problems = run_qa(fig, strict=False, allow=("axis_slack",))
+    assert not any("常数" in p for p in problems)
+    assert any("常数" in p for p in getattr(fig, "_ff_qa_waived", []))
+
+    mpath = tmp_path / "figure_manifest.csv"
+    save_figure(fig, str(tmp_path / "waived"), formats=("png",),
+                record=_record("waived"), manifest_path=str(mpath))
+    row = _read(mpath)[0]
+    assert row["qa_status"] == "waived:axis_slack"
+
+
+@pytest.mark.parametrize("waiver, title, sourced, expected", [
+    ("unsourced", "结果 999", {"known": 1.0}, "waived:unsourced"),
+    ("overlap", "重叠标注结论", None, "waived:overlap"),
+])
+def test_manifest_records_legacy_qa_waiver_codes(
+        tmp_path, waiver, title, sourced, expected):
+    fig = _clean_fig()
+    ax = fig.axes[0]
+    ax.set_title(title)
+    if sourced is not None:
+        fig._ff_stats = sourced
+    if waiver == "overlap":
+        ax.annotate("A", xy=(0.5, 0.5))
+        ax.annotate("B", xy=(0.5, 0.5))
+
+    problems = run_qa(fig, strict=False, allow=(waiver,))
+    assert not any(title[:2] in p or waiver in p for p in problems)
+    assert getattr(fig, "_ff_qa_waived_codes") == [waiver]
+
+    mpath = tmp_path / f"{waiver}.csv"
+    save_figure(fig, str(tmp_path / waiver), formats=("png",),
+                record=_record(waiver), manifest_path=str(mpath))
+    assert _read(mpath)[0]["qa_status"] == expected
+
+
+def test_failed_qa_revokes_previous_save_qualification(tmp_path):
+    fig = _clean_fig()
+    ax = fig.axes[0]
+    ax.text(0.2, 0.2, "过小", fontsize=4.0)
+    problems = run_qa(fig, strict=False)
+    assert any("字号" in p for p in problems)
+    with pytest.raises(RuntimeError):
+        save_figure(fig, str(tmp_path / "stale"), formats=("png",))
+
+
 def test_record_and_manifest_path_must_come_together(tmp_path):
     fig = _clean_fig()
     with pytest.raises(ValueError):
@@ -273,6 +356,66 @@ def test_complete_record_prefers_pdf_and_posix_relpath(tmp_path):
     assert done.path == "../figs/t1.pdf"
     assert done.formats == ("png", "svg", "pdf")
     assert done.qa_status == "passed"
+
+
+def test_complete_record_rejects_cross_drive_paths(tmp_path, monkeypatch):
+    import core.manifest as manifest
+
+    out = tmp_path / "deliver" / "fig.pdf"
+    out.parent.mkdir()
+    out.write_bytes(b"pdf")
+    record = _record("cross-drive")
+
+    def cross_drive(*args):
+        raise ValueError("path is on a different drive")
+
+    monkeypatch.setattr(manifest.os.path, "relpath", cross_drive)
+    with pytest.raises(ValueError) as ei:
+        complete_record(record, [str(out)],
+                        manifest_path=str(tmp_path / "ledger" / "manifest.csv"),
+                        preset="cn")
+    msg = str(ei.value)
+    assert "同一盘" in msg
+    assert str(out.resolve()) in msg
+    assert str((tmp_path / "ledger").resolve()) in msg
+
+
+def test_two_process_manifest_writers_keep_all_rows(tmp_path):
+    mpath = tmp_path / "figure_manifest.csv"
+    root = pathlib.Path(__file__).resolve().parents[1]
+    child = r'''
+import pathlib
+import sys
+sys.path.insert(0, sys.argv[2])
+from core.manifest import FigureRecord, write_manifest
+
+manifest = sys.argv[1]
+prefix = sys.argv[3]
+for i in range(20):
+    fid = f"{prefix}_{i:02d}"
+    write_manifest(
+        FigureRecord(id=fid, claim="并发写入", source_data=("d.csv",),
+                     generation_script="child.py", path=f"{fid}.png",
+                     formats=("png",), preset="cn", qa_status="passed",
+                     sha256="{}"),
+        manifest)
+    '''
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    children = [
+        subprocess.Popen([sys.executable, "-c", child, str(mpath),
+                          str(root), prefix],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, encoding="utf-8", env=env)
+        for prefix in ("left", "right")
+    ]
+    results = [p.communicate(timeout=60) for p in children]
+    assert all(p.returncode == 0 for p in children), results
+    rows = _read(mpath)
+    assert len(rows) == 40
+    assert {row["id"] for row in rows} == {
+        f"{prefix}_{i:02d}" for prefix in ("left", "right") for i in range(20)
+    }
 
 
 # --- 验收 5：华数杯 A 题真实 8 个 ID 的集成 ------------------------------

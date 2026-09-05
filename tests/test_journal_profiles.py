@@ -30,7 +30,7 @@ import pytest
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from core import (apply_style, new_figure, run_qa, save_figure,       # noqa: E402
                   current_preset, current_journal, get_journal,
-                  COLUMN_WIDTHS, ptx)
+                  COLUMN_WIDTHS, ptx, stat_box)
 from core.journals import JOURNALS, JournalProfile                    # noqa: E402
 
 
@@ -197,10 +197,36 @@ def test_unknown_journal_raises_with_legal_names_and_source_doc():
         get_journal("nature-journal")
 
 
+@pytest.mark.parametrize("bad", [["ieee"], "IEEE"])
+def test_journal_enum_boundaries_use_project_value_error(bad):
+    with pytest.raises(ValueError) as ei:
+        apply_style("cn", journal=bad)
+    msg = str(ei.value)
+    assert "apply_style(journal=)" in msg
+    assert "ieee" in msg and "pnas" in msg
+
+    with pytest.raises(ValueError) as ei:
+        get_journal(bad)
+    assert "ieee" in str(ei.value) and "pnas" in str(ei.value)
+
+
 def test_profiles_are_immutable():
     p = get_journal("ieee")
     with pytest.raises(Exception):
         p.min_font_pt = 5.0
+
+
+def test_profile_column_width_mapping_is_immutable_and_registry_stays_clean():
+    p = get_journal("ieee")
+    before = p.column_widths_mm["single"]
+    with pytest.raises(TypeError):
+        p.column_widths_mm["single"] = 1.0
+    assert p.column_widths_mm["single"] == before == 88.9
+    assert JOURNALS["ieee"].column_widths_mm["single"] == 88.9
+
+    apply_style("cn", journal="ieee")
+    fig, _ = new_figure("single")
+    assert fig.get_figwidth() * 25.4 == pytest.approx(88.9, abs=1e-6)
 
 
 # === 2. apply_style 集成 ================================================
@@ -266,6 +292,75 @@ def test_new_figure_numeric_width_passthrough_under_journal():
     apply_style("cn", journal="ieee")
     fig, _ = new_figure(150.0)                 # 显式 mm 数值不受档名限制
     assert fig.get_figwidth() * 25.4 == pytest.approx(150.0)
+
+
+@pytest.mark.parametrize("journal", [None, "nature", "cn", "ieee", "pnas"])
+@pytest.mark.parametrize("width", ["single", "onehalf", "double", "cn"])
+def test_all_layout_width_entries_share_the_active_journal_policy(journal, width):
+    """三个构图入口对同一档名必须同值，或同样拒绝未定义档名。"""
+    from core.layout import figure as layout_figure
+    from core.layout import small_multiples
+
+    apply_style("cn", journal=journal)
+    outcomes = []
+    for make in (
+        lambda: new_figure(width),
+        lambda: layout_figure([["a"]], width=width, height=30, label=False),
+        lambda: small_multiples(1, ncols=1, width=width, ratio=0.5),
+    ):
+        try:
+            made = make()
+            fig = made[0]
+            outcomes.append(("value", fig.get_figwidth() * 25.4))
+            plt.close(fig)
+        except ValueError as exc:
+            outcomes.append(("error", type(exc), str(exc)))
+
+    kinds = {item[0] for item in outcomes}
+    assert len(kinds) == 1, outcomes
+    if kinds == {"value"}:
+        assert outcomes[0][1] == pytest.approx(outcomes[1][1])
+        assert outcomes[0][1] == pytest.approx(outcomes[2][1])
+    else:
+        assert all(item[1] is ValueError for item in outcomes)
+        assert all(width in item[2] for item in outcomes)
+
+
+def test_layout_uses_active_journal_height_cap():
+    from core.layout import figure as layout_figure
+
+    apply_style("cn", journal="pnas")
+    fig, _ = layout_figure([["a"]], width="single", height=210,
+                            label=False)
+    assert fig.get_figheight() * 25.4 == pytest.approx(210.0, abs=1e-6)
+
+
+def test_journal_nature_constraints_are_applied_over_cn_preset():
+    apply_style("cn", journal="nature")
+    fig, ax = new_figure("single", ratio=0.7)
+    ax.scatter(np.arange(200), np.arange(200), s=12)
+    ax.set_title("响应在 x=1.6 处达峰")
+    stat_box(ax, ["n = 120"])
+
+    assert plt.rcParams["axes.grid"] is False
+    assert plt.rcParams["lines.linewidth"] <= 1.0
+    assert run_qa(fig, strict=True) == []
+
+
+def test_ieee_journal_does_not_reapply_nature_constraints(capsys):
+    apply_style("nature", journal="ieee")
+    fig, ax = new_figure("single", ratio=0.7)
+    ax.scatter(np.arange(200), np.arange(200), s=12)
+    ax.set_title("Response peaks at x=1.6")
+    stat_box(ax, ["n = 120"])
+    ax.grid(True)
+
+    problems = run_qa(fig, strict=False)
+    assert not any("背景网格" in p or "彩色文字" in p or "线宽 >" in p
+                   for p in problems)
+    note = capsys.readouterr().out
+    assert "journal='ieee'" in note
+    assert "三项不再检查" in note
 
 
 # === 4. run_qa 期刊约束 =================================================
@@ -338,6 +433,31 @@ def test_journal_height_cap():
     fig, ax = new_figure(90.0, ratio=180 / 90)
     ax.plot(np.linspace(0, 1, 10), np.linspace(0, 1, 10))
     assert hit(fig, "超上限 170mm")
+
+
+def test_journal_height_has_explicit_allow_code():
+    apply_style("cn", journal="pnas")
+    fig, ax = new_figure(90.0, ratio=230 / 90)
+    ax.plot(np.linspace(0, 1, 10), np.linspace(0, 1, 10))
+    assert hit(fig, "超上限 220mm")
+
+    waived = run_qa(fig, strict=False, allow=("journal_height",))
+    assert not any("超上限 220mm" in p for p in waived)
+    assert any("超上限 220mm" in p
+               for p in getattr(fig, "_ff_qa_waived", []))
+
+
+def test_journal_font_range_has_explicit_allow_code():
+    apply_style("cn", journal="ieee")
+    fig, ax = new_figure("single")
+    ax.plot(np.linspace(0, 1, 10), np.linspace(0, 1, 10))
+    ax.text(0.1, 0.5, "过小", fontsize=7.5)
+    assert hit(fig, "字号 < 8.0pt")
+
+    waived = run_qa(fig, strict=False, allow=("journal_font_range",))
+    assert not any("字号 < 8.0pt" in p for p in waived)
+    assert any("字号 < 8.0pt" in p
+               for p in getattr(fig, "_ff_qa_waived", []))
 
 
 def test_journal_allows_grid_colored_text_and_thick_lines():

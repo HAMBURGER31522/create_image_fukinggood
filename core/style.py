@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import os as _os
+import weakref
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
-from .journals import JournalProfile, get_journal
+from .journals import JournalProfile, get_journal, journal_names
 from .manifest import FigureRecord, complete_record, write_manifest
 
 MM = 1 / 25.4  # mm -> inch
@@ -30,7 +31,7 @@ MM = 1 / 25.4  # mm -> inch
 # Nature 系栏宽；"cn" 为中文数模 A4 正文常用图宽
 COLUMN_WIDTHS = {"single": 89, "onehalf": 136, "double": 183, "cn": 150}
 
-# Nature 明文上限：图高不得超过 170 mm（整页图含图注的可用高度）
+# 本库 Nature 档推导上限：图高不得超过 170 mm（整页可用高度）
 MAX_HEIGHT_MM = 170.0
 
 # ---------------------------------------------------------------- 字体候选
@@ -233,6 +234,30 @@ def active_profile() -> JournalProfile:
     return get_journal(_JOURNAL) if _JOURNAL is not None else get_journal(_PRESET)
 
 
+def column_widths() -> dict:
+    """当前生效档的栏宽表。"""
+    return dict(active_profile().column_widths_mm)
+
+
+def column_width_mm(key: str) -> float:
+    """按当前生效档把栏宽键名解析为 mm。
+
+    报错必须带上「当前哪个档」：期刊档激活时合法键会变少（IEEE 没有
+    1.5 栏），只说「可选 ['double','single']」的话，用户看着自己写了
+    多轮的 'onehalf' 突然非法，不知道是档换了还是拼错了。
+    """
+    widths = column_widths()
+    if key not in widths:
+        where = (f"（当前期刊档 {_JOURNAL!r}）" if _JOURNAL is not None
+                 else f"（当前 preset {_PRESET!r}）")
+        src = ("——官方栏宽与出处见 core/journals.py"
+               if _JOURNAL is not None else "")
+        raise ValueError(
+            f"未知栏宽 {key!r}{where}，可选：{sorted(widths)} "
+            f"或直接给 mm 数值{src}")
+    return widths[key]
+
+
 def preset_cfg(key: str | None = None):
     cfg = _PRESETS[_PRESET]
     return cfg[key] if key else dict(cfg)
@@ -247,10 +272,11 @@ def is_styled() -> bool:
     if not _STYLE_APPLIED:
         return False
     cfg = _PRESETS[_PRESET]
+    expected_grid = (cfg["grid"] if active_profile().grid_allowed else False)
     return (mpl.rcParams["axes.spines.top"] is False
             and mpl.rcParams["mathtext.fontset"] == cfg["mathtext"]
             and mpl.rcParams["savefig.pad_inches"] == 0.02
-            and mpl.rcParams["axes.grid"] is cfg["grid"])
+            and mpl.rcParams["axes.grid"] is expected_grid)
 
 
 def is_draft() -> bool:
@@ -273,8 +299,9 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
     交付前必须用默认档重出一遍。
 
     journal="ieee"/"pnas" 叠加期刊交付约束档（core/journals.py，正交于
-    preset：preset 管语言与纹理，journal 只覆盖有官方出处的栏宽/字号/
-    图高）。journal=None（缺省）逐 rcParam、逐像素保持既有行为；重复
+    preset：preset 管语言与纹理，journal 接管该档有出处的整套约束（栏宽、
+    字号、图高以及适用的网格/彩字/线宽条款）。journal=None（缺省）逐
+    rcParam、逐像素保持既有行为；重复
     调用 apply_style 会重置 journal——每次调用定义完整样式态。档内
     base_font_pt 只在未显式给 base_size 时生效；图题字号夹进该档字号
     区间，刻度/图例字号不落到下限之下。
@@ -286,7 +313,14 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
         raise ValueError(f"未知样式档 '{preset}'，可选：{sorted(_PRESETS)}")
     # 未知期刊档在 apply_style 这一层就报（带合法档名与出处指引），
     # 不等画完图 run_qa 才发现
-    prof = get_journal(journal) if journal is not None else None
+    if journal is not None:
+        try:
+            _one_of("apply_style(journal=)", journal, tuple(journal_names()))
+        except ValueError as exc:
+            raise ValueError(f"{exc}；期刊枚举及出处见 core/journals.py") from exc
+        prof = get_journal(journal)
+    else:
+        prof = None
     _DRAFT_MODE, _STYLE_APPLIED, _PRESET = draft, True, preset
     _JOURNAL = journal
     cfg = _PRESETS[preset]
@@ -351,9 +385,24 @@ def apply_style(preset: str | None = None, base_size: float | None = None,
         "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
         # TrueType 2/42 内嵌，Nature 明确禁止 Type 3
         "pdf.fonttype": 42, "ps.fonttype": 42, "svg.fonttype": "none",
+        "svg.hashsalt": "figure-forge-v1",
         "axes.axisbelow": True,
         "mathtext.fontset": cfg["mathtext"],
     })
+    if prof is not None:
+        if not prof.grid_allowed:
+            mpl.rcParams["axes.grid"] = False
+        if prof.max_line_pt is not None:
+            mpl.rcParams["lines.linewidth"] = min(
+                float(cfg["line_width"]), float(prof.max_line_pt))
+        if not prof.colored_text_allowed:
+            for key in ("text.color", "axes.labelcolor", "xtick.color",
+                        "ytick.color"):
+                mpl.rcParams[key] = "black"
+        if preset == "nature" and journal in ("ieee", "pnas"):
+            print(f"[style note] journal={journal!r} 已接管档级约束："
+                  "nature 档的无网格/无彩字/线宽上限三项不再检查"
+                  f"（{journal.upper()} 官方无此条款）")
 
 
 def new_figure(width: str | float = "onehalf", ratio: float = 0.62,
@@ -365,19 +414,7 @@ def new_figure(width: str | float = "onehalf", ratio: float = 0.62,
     ——静默落回 136mm 会让 QA 宽度检查莫名爆红，报错当场就改）。
     """
     if isinstance(width, str):
-        if _JOURNAL is not None:
-            jw = get_journal(_JOURNAL).column_widths_mm
-            if width not in jw:
-                raise ValueError(
-                    f"未知栏宽 '{width}'（当前期刊档 '{_JOURNAL}'），"
-                    f"可用：{sorted(jw)} 或 mm 数值——官方栏宽与出处见 "
-                    f"core/journals.py")
-            w_mm = jw[width]
-        else:
-            if width not in COLUMN_WIDTHS:
-                raise ValueError(
-                    f"未知栏宽 '{width}'，可选：{sorted(COLUMN_WIDTHS)} 或 mm 数值")
-            w_mm = COLUMN_WIDTHS[width]
+        w_mm = column_width_mm(width)
     else:
         w_mm = width
     h_mm = w_mm * ratio
@@ -410,12 +447,17 @@ def delivered_width_in(fig, tight: bool = True) -> float:
     return max(bb_w, fig.get_figwidth())
 
 
-_QA_PASSED: set[int] = set()
+_QA_PASSED = weakref.WeakSet()
 
 
 def mark_qa_passed(fig) -> None:
     """run_qa 无问题时登记，save_figure 据此放行。"""
-    _QA_PASSED.add(id(fig))
+    _QA_PASSED.add(fig)
+
+
+def revoke_qa_passed(fig) -> None:
+    """重新检查 Figure 前撤销旧资格，避免图被改坏后仍可保存。"""
+    _QA_PASSED.discard(fig)
 
 
 def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
@@ -442,7 +484,7 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
     from pathlib import Path
     # "坏图不落盘"必须是机制，不能靠自觉：run_qa(strict=False) 只打印
     # 问题然后照常保存，等于 QA 不存在。这里把它变成门禁。
-    if id(fig) not in _QA_PASSED and not force:
+    if fig not in _QA_PASSED and not force:
         raise RuntimeError(
             "run_qa 未通过或未调用，坏图不落盘。修好问题后重跑；"
             "确需带问题交付传 save_figure(..., force=True)")
@@ -451,7 +493,7 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
     if _DRAFT_MODE:
         formats = ("png",)
         path_no_ext = f"{path_no_ext}_DRAFT"   # 草稿不与交付物混名
-    if waived or (id(fig) not in _QA_PASSED and force):
+    if waived or (fig not in _QA_PASSED and force):
         # 绕过 QA 的图在交付目录里必须一眼可见，否则下次没人记得
         path_no_ext = f"{path_no_ext}_QAWAIVED"
         print(f"[style WARN] 该图绕过了 QA，文件名已标 _QAWAIVED："
@@ -471,8 +513,7 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
                   f"{bb.width * 25.4:.0f} > {target * 25.4:.0f} mm")
         if not exact_width:
             w_mm = bb.width * 25.4
-            _targets = (get_journal(_JOURNAL).column_widths_mm.values()
-                        if _JOURNAL is not None else COLUMN_WIDTHS.values())
+            _targets = column_widths().values()
             if not any(abs(w_mm - t) <= 3 for t in _targets):
                 print(f"[style WARN] exact_width=False 且落盘宽 {w_mm:.0f}mm "
                       f"不是标准栏宽，字号契约不成立")
@@ -480,19 +521,29 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
     out = []
     for ext in formats:
         p = f"{path_no_ext}.{ext}"
-        fig.savefig(p, bbox_inches=bbox if tight else fig.bbox_inches)
+        save_kw = {"bbox_inches": bbox if tight else fig.bbox_inches}
+        if ext == "svg":
+            save_kw["metadata"] = {"Date": None}
+        elif ext == "pdf":
+            save_kw["metadata"] = {"CreationDate": None}
+        fig.savefig(p, **save_kw)
         out.append(p)
     if (record is None) != (manifest_path is None):
         raise ValueError(
             "record 与 manifest_path 必须同时给出，只给其一无法定位台账")
     if record is not None:
-        if id(fig) in _QA_PASSED:
+        if fig in _QA_PASSED:
             # 全部格式落盘成功才记账；QA 未通过的图（force 绕行）没有
-            # 资格进台账——台账里的 qa_status 只会写 passed
+            # 资格进台账；豁免码会被透传进 qa_status，避免和干净通过混淆。
+            waived_codes = tuple(dict.fromkeys(
+                getattr(fig, "_ff_qa_waived_codes", ())))
+            qa_status = ("waived:" + ",".join(waived_codes)
+                         if waived_codes else "passed")
             write_manifest(
                 complete_record(record, out, manifest_path=manifest_path,
                                 preset=current_preset(),
-                                journal=current_journal()),
+                                journal=current_journal(),
+                                qa_status=qa_status),
                 manifest_path)
         else:
             print(f"[style WARN] 该图未经 run_qa 通过（force/草稿），"

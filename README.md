@@ -91,8 +91,8 @@ save_figure(fig, "out/图名", record=record,
 ### 期刊档（IEEE / PNAS）
 
 `journal=` 是正交于 `preset` 的交付约束档：preset 管语言与纹理，
-journal 只覆盖**有官方出处**的栏宽、字号区间与图高上限（值与出处
-登记在 `core/journals.py`，不可变 profile）。
+journal 接管该档**有官方出处的整套档级约束**（栏宽、字号区间、图高及
+适用的网格/彩字/线宽条款；值与出处登记在 `core/journals.py`，不可变 profile）。
 
 ```python
 apply_style("nature", journal="ieee")   # sans 纹理 + IEEE 栏宽/字号约束
@@ -108,7 +108,8 @@ save_figure(fig, "out/fig")             # 未过 QA 依旧 0 文件落盘
 
 边界如实声明：IEEE/PNAS 官方**没有**背景网格、彩色文字、线宽的禁令
 或区间，这两档因此不设这三项档级检查（不造数）；这三项硬拒只属于
-`nature` 档（Nature 明文）。`journal="ieee"` 只说明"按 IEEE 官方约束
+`nature` 档；本库图高值是整页可用高度减图注留白的推导值。当 Nature preset 叠加 IEEE/PNAS 时会打印 note，
+说明期刊档已接管这三项。`journal="ieee"` 只说明"按 IEEE 官方约束
 核对过"，**调用成功不等于合规**——交付以 `run_qa` 通过为准，官方
 改版后须重核 `reviewed_on` 日期并更新注册表。
 

@@ -22,6 +22,8 @@ import hashlib
 import json
 import os
 import tempfile
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 # journal 与 preset 是两件事：preset 管语言/纹理/字体族，journal 管交付
@@ -77,7 +79,8 @@ def _sha256_file(p: Path) -> str:
 
 def complete_record(record: FigureRecord, out_files, *,
                     manifest_path, preset: str,
-                    journal: str | None = None) -> FigureRecord:
+                    journal: str | None = None,
+                    qa_status: str = "passed") -> FigureRecord:
     """全部格式落盘成功后由 save_figure 调用：回填机器可验证的五项。
 
     path 指主交付件（项目约定 pdf 交付、svg 可编辑、png 供目测复核，
@@ -90,8 +93,10 @@ def complete_record(record: FigureRecord, out_files, *,
     # relpath（而非 Path.relative_to）：图与台账常是兄弟目录，需要 ../ 语义
     try:
         rel = Path(os.path.relpath(primary.resolve(), mroot))
-    except ValueError:                     # 跨盘等情形退化为绝对 POSIX 路径
-        rel = primary.resolve()
+    except ValueError as exc:
+        raise ValueError(
+            "交付文件与台账必须位于同一盘符，才能写相对路径："
+            f"交付={primary.resolve()}，台账目录={mroot}") from exc
     hashes = {p.suffix.lstrip("."): _sha256_file(p) for p in out}
     return dataclasses.replace(
         record,
@@ -99,7 +104,7 @@ def complete_record(record: FigureRecord, out_files, *,
         formats=tuple(p.suffix.lstrip(".") for p in out),
         preset=preset,
         journal=journal or "",
-        qa_status="passed",
+        qa_status=qa_status,
         sha256=json.dumps(hashes, sort_keys=True, ensure_ascii=False),
     )
 
@@ -120,6 +125,26 @@ def _to_row(record: FigureRecord) -> dict:
     }
 
 
+@contextmanager
+def _manifest_lock(mpath: Path):
+    """用同台账旁的独占文件锁住跨进程 read-modify-write。"""
+    lock = mpath.with_name(mpath.name + ".lock")
+    while True:
+        try:
+            fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            break
+        except FileExistsError:
+            time.sleep(0.002)
+    try:
+        yield
+    finally:
+        os.close(fd)
+        try:
+            os.unlink(lock)
+        except FileNotFoundError:
+            pass
+
+
 def write_manifest(record: FigureRecord, manifest_path) -> Path:
     """把一条完整记录 upsert 进台账并原子落盘，返回台账路径。
 
@@ -128,25 +153,26 @@ def write_manifest(record: FigureRecord, manifest_path) -> Path:
     """
     mpath = Path(manifest_path)
     mpath.parent.mkdir(parents=True, exist_ok=True)
-    rows: list[dict] = []
-    if mpath.exists():
-        with open(mpath, encoding=_CSV_ENCODING, newline="") as f:
-            rows = [r for r in csv.DictReader(f) if r.get("id")]
-    rows = [r for r in rows if r["id"] != record.id] + [_to_row(record)]
-    rows.sort(key=lambda r: r["id"])
-    fd, tmp = tempfile.mkstemp(dir=str(mpath.parent), prefix=mpath.name + ".",
-                               suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding=_CSV_ENCODING, newline="") as f:
-            w = csv.DictWriter(f, fieldnames=list(FIELDS), restval="",
-                               extrasaction="ignore")
-            w.writeheader()
-            w.writerows(rows)
-        os.replace(tmp, mpath)
-    except BaseException:
+    with _manifest_lock(mpath):
+        rows: list[dict] = []
+        if mpath.exists():
+            with open(mpath, encoding=_CSV_ENCODING, newline="") as f:
+                rows = [r for r in csv.DictReader(f) if r.get("id")]
+        rows = [r for r in rows if r["id"] != record.id] + [_to_row(record)]
+        rows.sort(key=lambda r: r["id"])
+        fd, tmp = tempfile.mkstemp(dir=str(mpath.parent),
+                                   prefix=mpath.name + ".", suffix=".tmp")
         try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+            with os.fdopen(fd, "w", encoding=_CSV_ENCODING, newline="") as f:
+                w = csv.DictWriter(f, fieldnames=list(FIELDS), restval="",
+                                   extrasaction="ignore")
+                w.writeheader()
+                w.writerows(rows)
+            os.replace(tmp, mpath)
+        except BaseException:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
     return mpath

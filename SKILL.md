@@ -113,7 +113,7 @@ fig.suptitle("迭代收敛：RMS 8.9 → 5.07 cm")                  # ✗ 手写
 | 数据线宽 | 1.2pt | **≤1pt**（区间 0.25–1pt） |
 | 标注文字 | 允许语义色 | **一律黑色**，语义走 keyline |
 
-两档共用：图高上限 **170mm**、`save_figure` 出 png+svg+**pdf**（Nature 主图
+`cn/nature` 两档共用本库推导的图高上限 **170mm**、`save_figure` 出 png+svg+**pdf**（Nature 主图
 只收矢量，明确拒收 png/jpeg/tiff）、下同的层次与配色规则。
 
 **切档两种方式**：`apply_style("nature")`，或不传参数、用环境变量
@@ -137,8 +137,8 @@ matplotlib 会拿它当 Regular，中文全渲染成粗黑块紧挨 400 字重�
 ### 3b-2. 期刊档：`apply_style(preset, journal="ieee" | "pnas")`
 
 投 IEEE / PNAS 时叠加**期刊交付约束档**：`journal=` 与 `preset=` 正交
-（preset 管语言与纹理，journal 只覆盖有官方出处的栏宽/字号/图高；
-`journal=None` 缺省时沿用 preset 自带约束，行为与此前逐像素一致）。
+（preset 管语言与纹理，journal 接管该档有官方出处的整套栏宽/字号/图高及
+适用的网格/彩字/线宽约束；`journal=None` 缺省时沿用 preset 自带约束，行为与此前逐像素一致）。
 约束值全部登记在 `core/journals.py` 的不可变 profile 里，逐项带官方
 URL 与复核日期（`reviewed_on`），官方改版后重核再更新。
 
@@ -156,8 +156,13 @@ save_figure(fig, "out/fig")
 
 边界如实声明：IEEE / PNAS 官方**没有**背景网格、彩色文字、线宽的禁令
 或区间——这两档不设这三项档级检查（不造数），这三项硬拒只属于
-`nature` 档。`journal="ieee"` 表示"按 IEEE 官方约束核对过"，
+`nature` 档。Nature preset 叠加 IEEE/PNAS 时，style 会打印 note，说明这三项
+检查不再适用。`journal="ieee"` 表示"按 IEEE 官方约束核对过"，
 **调用成功不等于合规，`run_qa` 通过才算**。
+
+图高超限仍是硬拒；需要明确说明例外时可传
+`allow=("journal_height",)`。IEEE/PNAS 的推荐字号区间可用
+`allow=("journal_font_range",)` 豁免，QA 会保留 `[QA WAIVED]` 留痕。
 
 ### 3c. 视觉层次：饱和度必须跟着重要性走
 

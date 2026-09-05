@@ -1,8 +1,9 @@
 """期刊交付约束注册表（P3）：每个档一份有官方出处的约束值。
 
 设计边界（对比规格 §3）：
-- preset（cn/nature）管语言、字体族与纹理；``journal=`` 只覆盖**有官方
-  出处**的交付约束（栏宽、字号区间、图高上限）。
+- preset（cn/nature）管语言、字体族与纹理；``journal=`` 接管该档**有官方
+  出处的整套交付约束**（栏宽、字号区间、图高上限，以及适用的网格、彩字、
+  线宽条款），不只覆盖尺寸字段。
 - 官方没有明文的约束**不造数**：IEEE/PNAS 官方页面均无背景网格禁令、
   彩色文字禁令与线宽区间 → 这三类的档级硬拒只属于 nature
   （grid_allowed/colored_text_allowed=True、max_line_pt=None 即"官方
@@ -16,6 +17,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from types import MappingProxyType
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,10 @@ class JournalProfile:
     sources: tuple = field(default=())
     notes: tuple = field(default=())
 
+    def __post_init__(self):
+        object.__setattr__(self, "column_widths_mm",
+                           MappingProxyType(dict(self.column_widths_mm)))
+
 
 _J_IEEE = ("https://journals.ieeeauthorcenter.ieee.org/create-your-"
            "ieee-journal-article/create-graphics-for-your-article/"
@@ -55,7 +61,8 @@ _J_IEEE_CONF = ("https://conferences.ieeeauthorcenter.ieee.org/"
 _J_IEEE_PES = ("https://ieee-pes.org/publications/authors-kit/"
                "preparation-of-a-formatted-technical-work/")
 _J_PNAS = "https://www.pnas.org/author-center/submitting-your-manuscript"
-_J_NATURE = "https://www.nature.com/nature/for-authors/final-submission"
+_J_NATURE = ("https://research-figure-guide.nature.com/figures/"
+             "preparing-figures-our-specifications/")
 
 _REVIEWED = "2026-09-01"
 
@@ -74,10 +81,10 @@ JOURNALS = {
         notes=(
             ("column_widths_mm", "Nature 系栏宽常量（core/style.py "
              "COLUMN_WIDTHS），kind=preset-native：沿用本库既有规范值"),
-            ("max_height_mm", "Nature 明文 170mm（整页图含图注可用高度），"
-             "与 core/style.py MAX_HEIGHT_MM 同源"),
-            ("source_url", "Nature 投稿指南图件章节；本档数值在 P3 前已是"
-             "库内硬编码，此处仅登记出处，未改任何值"),
+            ("max_height_mm", "本库推导值：按整页深度减图注留白后的可用高度；"
+             "Nature 公开规范页未明文给出 mm 上限"),
+            ("source_url", "Nature Research Figure Guide 公开图件规范页；"
+             "页面未给出本库的 mm 推导值"),
         ),
     ),
     "cn": JournalProfile(
@@ -171,7 +178,7 @@ JOURNALS = {
 
 def get_journal(name: str) -> JournalProfile:
     """按名取档；未知档报出全部合法档名并指到本模块与官方出处。"""
-    if name not in JOURNALS:
+    if not isinstance(name, str) or not any(name == legal for legal in JOURNALS):
         legal = sorted(JOURNALS)
         raise ValueError(
             f"未知期刊档 {name!r}，可选：{legal}"

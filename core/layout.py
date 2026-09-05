@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
 
-from .style import MM, COLUMN_WIDTHS, MAX_HEIGHT_MM, current_preset, preset_cfg
+from .style import MM, active_profile, column_width_mm, current_preset, preset_cfg
 
 # Nature: "a full-page figure should probably comprise no more than six panels"
 MAX_PANELS = 6
@@ -25,11 +25,7 @@ def _width_mm(width) -> float:
     早就校验并列出了合法档名，同一个库里不能有两套政策。
     """
     if isinstance(width, str):
-        if width not in COLUMN_WIDTHS:
-            raise ValueError(
-                f"未知栏宽 {width!r}，可选：{sorted(COLUMN_WIDTHS)} "
-                f"或直接给 mm 数值")
-        return COLUMN_WIDTHS[width]
+        return column_width_mm(width)
     return width
 
 
@@ -48,7 +44,7 @@ def figure(rows, width="double", height=None, row_heights=None,
         ], width="double", row_heights=[1.4, 1])
         ax["field"].contourf(...)
 
-    height: 图高 mm；缺省按行数估算并夹到 Nature 上限 170mm。
+    height: 图高 mm；缺省按行数估算并夹到本库 Nature 档上限 170mm。
     row_heights: 各行相对高度，缺省等高。
     label=True 时按阅读顺序自动打 a/b/c 面板标签。
 
@@ -83,12 +79,13 @@ def figure(rows, width="double", height=None, row_heights=None,
         raise ValueError(f"row_heights 长度 {len(row_heights)} ≠ 行数 {nrows}")
 
     w_mm = _width_mm(width)
-    h_mm = height if height is not None else min(MAX_HEIGHT_MM,
+    height_cap = active_profile().max_height_mm
+    h_mm = height if height is not None else min(height_cap,
                                                  w_mm * 0.45 * nrows)
-    if h_mm > MAX_HEIGHT_MM:
-        print(f"[layout WARN] 图高 {h_mm:.0f}mm 超 Nature 上限 "
-              f"{MAX_HEIGHT_MM:.0f}mm，已按上限截断")
-        h_mm = MAX_HEIGHT_MM
+    if h_mm > height_cap:
+        print(f"[layout WARN] 图高 {h_mm:.0f}mm 超当前档上限 "
+              f"{height_cap:.0f}mm，已按上限截断")
+        h_mm = height_cap
 
     fig = plt.figure(figsize=(w_mm * MM, h_mm * MM))
     # 边距按物理尺寸给，而不是用 matplotlib 的默认比例（左.125/右.1/上.12）。
@@ -171,9 +168,10 @@ def small_multiples(n: int, ncols: int = 4, width="double", ratio: float = 1.0,
     w = _width_mm(width) * MM
     cell = w / ncols
     h_mm = cell * ratio * nrows * 25.4
-    if h_mm > MAX_HEIGHT_MM:
+    height_cap = active_profile().max_height_mm
+    if h_mm > height_cap:
         print(f"[layout WARN] 小倍数总高 {h_mm:.0f}mm 超上限 "
-              f"{MAX_HEIGHT_MM:.0f}mm，减少行数或压 ratio")
+              f"{height_cap:.0f}mm，减少行数或压 ratio")
     fig, axes = plt.subplots(nrows, ncols,
                              figsize=(w, cell * ratio * nrows),
                              squeeze=False, **kwargs)
