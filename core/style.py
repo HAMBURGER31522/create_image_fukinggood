@@ -149,8 +149,8 @@ _JOURNAL: str | None = None   # 期刊约束档（apply_style(journal=) 设置�
 def _one_of(name: str, value, legal):
     """公开 API 的枚举型字符串参数，统一在这里校验。
 
-    第 15 轮修了 `ref_line(orientation=)`，但那只是**一类**缺陷的一个
-    实例。第 16 轮三方评审在 `core/` 里又找出五处，主窗口把同一把尺子
+    早先修了 `ref_line(orientation=)`，但那只是**一类**缺陷的一个
+    实例。早先的排查在 `core/` 里又找出五处，主窗口把同一把尺子
     伸到 `recipes/`（api.md 逐个登记了签名，同样是交付面）又找出三处——
     其中 `parity(band=("relatve", …))` 拼错一个字母，写进论文的覆盖率
     从 98% 变成 20%。一处一处补还会继续漏，所以收到这个唯一入口。

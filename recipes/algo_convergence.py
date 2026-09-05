@@ -57,7 +57,7 @@ def convergence_curves(curves, xlabel="迭代代数", ylabel="目标函数值",
     info = {}
     n_max = max(len(y) for _, y, _ in curves)
     # （原先这里按终值排序、给线端标签交替 va 做避让；改走 end_labels 的
-    #   显示坐标避让之后这段成了死代码，已删——第 16 轮 opus 打分指出。）
+    #   显示坐标避让之后这段成了死代码，已删——早先的排查指出。）
     _below: list[bool] = []
     _ends: list[tuple] = []
     _conv: list = []

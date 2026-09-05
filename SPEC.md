@@ -171,7 +171,7 @@ figure-forge/
 
 1. `recipes/` 覆盖 taxonomy 的全部 P0 图种、绝大多数 P1 图种，每个可独立运行出图到 `gallery/`，且示例图达到合格线。
 2. `demo/beat_baseline.py` 重画的图经 agent2（fable5）盲评优于交付物原图（底限），并对照 `skills/photo` 参考图评估是否达到合格线。
-3. 三方评审（fable5 / gpt5.6 / opus5）无 P0 级缺漏。
+3. 独立复核无 P0 级缺漏。
 4. README 说明安装、目录、以 skill 方式调用的入口话术。
 5. 推送至 https://github.com/HAMBURGER31522/create_image_fukinggood.git
 

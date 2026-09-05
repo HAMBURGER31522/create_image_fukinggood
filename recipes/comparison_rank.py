@@ -172,7 +172,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
     # 也并非常数——标题长短、刻度多寡、数值文本宽窄都算。所以后面还要按
     # 实测墨迹自适应收一次；这里只负责把主项抵掉。
     # （"乘 n/3 让面板面积守恒"是上一版注释里的说法，实测不成立，
-    #   由第 16 轮 opus 打分推翻。）
+    #   由早先的排查推翻。）
     ratio = 0.36 * (ptx(9.0) / 9.0) ** 2 * n / 3
     # 还要给**类目行数**留下限。上面两项只看档位和指标数，都不看有几行；
     # 而每个标记上方 8pt 处还压着一个数值直标。nature 档面板本来就矮，
@@ -189,7 +189,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
     axes = np.atleast_1d(axes)
     # 上下留白必须按**绝对高度**给，不能给分数：图变矮之后，0.15 的分数
     # 留白也跟着变矮，而图题/面板标题/面板标签的字号没缩那么多，于是
-    # suptitle 直接压在面板标题上（第 12 轮的老坑：为消除一个硬拒引入
+    # suptitle 直接压在面板标题上（早先老坑：为消除一个硬拒引入
     # 同类硬拒）。这里把 cn 档的绝对留白按字号比缩放后再折回分数——
     # cn 下 pad_fr 恰为 0.15，交付图逐像素不变。
     # 上留白必须拆成两半。`fig.suptitle` 的默认 `y=0.98` 是**图分数**，而
@@ -253,7 +253,7 @@ def facet_metrics(cat_labels, metrics, width="double"):
     from core import _probe
     from core.qa import panel_ink_floor
     # 照**同一个**判据收：此前这里自己抄了一份阈值，两处各写一份就是
-    # 第二真值源，改了一处另一处不跟着变（第 16 轮 opus 打分点名）。
+    # 第二真值源，改了一处另一处不跟着变（早先的排查点名）。
     _floor = panel_ink_floor()
     for _ in range(3):
         fig.canvas.draw()

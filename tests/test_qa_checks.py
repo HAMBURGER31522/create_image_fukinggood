@@ -403,7 +403,7 @@ def test_same_label_reported_for_two_conditions_is_not_a_conflict():
 
 
 # ======================================================================
-# 独立评审提出的缺陷：先钉测试，再改实现
+# 早先的排查提出的缺陷：先钉测试，再改实现
 # ======================================================================
 
 from core import (dot_interval, slope_lines, stat_box,  # noqa: E402
@@ -592,7 +592,7 @@ def test_strict_mode_blocks_save_on_a_bad_figure():
     assert not getattr(fig, "_ff_qa_ok", False)
 
 
-# --- 收尾：评审 P2 ---------------------------------------------------
+# --- 收尾：P2 ---------------------------------------------------
 
 def test_value_column_does_not_overflow_the_canvas_by_default():
     """`value_col=True` 的数值列锚在轴外 1.06 且 clip 关闭。
@@ -663,7 +663,7 @@ def test_log_axis_spanning_decades_is_not_flagged_as_incommensurable():
     assert not hit(fig, "不可通约")
 
 
-# --- 第 2 轮评审：sparse_line 判据整个搞错了 ---------------------------
+# --- sparse_line 判据整个搞错了 ---------------------------
 
 def test_categorical_positions_joined_by_a_line_is_flagged():
     """离散方案几乎总画在整数 x 上，而整数**天然等距**——等距豁免正好
@@ -779,7 +779,7 @@ def test_value_column_does_not_intrude_into_a_neighbour_panel():
     assert right <= nb_x0 + 1, (right, nb_x0)
 
 
-# --- 第 3 轮评审：三处"测试绕开了失效区" -------------------------------
+# --- 三处"测试绕开了失效区" -------------------------------
 
 def test_geometric_scan_on_a_log_axis_is_not_flagged():
     r"""几何扫描的**标准画法**就是 log 轴，而 log 刻度是 mathtext
@@ -883,7 +883,7 @@ def test_inside_value_column_uses_uniform_precision():
     assert len(dec) == 1, txt
 
 
-# --- 第 4 轮评审 -------------------------------------------------------
+# --- 追加用例 -------------------------------------------------------
 
 def test_small_integer_continuous_quantity_is_not_flagged():
     """k-means 肘部 k=2..6、迭代次数 1..5、多项式阶数 1..4 都是小整数上的
@@ -1011,7 +1011,7 @@ def test_custom_tick_labels_on_numeric_positions_are_flagged():
     assert hit(fig, "个点用折线连起来")
 
 
-# --- 第 5 轮评审：text_contrast 的豁免用几何冒充颜色 -------------------
+# --- text_contrast 的豁免用几何冒充颜色 -------------------
 
 def test_white_text_on_a_contourf_field_is_not_flagged():
     """`ContourSet.get_window_extent()` 返回 Bbox(inf,inf,-inf,-inf)，
@@ -1117,7 +1117,7 @@ def test_text_without_a_halo_on_a_field_is_still_flagged():
     assert hit(fig, "对比度")
 
 
-# --- 第 6 轮评审：像素采样的两个旁路 -----------------------------------
+# --- 像素采样的两个旁路 -----------------------------------
 
 def test_constrained_layout_does_not_drift_during_probe():
     """藏字重绘会让 layout engine 重新求解，坐标区扩张（实测 x0 从 0.077
@@ -1189,7 +1189,7 @@ def test_legend_title_is_inspected():
     assert any("方案组" in t.get_text() for t in _all_texts(fig))
 
 
-# --- 第 7 轮：描边豁免在"退化取值"上仍 fail-open ----------------------
+# --- 描边豁免在"退化取值"上仍 fail-open ----------------------
 
 def _dark_field_fig(color, effects=None, text="压在黑场上"):
     fig, ax = new_figure("onehalf")
@@ -1267,7 +1267,7 @@ def test_three_d_offset_text_is_inspected():
     assert any(t is ax.zaxis.get_offset_text() for t in _all_texts(fig))
 
 
-# --- 第 8 轮 ---------------------------------------------------------
+# --- 追加用例 ---------------------------------------------------------
 
 def test_minor_tick_labels_are_inspected():
     """上一轮我声称"这一支取不到任何东西、加不了测试"——三句全错。
@@ -1334,7 +1334,7 @@ def _perceptible_diff(a, b, thresh=8):
 
     反锯齿毛边会让"任意通道有差异"的计数虚高：实测场图 quad 接缝能贡献
     989 px，而中位通道差只有 2/255、Δ>8 的像素数为 0。用它当断言等于
-    没有断言——第 9 轮那条"网格未渲染"的断言就是这样在网格确实空转时
+    没有断言——早先那条"网格未渲染"的断言就是这样在网格确实空转时
     照样通过的。
     """
     import numpy as _np
@@ -1363,7 +1363,7 @@ def _buf(fig):
 def test_polar_field_renders_radial_tick_labels():
     """只隔离**径向刻度标签**本身。
 
-    第 9 轮那版把 `set_yticks([])` 与藏 `ax.texts` 混在一起，于是在缺陷版
+    早先那版把 `set_yticks([])` 与藏 `ax.texts` 混在一起，于是在缺陷版
     上量到的 1141px 全部来自手写 `ax.text`、刻度贡献 0——测试绿着，缺陷
     还在。根因是本库样式的 `axes.axisbelow=True` 把极轴 zorder 压到 0.5，
     被 zorder=1 的场图整块盖住。
@@ -1379,7 +1379,7 @@ def test_polar_field_renders_radial_tick_labels():
 def test_polar_field_renders_radial_grid_rings():
     """只隔离**径向网格圆环**，且用可感知门槛。
 
-    第 9 轮那条用 `ax.grid(False)` + "任意通道有差异"计数，在网格确实
+    早先那条用 `ax.grid(False)` + "任意通道有差异"计数，在网格确实
     空转的两个变体上都得 989px 而通过——失败信息写着"ax.grid 空转"，
     却永远不会因为这个原因触发。
     """
@@ -1421,7 +1421,7 @@ def test_opaque_halo_with_translucent_foreground_is_exempt():
     并重刷 `_rgb`，所以 `foreground=(1,1,1,0.06) + alpha=1.0` 画出的是
     **纯白**光晕（像素实测 1920 个白点）。写成相乘会把它当成 6% 而误报。
 
-    这是第 9 轮 commit 自己点名、却没写进测试的那个判别用例。
+    这是早先 commit 自己点名、却没写进测试的那个判别用例。
     """
     import matplotlib.patheffects as _pe
     fig, ax = new_figure("onehalf")
@@ -1433,7 +1433,7 @@ def test_opaque_halo_with_translucent_foreground_is_exempt():
     assert not hit(fig, "对比度")
 
 
-# --- 第 11 轮：用户在正确用法上撞墙 -----------------------------------
+# --- 用户在正确用法上撞墙 -----------------------------------
 
 def test_contourf_counts_as_a_field_not_a_one_dimensional_panel():
     """`FIELD_CLASSES` 漏了 `QuadContourSet`（contourf 在 mpl≥3.8 的产物），
@@ -1529,7 +1529,7 @@ def test_clipped_out_of_view_ticks_do_not_trigger_the_cross_axes_check():
     assert not hit(fig, "跨面板文字重叠")
 
 
-# --- 第 12 轮 ---------------------------------------------------------
+# --- 追加用例 ---------------------------------------------------------
 
 def test_line_contours_are_not_treated_as_a_filled_field():
     """`contour()` 与 `contourf()` 在 mpl≥3.8 同为 `QuadContourSet`，
@@ -1863,15 +1863,15 @@ def test_sparse_panel_code_is_registered():
 # 原 `test_sparse_panel_can_be_waived` 已删除：它那张图墨迹 5.4%、高于 cn
 # 阈值 4.5%，硬检查根本没触发，`assert not any("墨迹" in p)` 无论豁免是否
 # 生效都通过——把 `_hard(..., "sparse_panel")` 改回 `problems.append(...)`
-# 仍然全绿（第 16 轮 opus 的 M6 变异实证）。真正的豁免验证见
+# 仍然全绿（早先一次定点变异的实证）。真正的豁免验证见
 # `test_sparse_panel_waiver_actually_waives_a_firing_check`：它先断言检查
 # **确实触发**，再断言传了码之后不再被拦。
 
 
 # --- R16 公开 API 的枚举参数：非法值必须报错，不能静默走另一分支 -------
 #
-# 第 15 轮修了 `ref_line(orientation=)`，但那是**一类**缺陷的一个实例。
-# 第 16 轮三方评审把同一模式又找出五处：字符串枚举参数没有校验、
+# 早先修了 `ref_line(orientation=)`，但那是**一类**缺陷的一个实例。
+# 早先的排查把同一模式又找出五处：字符串枚举参数没有校验、
 # 非法值落进 `else` 兜底分支，用户拿到的图与他写的代码不符而毫无提示。
 # 这组测试按「表驱动」写：新增枚举参数时把它加进表里，漏校验立刻变红。
 
@@ -2180,7 +2180,7 @@ def test_facet_metrics_keeps_its_cn_geometry():
 
 # --- R16e recipes 层的同一类缺陷 ---------------------------------------
 #
-# 三位评审都只查了 `core/`，但 `recipes/` 的函数同样是交付给用户的公开
+# 早先的排查都只查了 `core/`，但 `recipes/` 的函数同样是交付给用户的公开
 # API（api.md 逐个登记了签名）。往这层一扫又出两条，其中 parity 的那条
 # 比 core 里任何一条都重：拼错一个字母，写进论文的覆盖率从 98% 变成 20%。
 
@@ -2273,9 +2273,9 @@ def test_parallel_coords_without_better_still_works():
     assert ax is not None
 
 
-# --- R16f 墨迹检查的判别力：第 15 轮那批修复此前 0 测试覆盖 -------------
+# --- R16f 墨迹检查的判别力：早先那批修复此前 0 测试覆盖 -------------
 #
-# 第 16 轮 opus 评审做了 7 处定点变异，全部 144 全绿——连「把整条逐面板
+# 早先的排查做了 7 处定点变异，全部 144 全绿——连「把整条逐面板
 # 墨迹检查关掉」（area_cm2 >= 12 改成 >= 12000）都没人拦。原因是当时那两条
 # 测试：一条只 assert 码字串在集合里、根本不调 run_qa；另一条是**空断言**
 # ——它那张图 5.4% 高于 cn 的 4.5% 阈值，硬检查压根没触发，豁免有没有生效
@@ -2469,7 +2469,7 @@ def test_ref_line_docstring_says_v_exists():
     assert '"v"' in (_rl.__doc__ or ""), "docstring 仍没说 v 是合法值"
 
 
-# --- R16h 第 16 轮打分环节：codex 逮到的四条（三条是本轮修复引入的）------
+# --- R16h 逮到的四条（三条是当轮修复引入的）------
 
 def test_callout_accepts_categorical_and_date_coordinates():
     """N-5 的修法写错了：`np.asarray(xy, dtype=float)` 把「有限性检查」
@@ -2599,7 +2599,7 @@ def test_facet_metrics_one_metric_points_at_the_right_function():
     assert "dot_interval" in str(e.value) or "lollipop" in str(e.value)
 
 
-# --- R16i 第二轮打分：codex 报的 logy 扩轴 + 顺带撞出的 None 色 --------
+# --- R16i  logy 扩轴 + 顺带撞出的 None 色 --------
 
 def test_convergence_logy_expansion_stays_positive_on_a_log_axis():
     """扩轴腾位那一步写成了 `lo - 0.10*(hi-lo)`，只对线性轴成立。
@@ -2731,7 +2731,7 @@ def test_end_labels_still_separates_numeric_labels():
 
 # --- R16k 非数值轴（分类 / 日期）：表驱动，新增入口加进表 --------------
 #
-# zcode 逮到 callout 的默认路径在分类轴/日期轴上炸之后，按同一根因把全库
+# 早先逮到 callout 的默认路径在分类轴/日期轴上炸之后，按同一根因把全库
 # 的 transData.transform 调用点扫了一遍——只有 callout 与 end_labels 两处
 # 中招，其余 10 个公开入口都正常。这张表把结论固化住：以后新增/改动任何
 # 会做坐标换算的入口，漏了单位换算立刻变红。
@@ -2815,7 +2815,7 @@ def test_run_qa_survives_non_numeric_axes():
         run_qa(fig, strict=False)
 
 
-# --- R16m opus 打分逮到的四条（两条推翻了我自己的声称）-----------------
+# --- R16m 早先的排查逮到的四条（两条推翻了我自己的声称）-----------------
 
 @pytest.mark.parametrize("title,ylab", [
     ("L_inf 范数单调下降至 1e-6", "L_inf 范数"),
@@ -2830,7 +2830,7 @@ def test_nonfinite_text_check_does_not_hit_legitimate_words(title, ylab):
     `Inf-norm`（与连字符相邻）。**后两条修复前后都绿**——`infrastructure`
     的 `inf` 后面紧跟字母 `r`、`Nanjing` 的 `nan` 后面紧跟 `j`，旧判据
     本来就排除了。留着当回归护栏可以，但要写明它们**不具判别力**，不能
-    拿它们充数说"两侧都钉住了"——这一点由第 16 轮 opus 打分指出，与第
+    拿它们充数说"两侧都钉住了"——这一点由早先的排查指出，与第
     37/38 项被推翻的是同一个机制：为一处修复配的测试，有一半挑了 bug
     不出现的那一侧。
 
@@ -2865,7 +2865,7 @@ def test_facet_metrics_two_metrics_is_legal_in_both_presets(preset):
     """`n/3` 那处修复此前**零测试覆盖**：删掉它 215 条全绿。
 
     原因是为它写的测试只跑 nature，而 n=2 的墨迹硬拒发生在 **cn** 档
-    ——测试挑了 bug 不出现的那一档，两侧都恒真。这和第 15 轮那条空断言
+    ——测试挑了 bug 不出现的那一档，两侧都恒真。这和早先那条空断言
     是同一个机制，而本轮的官方方向恰恰就是「测试判别力」。
     """
     cr = _recipe("comparison_rank")
@@ -2918,7 +2918,7 @@ def test_figure_level_sparse_panel_waiver_actually_waives():
 
     （我此前声称「7 处变异 7/7 全红」是错的：那次 M7 我把 `_hard(msg, code)`
     的第二个参数一并删了，红是因为 TypeError 崩了，不是因为测试检出。
-    合法的 M7 是全绿的，实际 6/7。opus 打分时指出了这一点。）
+    合法的 M7 是全绿的，实际 6/7。早先的排查指出了这一点。）
     """
     fig, got = _fig_at_ink(0.13 * 0.85, npanels=3)
     assert _fig_ink_hits(fig), "前提不成立：图级检查没触发"
@@ -2948,7 +2948,7 @@ def test_facet_metrics_rejects_titles_too_long_for_the_panels():
     assert any("收紧" in p or "错开" in p or "缩短" in p for p in bad),         f"消息不可操作：{bad[:1]}"
 
 
-# --- R16n 第四轮打分：codex 三条 -------------------------------------
+# --- R16n 追加三条 -------------------------------------
 
 @pytest.mark.parametrize("txt", [
     "结果 = NaN", "结果 = NAN", "值 INF", "误差 -Inf", "结果 = nan",
@@ -3011,7 +3011,7 @@ def test_facet_metrics_survives_short_titles_and_narrow_range(preset):
         apply_style("cn")
 
 
-# --- R16p 第五轮打分：zcode 报的两档不一致 ------------------------------
+# --- R16p 两档不一致 ------------------------------
 
 @pytest.mark.parametrize("ncat", [3, 4, 5, 6])
 @pytest.mark.parametrize("preset", ["cn", "nature"])
@@ -3041,7 +3041,7 @@ def test_facet_metrics_two_metrics_survives_more_categories(preset, ncat):
         apply_style("cn")
 
 
-# --- R16r 第五轮打分：三家共报两条 + codex 第三条 + opus 的覆盖缺口 -----
+# --- R16r 两条共性问题 + 一处覆盖缺口 -----
 
 @pytest.mark.parametrize("preset", ["cn", "nature"])
 @pytest.mark.parametrize("ncur", [3, 4, 5, 6])
@@ -3099,7 +3099,7 @@ def test_convergence_auto_colour_carries_redundant_encoding(preset, ncur):
 def test_facet_metrics_reflows_margins_after_shrinking():
     """收高之后必须**重排留白**：`top`/`bottom` 是分数，图一矮，绝对留白
     跟着矮，图题就压上面板标签。这一步此前没有任何测试守着——删掉循环里
-    的 `_margins()`，`pytest -k facet` 19 条全绿（opus 第五轮指出）。
+    的 `_margins()`，`pytest -k facet` 19 条全绿（早先的排查指出）。
     """
     cr = _recipe("comparison_rank")
     fig, axes = cr.facet_metrics(
@@ -3458,7 +3458,7 @@ def test_reflow_does_not_hijack_a_legend_the_user_took_over():
     `reflow_outside` 拿这份旧参数重排图例。用户 `ax.legend(loc=...)` 之后
     matplotlib 建的是一个**新的** Legend 对象，旧参数却还在——于是显式设好的
     位置被冲掉，甚至推到轴外压住 xlabel，然后 QA 报「图例压 x 轴标题」。
-    用户已经修好了，是库先弄坏再报错的。第 17 轮复现华数杯交付图时撞到。
+    用户已经修好了，是库先弄坏再报错的。早先复现华数杯交付图时撞到。
     """
     from core.annotate import smart_legend, reflow_outside
     apply_style("cn")

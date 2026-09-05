@@ -40,7 +40,7 @@ def _min_font() -> float | None:
 
 # 逐面板墨迹下限。recipes/comparison_rank.py 的自适应收高要照**同一个**
 # 判据收，此前它自己抄了一份 `0.030 if nature else 0.045`——两处各写一份
-# 就是第二真值源，改了一处另一处不跟着变（第 16 轮 opus 打分点名）。
+# 就是第二真值源，改了一处另一处不跟着变（早先的排查点名）。
 _INK_FLOOR_BY_PRESET = {"nature": 0.030, "cn": 0.045}
 
 
@@ -280,7 +280,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             vals.update((float(av.max()), float(av.max()) * 100,
                          float(av.min()), float(av.min()) * 100))
         # 图题之外，stat_box / callout / 直标里的手写常数一样是事实错误级
-        # 缺陷——独立评审就是在 stat_box 里查出 [0.87, 36.4] 这类手填值。
+        # 缺陷——早先的排查就是在 stat_box 里查出 [0.87, 36.4] 这类手填值。
         scan = ([fig._suptitle] if fig._suptitle else [])
         scan += [ax.title for ax in fig.get_axes()]
         for ax in fig.get_axes():
@@ -750,7 +750,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     import re as _re
     # 判据只收紧**边界**，不收紧大小写：`Decimal("NaN")`、`f"{x:F}"` 都会
     # 产出大写非有限值，去掉 re.I 会让写着 NaN 的图一路 PASS 并落盘
-    # （第四轮打分 codex 逮到——为消除误伤而矫枉过正）。真正要排除的是
+    # （早先的排查逮到——为消除误伤而矫枉过正）。真正要排除的是
     # 和 `_` / `-` / 字母黏在一起的词：此前不排除 `_`/`-`，把
     # `L_inf 范数`、`Inf-norm`、`infrastructure` 一律误判成"上游算错了"
     # 并硬拒，消息还主动误诊——这正是本轮 item 19 刚在墨迹消息上修掉的
@@ -814,7 +814,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             f"{n_glyph} 处字形缺失（豆腐块），检查字体回退与混排{detail}")
 
     # 5. 遮挡检查：注释层压住数据 = 硬错。
-    #    以前这里只 print WARN，结果是"喊了照样落盘"——独立评审在一批
+    #    以前这里只 print WARN，结果是"喊了照样落盘"——早先的排查在一批
     #    12 张图里查出 4 处数据被完全吞掉（整条系列不见、直标被切一半），
     #    每一处 QA 都喊过。喊而不拦等于没有检查。
     #    需要豁免时显式传 allow=("overlap",)，会打 [QA WAIVED] 并记录到

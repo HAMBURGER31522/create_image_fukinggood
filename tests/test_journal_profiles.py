@@ -174,7 +174,7 @@ def test_pnas_profile_values_match_official_specs():
 
 
 def test_preset_native_profiles_carry_legacy_values():
-    """nature/cn 约束档必须逐项等于第 16 轮前的硬编码（单一真值源迁移）。"""
+    """nature/cn 约束档必须逐项等于早先前的硬编码（单一真值源迁移）。"""
     nat, cn = get_journal("nature"), get_journal("cn")
     assert (nat.min_font_pt, nat.max_font_pt, nat.max_line_pt) == \
         (5.0, 7.0, 1.0)

@@ -12,7 +12,7 @@ HERE = Path(__file__).resolve().parent
 SKIP = {"run_all.py", "_common.py"}
 # demo/ 也要跑。此前只 glob recipes/*.py，于是 README 主打的"门槛证明"
 # demo/beat_baseline.py 15 轮来从没被任何检查跑过——它在两个档都硬拒
-# 3~6 条，而 audit.py check 一路全绿。检查范围漏一个目录，等于那个目录
+# 3~6 条，而全量检查一路全绿。检查范围漏一个目录，等于那个目录
 # 里的东西不存在。
 TARGETS = [f for f in sorted(HERE.glob("*.py")) + sorted(
     (HERE.parent / "demo").glob("*.py")) if f.name not in SKIP]
