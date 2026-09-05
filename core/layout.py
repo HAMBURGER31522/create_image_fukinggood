@@ -251,7 +251,10 @@ def inset_zoom(ax, bounds, xlim, ylim, edgecolor: str = "#C44E52"):
         connectors = res.connectors
     for c in connectors:
         c.set(alpha=0.35, linewidth=0.5, linestyle=":")
-    if preset_cfg("grid"):
+    # 跟随**当前生效档**而不是 preset：journal="nature" 叠在 cn preset 上时，
+    # apply_style 已经把主轴网格关了，这里再按 cn 的 preset_cfg 打开，等于
+    # 在一张 Nature 图里留一块违规网格。只收紧、不放宽。
+    if preset_cfg("grid") and active_profile().grid_allowed:
         axins.grid(True, linestyle="-", alpha=0.2, linewidth=0.3)
     else:
         axins.grid(False)

@@ -512,3 +512,57 @@ def test_ptx_clamps_into_journal_font_range():
 def test_ptx_lw_uncapped_when_journal_has_no_line_limit():
     apply_style("cn", journal="pnas")
     assert ptx(3.0, "lw") == 3.0
+
+
+def _fig_with_inset(journal, force_grid=False):
+    from core import stat_box, inset_zoom
+    apply_style("cn", journal=journal)
+    fig, ax = new_figure("single", ratio=0.7)
+    x = np.linspace(0, 1, 200)
+    y = np.sin(8 * x)
+    ax.plot(x, y)
+    ax.set_title("响应在 x=0.5 处达峰")
+    stat_box(ax, ["n = 200"])
+    ins = inset_zoom(ax, (0.55, 0.55, 0.35, 0.35), (0.2, 0.8), (-1, 1))
+    ins.plot(x, y)
+    if force_grid:
+        ins.grid(True)
+    fig.canvas.draw()
+    return fig, ax, ins
+
+
+def test_inset_grid_follows_the_active_journal_not_the_preset():
+    """cn preset + journal=nature：apply_style 已把主轴网格关了，
+    inset_zoom 不许再按 preset_cfg 把它打开。
+
+    此前 inset 里留着一块 Nature 明文禁止的背景网格，而 inset 挂在
+    父轴的 child_axes 上、不在 fig.get_axes() 里，档级检查整体看不见它——
+    图带违规网格却 QA 通过并落盘。
+    """
+    fig, ax, ins = _fig_with_inset("nature")
+    def _has_grid(a):
+        return any(l.get_visible()
+                   for l in a.get_xgridlines() + a.get_ygridlines())
+    assert not _has_grid(ax), "主轴不该有网格"
+    assert not _has_grid(ins), "inset 也不该有网格（Nature 明文禁止）"
+    plt.close(fig)
+
+
+def test_inset_keeps_the_preset_grid_when_no_journal_forbids_it():
+    """反侧：cn 档（journal=None）本来就允许网格，不许把 inset 的关掉。"""
+    fig, ax, ins = _fig_with_inset(None)
+    assert any(l.get_visible()
+               for l in ins.get_xgridlines() + ins.get_ygridlines()),         "cn 档的 inset 应当保留浅网格"
+    plt.close(fig)
+
+
+def test_journal_grid_check_sees_inset_axes():
+    """手动在 inset 上开网格，nature 档必须拦下来。
+
+    档级检查此前走 fig.get_axes()，漏掉 child_axes；_all_texts 早就走
+    _all_axes（含 inset）了，偏偏网格与线宽这两项没跟上。
+    """
+    fig, ax, ins = _fig_with_inset("nature", force_grid=True)
+    probs = run_qa(fig, strict=False)
+    assert any("网格" in p for p in probs),         "inset 上的网格逃过了 nature 档的检查"
+    plt.close(fig)

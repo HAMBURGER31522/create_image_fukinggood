@@ -549,8 +549,12 @@ def run_qa(fig, expect_width=None, strict: bool = True,
     # 3e. 档规范：按当前约束档核对**官方明文**的禁令/区间。nature 档
     #     硬性对齐 Nature 官方要求；ieee/pnas 官方页面没有网格、彩色
     #     文字与线宽条款，这三项不造数、不设档级检查（见 journals.py）
+    # 走 _all_axes 而不是 axes：inset 挂在父轴的 child_axes 上，不在
+    # fig.get_axes() 里。此前这三项档级检查整体看不见放大窗——一张
+    # nature 档的图，inset 里开着 Nature 明文禁止的背景网格，QA 照样
+    # 放行并落盘。_all_texts 早就走 _all_axes 了，偏偏这里没跟上。
     if not prof.grid_allowed:
-        gridded = [a for a in axes
+        gridded = [a for a in _all_axes(fig)
                    if any(ln.get_visible() for ln in
                           a.get_xgridlines() + a.get_ygridlines())]
         if gridded:
@@ -565,7 +569,7 @@ def run_qa(fig, expect_width=None, strict: bool = True,
                 f"text'，语义改走 keyline/key（框线、标记），文字用黑色："
                 f"{colored[:3]}")
     if prof.max_line_pt is not None:
-        heavy = [ln for a in axes for ln in a.lines
+        heavy = [ln for a in _all_axes(fig) for ln in a.lines
                  if ln.get_linewidth() > prof.max_line_pt + 1e-9]
         if heavy:
             problems.append(
