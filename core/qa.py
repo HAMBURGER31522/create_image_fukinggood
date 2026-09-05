@@ -216,8 +216,14 @@ def run_qa(fig, expect_width=None, strict: bool = True,
             if isinstance(v, dict):
                 # 数值型的 key（如分位数 0.5）也算来源
                 return [x for kv in v.items() for e in kv for x in _flat(e)]
-            if isinstance(v, (list, tuple, np.ndarray)):
-                return [x for vv in np.ravel(v) for x in _flat(vv)]
+            # 不能走 np.ravel：按组分列的统计量（如三组各自的簇尺寸列表，
+            # 长度不等）会让 numpy 抛 "inhomogeneous shape"——一个跟「图题
+            # 数字有没有溯源」毫无关系的报错，用户看不出该改哪里。
+            # 逐层走 Python 序列，锯齿结构照样能摊平。
+            if isinstance(v, np.ndarray):
+                return [x for vv in v.ravel() for x in _flat(vv)]
+            if isinstance(v, (list, tuple)):
+                return [x for vv in v for x in _flat(vv)]
             try:
                 f = float(v)
                 return [f] if np.isfinite(f) else []

@@ -3449,3 +3449,70 @@ def test_facet_value_labels_stay_readable_on_any_background(preset, ncat):
         assert not bad, f"{preset} {ncat} 类目：{bad[0][:80]}"
     finally:
         apply_style("cn")
+
+
+def test_reflow_does_not_hijack_a_legend_the_user_took_over():
+    """用户在 smart_legend 之后自己接管图例，run_qa 不许把它挪回去。
+
+    `smart_legend` 会在 axes 上留下 `_ff_legend_args`，而 `run_qa` 开头调的
+    `reflow_outside` 拿这份旧参数重排图例。用户 `ax.legend(loc=...)` 之后
+    matplotlib 建的是一个**新的** Legend 对象，旧参数却还在——于是显式设好的
+    位置被冲掉，甚至推到轴外压住 xlabel，然后 QA 报「图例压 x 轴标题」。
+    用户已经修好了，是库先弄坏再报错的。第 17 轮复现华数杯交付图时撞到。
+    """
+    from core.annotate import smart_legend, reflow_outside
+    apply_style("cn")
+    fig, ax = new_figure("onehalf", ratio=0.6)
+    x = np.linspace(0, 10, 80)
+    ax.plot(x, np.sin(x), label="A")
+    ax.plot(x, np.cos(x), label="B")
+    ax.set_xlabel("横轴")
+    ax.set_ylabel("纵轴")
+    ax.set_title("A 与 B 在 x=3 后分离")
+    smart_legend(ax)
+    ax.legend(loc="lower right")          # 用户显式接管
+    fig.canvas.draw()
+    mine = ax.get_legend().get_window_extent().y0
+    reflow_outside(fig)
+    fig.canvas.draw()
+    after = ax.get_legend().get_window_extent().y0
+    assert abs(after - mine) < 2.0, (
+        f"用户设的图例被 reflow 挪走了：{mine:.1f} → {after:.1f}"
+        f"（轴 y0={ax.get_window_extent().y0:.1f}）")
+    plt.close(fig)
+
+
+def test_reflow_still_replaces_the_legend_smart_legend_placed():
+    """反侧：没被接管时，重排逻辑必须照常工作，别为了修上一条把它关死。"""
+    from core.annotate import smart_legend, reflow_outside
+    apply_style("cn")
+    fig, ax = new_figure("onehalf", ratio=0.6)
+    x = np.linspace(0, 10, 80)
+    ax.plot(x, np.sin(x), label="A")
+    ax.plot(x, np.cos(x), label="B")
+    ax.set_xlabel("横轴")
+    ax.set_title("重排仍然生效")
+    smart_legend(ax)
+    fig.canvas.draw()
+    assert reflow_outside(fig) >= 1, "smart_legend 放的图例应当仍被重排"
+    plt.close(fig)
+
+
+def test_ff_stats_may_hold_ragged_per_group_sequences():
+    """按组分列、长度不等的统计量不该把溯源检查炸掉。
+
+    `{"sizes": [[4, 4, 1], [11] * 11, [258, 8]]}` 是很自然的写法（三组各自的
+    簇尺寸）。此前 `_flat` 走 `np.ravel`，numpy 抛
+    `inhomogeneous shape`——一个跟「图题数字有没有溯源」毫无关系的报错，
+    用户看不出该改哪里。
+    """
+    apply_style("cn")
+    fig, ax = new_figure("single", ratio=0.7)
+    ax.plot([1, 2, 3], [1, 2, 3])
+    ax.set_title("最大簇 258 根")
+    stat_box(ax, "n = 3")
+    fig._ff_stats = {"sizes": [[4, 4, 1, 1], [11] * 11, [258, 8, 6]], "n": 3}
+    probs = run_qa(fig, strict=False)          # 不许抛
+    assert not any("258" in p and "未溯源" in p for p in probs), (
+        "258 就在锯齿列表里，应当被认成已溯源")
+    plt.close(fig)

@@ -920,6 +920,14 @@ def _reflow_legend(ax):
     args_kw = getattr(ax, "_ff_legend_args", None)
     if leg is None or args_kw is None:
         return 0
+    # 用户在 smart_legend 之后自己 ax.legend(loc=...) 接管时，matplotlib 会
+    # 建一个**新的** Legend 对象，而 _ff_legend_args 还留在 ax 上。此前这里
+    # 会拿旧参数把用户显式设好的位置冲掉，甚至推到轴外压住 xlabel——
+    # run_qa 开头就调 reflow_outside，于是「用户已经修好、QA 先弄坏再报错」。
+    # 认对象身份：不是我们放的那个就不动。
+    if leg is not getattr(ax, "_ff_legend_obj", None):
+        return 0
+
     args, kw = args_kw
     fig = ax.figure
     fig.canvas.draw()
@@ -930,13 +938,13 @@ def _reflow_legend(ax):
                                  min(lb.height / ab.height, 0.98))
     leg.remove()
     if cost <= 0.10 or _has_axes_below(ax):
-        ax.legend(*args, loc=pick, frameon=True, **kw)
+        ax._ff_legend_obj = ax.legend(*args, loc=pick, frameon=True, **kw)
     else:
         yf = _probe.outside_y(ax, "bottom", lb.height)
-        ax.legend(*args, loc="upper left",
-                  bbox_to_anchor=(0.0, yf if yf is not None else -0.22),
-                  ncol=max(1, min(3, len(ax.get_legend_handles_labels()[1]))),
-                  frameon=False, fontsize=_ann_size() - 0.5, **kw)
+        ax._ff_legend_obj = ax.legend(*args, loc="upper left",
+                                      bbox_to_anchor=(0.0, yf if yf is not None else -0.22),
+                                      ncol=max(1, min(3, len(ax.get_legend_handles_labels()[1]))),
+                                      frameon=False, fontsize=_ann_size() - 0.5, **kw)
     return 1
 
 
@@ -1059,6 +1067,7 @@ def smart_legend(ax, *args, **kw):
     lb = leg.get_window_extent()
     ab = ax.get_window_extent()
     if ab.width <= 0 or ab.height <= 0:
+        ax._ff_legend_obj = leg
         return leg
     w_frac = min(lb.width / ab.width, 0.98)
     h_frac = min(lb.height / ab.height, 0.98)
@@ -1069,6 +1078,7 @@ def smart_legend(ax, *args, **kw):
         leg.remove()
         leg = ax.legend(*args, loc=pick, frameon=True, **kw)
         fig.canvas.draw()
+        ax._ff_legend_obj = leg
         return leg
     # 轴内没地方 → 移到轴下，位置实测让开 xlabel 与刻度
     yf = _probe.outside_y(ax, "bottom", lb.height)
@@ -1076,6 +1086,7 @@ def smart_legend(ax, *args, **kw):
     kw.pop("ncol", None)
     kw.pop("ncols", None)
     ncol = max(1, min(4, len(ax.get_legend_handles_labels()[1])))
-    return ax.legend(*args, loc="upper left",
-                     bbox_to_anchor=(0.0, yf if yf is not None else -0.22),
-                     ncol=ncol, frameon=False, **kw)
+    ax._ff_legend_obj = ax.legend(*args, loc="upper left",
+                                  bbox_to_anchor=(0.0, yf if yf is not None else -0.22),
+                                  ncol=ncol, frameon=False, **kw)
+    return ax._ff_legend_obj
