@@ -25,8 +25,12 @@ from core import apply_style, current_preset, new_figure, run_qa, save_figure  #
 from core import FigureRecord                       # noqa: E402  (core 公开导出)
 from core.manifest import FIELDS, complete_record, write_manifest  # noqa: E402
 
+# journal 与 preset 是两件事：preset 管语言/纹理，journal 管交付约束。
+# 少了 journal 列，同一论点在 IEEE 档与 PNAS 档下出的两张图（单栏
+# 88.9mm vs 90mm）在台账里一模一样，读账的人复现不出当时的约束集。
 MANIFEST_COLS = ["id", "path", "formats", "claim", "source_data",
-                 "generation_script", "preset", "qa_status", "sha256"]
+                 "generation_script", "preset", "journal", "qa_status",
+                 "sha256"]
 
 
 @pytest.fixture(autouse=True)
@@ -312,3 +316,56 @@ def test_eight_problem_ids_integration(tmp_path):
 
 def test_manifest_columns_are_fixed():
     assert FIELDS == tuple(MANIFEST_COLS)
+
+
+# --- 台账要能区分交付约束档（journal）---------------------------------
+
+def test_manifest_records_the_journal_profile(tmp_path):
+    """台账的立身之本是可追溯。同一论点在 IEEE 档与 PNAS 档下出图，
+    交付约束完全不同（单栏 88.9mm vs 90mm），而两行台账此前一模一样
+    ——`preset` 都是 cn、没有 journal 列，读台账的人无法复现当时生效的
+    约束集。preset 管语言/纹理，journal 管交付约束，是两件事。
+    """
+    import csv as _csv
+    from core import apply_style, save_figure, run_qa
+    from core.manifest import FigureRecord
+    import matplotlib.pyplot as _plt
+    mp = tmp_path / "m.csv"
+    try:
+        for j in ("ieee", "pnas"):
+            apply_style("cn", journal=j)
+            fig = _clean_fig()
+            run_qa(fig)
+            save_figure(fig, str(tmp_path / f"f_{j}"), formats=("png",),
+                        record=FigureRecord(id=f"fig_{j}", claim="同一论点",
+                                            source_data="d.csv",
+                                            generation_script=__file__),
+                        manifest_path=str(mp))
+            _plt.close("all")
+        rows = list(_csv.DictReader(mp.open(encoding="utf-8-sig")))
+        assert "journal" in rows[0], f"台账没有 journal 列：{list(rows[0])}"
+        got = {r["id"]: r["journal"] for r in rows}
+        assert got == {"fig_ieee": "ieee", "fig_pnas": "pnas"}, got
+    finally:
+        apply_style("cn")
+
+
+def test_manifest_journal_is_empty_when_none(tmp_path):
+    """不该乱填的一侧：没指定 journal 时该列为空，不能瞎写成 preset。"""
+    import csv as _csv
+    from core import apply_style, save_figure, run_qa
+    from core.manifest import FigureRecord
+    import matplotlib.pyplot as _plt
+    mp = tmp_path / "m.csv"
+    apply_style("cn")
+    fig = _clean_fig()
+    run_qa(fig)
+    save_figure(fig, str(tmp_path / "f"), formats=("png",),
+                record=FigureRecord(id="fig", claim="论点",
+                                    source_data="d.csv",
+                                    generation_script=__file__),
+                manifest_path=str(mp))
+    _plt.close("all")
+    row = list(_csv.DictReader(mp.open(encoding="utf-8-sig")))[0]
+    assert row["journal"] == "", f"journal 该为空，实际 {row['journal']!r}"
+    assert row["preset"] == "cn"

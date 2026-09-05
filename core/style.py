@@ -491,7 +491,8 @@ def save_figure(fig, path_no_ext: str, formats=("png", "svg", "pdf"),
             # 资格进台账——台账里的 qa_status 只会写 passed
             write_manifest(
                 complete_record(record, out, manifest_path=manifest_path,
-                                preset=current_preset()),
+                                preset=current_preset(),
+                                journal=current_journal()),
                 manifest_path)
         else:
             print(f"[style WARN] 该图未经 run_qa 通过（force/草稿），"

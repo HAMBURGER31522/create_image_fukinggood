@@ -85,7 +85,7 @@ record = FigureRecord(
 save_figure(fig, "out/图名", record=record,
             manifest_path="out/figure_manifest.csv")
 # out/figure_manifest.csv：id,path,formats,claim,source_data,
-# generation_script,preset,qa_status,sha256（逐格式哈希，幂等 upsert）
+# generation_script,preset,journal,qa_status,sha256（逐格式哈希，幂等 upsert）
 ```
 
 ### 期刊档（IEEE / PNAS）

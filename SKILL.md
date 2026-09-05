@@ -273,9 +273,11 @@ save_figure(fig, "交付/图名", record=record,
             manifest_path="交付/figure_manifest.csv")
 ```
 
-列固定九列：`id,path,formats,claim,source_data,generation_script,preset,
-qa_status,sha256`。按 id 幂等 upsert、稳定排序；path 是相对台账的 POSIX
-路径；source_data 为 JSON 数组；sha256 逐交付格式记录文件实算哈希。
+列固定十列：`id,path,formats,claim,source_data,generation_script,preset,
+journal,qa_status,sha256`。按 id 幂等 upsert、稳定排序；path 是相对台账的
+POSIX 路径；source_data 为 JSON 数组；sha256 逐交付格式记录文件实算哈希。
+`journal` 记落盘时生效的期刊档（未指定为空）——同一论点在 IEEE 与 PNAS
+档下的两张图，栏宽约束不同，台账要能区分。
 不传 `record/manifest_path` 时 `save_figure(fig, stem)` 行为不变；
 QA 未通过（force 绕行）的图不记账——台账里只会出现 passed 的图。
 

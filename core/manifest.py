@@ -6,8 +6,8 @@
 
 设计约束（规格 P2）：
 
-- 字段固定九列：id,path,formats,claim,source_data,generation_script,
-  preset,qa_status,sha256；
+- 字段固定十列：id,path,formats,claim,source_data,generation_script,
+  preset,journal,qa_status,sha256；
 - 按 id 幂等 upsert，行序按 id 稳定排序，两次运行结果逐字节一致；
 - 路径写相对台账的 POSIX 路径；source_data 用 JSON 数组编码；
 - sha256 是「格式 → 哈希」JSON 对象，逐交付格式记录文件实算值，
@@ -24,8 +24,12 @@ import os
 import tempfile
 from pathlib import Path
 
+# journal 与 preset 是两件事：preset 管语言/纹理/字体族，journal 管交付
+# 约束（栏宽、字号区间、图高）。少了它，同一论点在 IEEE 档与 PNAS 档下出的
+# 两张图（单栏 88.9mm vs 90mm）在台账里一模一样，读账的人无法复现当时生效
+# 的约束集——而台账的立身之本就是可追溯。
 FIELDS = ("id", "path", "formats", "claim", "source_data",
-          "generation_script", "preset", "qa_status", "sha256")
+          "generation_script", "preset", "journal", "qa_status", "sha256")
 
 # 带 BOM 写出：Excel 双击打开不乱码；读取端 utf-8-sig 兼容有无 BOM
 _CSV_ENCODING = "utf-8-sig"
@@ -47,6 +51,7 @@ class FigureRecord:
     path: str = ""
     formats: tuple[str, ...] = ()
     preset: str = ""
+    journal: str = ""
     qa_status: str = ""
     sha256: str = ""
 
@@ -71,7 +76,8 @@ def _sha256_file(p: Path) -> str:
 
 
 def complete_record(record: FigureRecord, out_files, *,
-                    manifest_path, preset: str) -> FigureRecord:
+                    manifest_path, preset: str,
+                    journal: str | None = None) -> FigureRecord:
     """全部格式落盘成功后由 save_figure 调用：回填机器可验证的五项。
 
     path 指主交付件（项目约定 pdf 交付、svg 可编辑、png 供目测复核，
@@ -92,6 +98,7 @@ def complete_record(record: FigureRecord, out_files, *,
         path=rel.as_posix(),
         formats=tuple(p.suffix.lstrip(".") for p in out),
         preset=preset,
+        journal=journal or "",
         qa_status="passed",
         sha256=json.dumps(hashes, sort_keys=True, ensure_ascii=False),
     )
@@ -107,6 +114,7 @@ def _to_row(record: FigureRecord) -> dict:
                                   ensure_ascii=False),
         "generation_script": record.generation_script,
         "preset": record.preset,
+        "journal": record.journal,
         "qa_status": record.qa_status,
         "sha256": record.sha256,
     }
