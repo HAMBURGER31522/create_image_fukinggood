@@ -1,48 +1,56 @@
 {
-  "round": 15,
-  "head": "eac7de3",
-  "target": "F:/mathematical modeling/skills/figure-forge",
-  "gate": "交付给用户的东西（产物 + 公开 API + 文档）有没有会让用户拿到错误结果、或在正确用法上被无理由硬拒的缺陷。不看内部整洁度。",
-  "verdict_last": "未达标（两方评审：ref_line 静默画错方向 + 墨迹检查不分档且无豁免 + 三处彩色文字）",
-  "changed": "第 16 轮共 15 个提交（edc20b9..eac7de3）。core/{annotate,qa,style,layout}.py、recipes/{comparison_rank,algo_convergence,parity,composition,contour_field}.py、demo/beat_baseline.py、recipes/run_all.py、audit.py、SKILL.md、reference/api.md、tests/test_qa_checks.py、gallery/ 全量重出",
-  "fixed_last_round": [
-    "ref_line 的 orientation 加校验——此前任何非 'h' 的值静默画成竖线，阈值点错轴而 QA 全部 30 条检查无一命中（全库唯一会产出几何错误却照常交付的缺陷，Sonnet 独有发现）",
-    "墨迹密度两条硬检查改为按档取阈值（nature 面板 3.0% / 图级 9%）并加 sparse_panel 豁免码——此前不分档且直接 problems.append，没有 allow 出口",
-    "三处裸 annotate(color=…) 改走 text_color()：phase_transition / route_map / comparison_rank"
+ "round": 17,
+ "head": "90f7002",
+ "target": "F:/mathematical modeling/skills/figure-forge",
+ "gate": "交付给用户的东西（产物 + 公开 API + 文档）有没有会让用户拿到错误结果、或在正确用法上被无理由硬拒的缺陷。不看内部整洁度。",
+ "verdict_last": "第 17 轮 11 条已修完并合入（9aa5bc6/b20f056/90f7002），待交换打分",
+ "changed": "第 16 轮共 15 个提交（edc20b9..eac7de3）。core/{annotate,qa,style,layout}.py、recipes/{comparison_rank,algo_convergence,parity,composition,contour_field}.py、demo/beat_baseline.py、recipes/run_all.py、audit.py、SKILL.md、reference/api.md、tests/test_qa_checks.py、gallery/ 全量重出",
+ "fixed_last_round": [
+  "QA 门禁 fail-open：_QA_PASSED 存 id(fig)，图释放后 id 留在集合里，新图撞上同一地址即被当成已过 QA（实测第 1093 次命中，没图题的空图直接落盘）→ WeakSet",
+  "栏宽两个真值源：new_figure 按档、layout/_width_mm 与 qa 的 expect_width 校验按模块常量 → 收敛到 style.column_width_mm()",
+  "style 层只夹字号、qa 层按 active_profile() 全字段判 → cn+journal=nature 开箱即拒两条、nature+ieee 三项检查静默消失；改成 apply_style 在期刊档激活时把约束型 rcParams 一并落实（只收紧不放宽）+ 放宽侧打 note",
+  "档级约束里图高与字号区间补 allow 出口；nature 170mm 的「Nature 明文」标注不实，改成诚实口径",
+  "JournalProfile.column_widths_mm → MappingProxyType（frozen 只挡属性重绑定）",
+  "pdf/svg 去时间戳 + 固定 svg.hashsalt，台账「两次运行逐字节一致」从假承诺变成真行为",
+  "台账 qa_status 区分 passed / waived:<codes>；跨盘符不再写机器绝对路径；并发写台账加锁；journal= 枚举校验并回 _one_of()",
+  "tools/journal_matrix.py：期刊档 × preset × 全模板矩阵，此前整个期刊档功能在回归网之外"
+ ],
+ "pending": [
+  "**交换打分未做**：codex 打 zcode 的华数杯复现、zcode 打 codex 的 11 条实现。用户已把门槛从平均 95 放宽到 **90**（达标即出 HTML 对照页并 push）",
+  "华数杯 14 张交付图的 figure-forge 复现（zcode 在跑，产物在 scratchpad/r17/hsb）",
+  "**有一条测试只在 audit.py check 里间歇性红**：两次报 1 failed / 408 passed，单独跑 pytest 三次都是 409 passed，名字没抓到。本轮已给 audit 的 pytest 加 -rf 并在失败时打印 FAILED 行，下次复现就能定位",
+  "audit.py 的产物漂移检查仍只比 PNG——pdf/svg 现在已逐字节可复现，这道检查可以扩到矢量层（本轮功能冻结，留下一轮）",
+  "ieee 档下 12 个模板用默认栏宽 onehalf 会报错（IEEE 官方无 1.5 栏，报错是正确行为），但 SKILL §3b-2 没提示模板默认宽要改",
+  "annotated_heatmap 的 corr_matrix 交付宽 90.9~92mm 而声明 89mm（内容溢出，非 padding），恰好压在 ±3mm 容差线上：cn 档过、ieee 档（88.9）挂"
+ ],
+ "what": "figure-forge：给数学建模论文生成期刊级图表的 Python skill。core/ 五模块（style 样式档 cn|nature / colors / layout / annotate / qa 出图前自动检查，不过就抛错 / _probe 占用与像素探测）；recipes/ 每图种一个模板；tests/ pytest；文档 SKILL.md（agent 入口）+ SPEC.md（设计合同）+ reference/",
+ "baseline": {
+  "pytest": "409 passed",
+  "run_all_cn": "26/26 ALL PASS",
+  "run_all_nature": "26/26 ALL PASS",
+  "gallery": "与默认档一致；pdf/svg 现在也跨进程逐字节可复现",
+  "journal_matrix": "cn/nature × None 26/26；nature 档 1/26 与 25/26；ieee 9/26；pnas 15/26 与 14/26（tools/journal_matrix.py --baseline 可比）"
+ },
+ "history": "已跑 16 轮。历轮最有效的方向是「用户视角实跑」和「交叉验证」（多模型并行）。第 16 轮新学到两条，比历轮任何一条都更该记住：①**修复自己引入回归**出现了七次（facet 矮下来后 suptitle 压标题 / 收敛标签改对方向后压刻度 / callout 换算只做入口 / 扩轴公式只对线性轴成立 / suptitle 用图分数 /去 re.I 放过大写 NAN / end_labels 排在扩轴之前），且**每次都是 QA 绿、靠目测或下一轮评审才发现**——所以「改完跑一遍 audit check 就交」是不够的，改了版面必须逐张放大目测。②**主窗口自己的声称被推翻五处**（「7 处变异 7/7 全红」实为 6/7、「n/3 两侧都钉住」实为零覆盖、「infrastructure 也被误伤」从来没有、「面板面积守恒」实测不守恒、「9 锚点全试过」没量连接线）——这类比功能缺陷更伤，会让下一轮站在假地基上。**每一句「已验证」都要真的当场跑一遍**，尤其是变异测试：把 _hard(msg, code) 的第二个参数删掉会 TypeError 崩，那种红不是检出，是崩。历轮反复出现的失败模式：判据去解析渲染结果、豁免 fail-open、**测试恰好绕开失效区**（第 16 轮的具体形态是「测试挑了 bug 不出现的那一档/那一侧」）、commit 里把部分完成写成完成。 第 17 轮又添两条教训：①**并发把自己的验收跑污染了**——门禁与矩阵基线同机同跑，报出 cn 18/26 与 1 条测试失败，单独重跑全是 26/26 / 409 passed；验收必须独占机器，否则会照着假红去改真代码。②**评审的定性和修法都要审**：codex 把「nature preset 叠 ieee 档后三项检查消失」定为致错并建议强制执行 Nature 条款，那会拿 Nature 的规矩硬拒一张 IEEE 明确允许的图，是造新硬拒；它引的 Nature 247mm 我核不到出处，也没采纳。",
+ "in_progress": {
+  "round": 16,
+  "状态": "修复已完成，卡在打分门槛（三家平均 >95 才算过）。未 push。",
+  "方式": "三家并行评审（codex gpt-5.6-sol/xhigh/goals、opus 子 agent、zcode GLM-5.3-Flash），各给一个 git worktree；主窗口逐条复现后才采纳，复现不出来的原样退回。修完再派同三家按同一张扣分表打分。",
+  "打分历史": [
+   "第一轮 5019911：codex 47",
+   "第二轮 5b5f717：codex 90 / opus 68",
+   "第三轮 83c4172：codex 失败（额度）",
+   "第四轮 8bcce1b：codex 67 / opus 85（两家独立命中同一条致错）",
+   "第五轮 eac7de3：进行中"
   ],
-  "pending": [
-    "打分门槛未过：codex 67 / opus 85（第四轮，8bcce1b）。第五轮在跑。",
-    "打磨级、已知未修：cn 档 demo 的统计框叠住 (a) 格灰色连接线约 44%（半透明、线可辨、数据点与直标未遮）——opus 第四轮指出，并同时指出主窗口「9 锚点全试过」那轮只量了压数据点与压直标、没量连接线",
-    "打磨级、边界：facet_metrics 数据跨度极小时 n=3 全 log 卡在 4.4% vs 4.5%，有 allow=('sparse_panel',) 出口，消息也写明了",
-    "**有意不改**：5 面板 × 10 汉字标题在 183mm 里放不下是构图问题，QA 报「收紧面板标题」是对的处置，已写成 test_facet_metrics_rejects_titles_too_long_for_the_panels 固定住，免得下次有人为了让它过而去动版面公式"
-  ],
-  "what": "figure-forge：给数学建模论文生成期刊级图表的 Python skill。core/ 五模块（style 样式档 cn|nature / colors / layout / annotate / qa 出图前自动检查，不过就抛错 / _probe 占用与像素探测）；recipes/ 每图种一个模板；tests/ pytest；文档 SKILL.md（agent 入口）+ SPEC.md（设计合同）+ reference/",
-  "baseline": {
-    "pytest": "240 passed",
-    "run_all_cn": "26/26 ALL PASS",
-    "run_all_nature": "26/26 ALL PASS",
-    "gallery": "与默认档一致（audit.py check 第 4 步会比对 PNG）"
-  },
-  "history": "已跑 16 轮。历轮最有效的方向是「用户视角实跑」和「交叉验证」（多模型并行）。第 16 轮新学到两条，比历轮任何一条都更该记住：①**修复自己引入回归**出现了七次（facet 矮下来后 suptitle 压标题 / 收敛标签改对方向后压刻度 / callout 换算只做入口 / 扩轴公式只对线性轴成立 / suptitle 用图分数 /去 re.I 放过大写 NAN / end_labels 排在扩轴之前），且**每次都是 QA 绿、靠目测或下一轮评审才发现**——所以「改完跑一遍 audit check 就交」是不够的，改了版面必须逐张放大目测。②**主窗口自己的声称被推翻五处**（「7 处变异 7/7 全红」实为 6/7、「n/3 两侧都钉住」实为零覆盖、「infrastructure 也被误伤」从来没有、「面板面积守恒」实测不守恒、「9 锚点全试过」没量连接线）——这类比功能缺陷更伤，会让下一轮站在假地基上。**每一句「已验证」都要真的当场跑一遍**，尤其是变异测试：把 _hard(msg, code) 的第二个参数删掉会 TypeError 崩，那种红不是检出，是崩。历轮反复出现的失败模式：判据去解析渲染结果、豁免 fail-open、**测试恰好绕开失效区**（第 16 轮的具体形态是「测试挑了 bug 不出现的那一档/那一侧」）、commit 里把部分完成写成完成。",
-  "in_progress": {
-    "round": 16,
-    "状态": "修复已完成，卡在打分门槛（三家平均 >95 才算过）。未 push。",
-    "方式": "三家并行评审（codex gpt-5.6-sol/xhigh/goals、opus 子 agent、zcode GLM-5.3-Flash），各给一个 git worktree；主窗口逐条复现后才采纳，复现不出来的原样退回。修完再派同三家按同一张扣分表打分。",
-    "打分历史": [
-      "第一轮 5019911：codex 47",
-      "第二轮 5b5f717：codex 90 / opus 68",
-      "第三轮 83c4172：codex 失败（额度）",
-      "第四轮 8bcce1b：codex 67 / opus 85（两家独立命中同一条致错）",
-      "第五轮 eac7de3：进行中"
-    ],
-    "本轮修完的大项": [
-      "公开 API 枚举参数无校验是**一类**缺陷（core 5 处 + recipes 3 处 + 长度 1 处），收到 core/style.py 的 _one_of() 唯一入口，配 _ENUM_CASES 表驱动回归。最重的是 parity(band=('relatve',…)) 拼错一个字母、写进论文的覆盖率从 98% 变 20%",
-      "N-5 收口：callout 拒非有限坐标、run_qa 新增 nonfinite_text 检查",
-      "单位换算必须贯穿到内部几何（callout 的 _auto_xytext/bg_luminance、end_labels），配 _NONNUM_CASES 表（16 条）",
-      "第 15 轮墨迹修复此前 0/7 变异被检出（两条测试一条名实不符、一条空断言），改成自校准（二分构造阈值 ×0.85 / ×1.15），现在 7/7 全红",
-      "demo/beat_baseline.py 两档都跑不起来且 15 轮来不在任何检查范围内 —— run_all 扫描扩到 demo/（25→26）",
-      "入库 gallery/ 实为 nature 产物而 README 承诺默认档可复现（39 张里 36 张对不上）—— audit 顺序改成 nature 先 cn 后、还原前先比对（只比 PNG），已按默认档重出",
-      "nature 24/25 → 26/26（14 轮来第一次两档全过）"
-    ]
-  }
+  "本轮修完的大项": [
+   "公开 API 枚举参数无校验是**一类**缺陷（core 5 处 + recipes 3 处 + 长度 1 处），收到 core/style.py 的 _one_of() 唯一入口，配 _ENUM_CASES 表驱动回归。最重的是 parity(band=('relatve',…)) 拼错一个字母、写进论文的覆盖率从 98% 变 20%",
+   "N-5 收口：callout 拒非有限坐标、run_qa 新增 nonfinite_text 检查",
+   "单位换算必须贯穿到内部几何（callout 的 _auto_xytext/bg_luminance、end_labels），配 _NONNUM_CASES 表（16 条）",
+   "第 15 轮墨迹修复此前 0/7 变异被检出（两条测试一条名实不符、一条空断言），改成自校准（二分构造阈值 ×0.85 / ×1.15），现在 7/7 全红",
+   "demo/beat_baseline.py 两档都跑不起来且 15 轮来不在任何检查范围内 —— run_all 扫描扩到 demo/（25→26）",
+   "入库 gallery/ 实为 nature 产物而 README 承诺默认档可复现（39 张里 36 张对不上）—— audit 顺序改成 nature 先 cn 后、还原前先比对（只比 PNG），已按默认档重出",
+   "nature 24/25 → 26/26（14 轮来第一次两档全过）"
+  ]
+ }
 }

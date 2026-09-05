@@ -198,11 +198,17 @@ def cmd_check():
     # 完全不在审查门禁内——门禁盖不住的测试等于没有门禁，而这个工具的
     # 全部价值就是别让我把部分完成写成完成。zcode 在 P1/P2 交付时如实
     # 报了这个缺口。
-    r = _run("python -m pytest tests/ -q")
-    tail = [l for l in r.stdout.strip().split("\n") if l.strip()][-1:]
-    print("     ", *tail)
+    # -rf：失败时把「哪一条」打出来。此前只印汇总行，于是第 17 轮出现的
+    # 那条「只在 audit 里红、单跑 pytest 又全绿」的间歇失败，两次都抓不到
+    # 名字——报了「1 failed」却说不出是谁，等于没报。
+    r = _run("python -m pytest tests/ -q -rf")
+    lines = [l for l in r.stdout.strip().split(chr(10)) if l.strip()]
+    print("     ", *lines[-1:])
     if r.returncode:
         bad += 1
+        for l in lines:
+            if l.startswith(("FAILED", "ERROR")):
+                print("      ★", l[:150])
 
     # nature 先跑、cn **后**跑。此前顺序相反，nature 的产物覆盖掉 cn 的，
     # 于是「谁最后 commit 谁定档」——入库的 gallery/ 实际是 nature 产物，
